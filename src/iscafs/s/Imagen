@@ -149,7 +149,9 @@ FNdt("  r1 (my file handle) = %1x8")
 ._error_return
 	MOV	r2,r6
 	BL	Memory_Free
-	FNpreturn			; ok because R0 isn't stacked
+	CMP	R0,#&80000000	; re-set V because BL might have cleared it
+	CMNVC	R0,#&80000000
+	FNreturnAsIs
 
 ._bad_image
 FNdt("<<! Image_Mount (bad image)")
@@ -192,7 +194,7 @@ FNdt("_pseudo_image")
 	MOVVC	r3,#22			; max bytes to read
 	MOVVC	r4,#24
 	SWIVC	"XOS_GBPB"
-	FNpcreturn("VS")		; ok because R0 isn't stacked
+	FNreturnOnErr
 	MOV	r0,#18
 	ADR	r1,_filecore
 	SWI	"XOS_Module"
@@ -286,9 +288,7 @@ FNdt("  r6 (MDB) = %6x8")
 	LDR	r1,[r6,#mnt_filehandle%]
 	SWI	"XOS_GBPB"
 FNdtc(vc, "<<< Image_ReadBytes_File")
-	FNpcreturn("VC")		; changed creturn to pcreturn
-FNdt("<<! Image_ReadBytes_File (OS_GBPB failed)")
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .Image_ReadBytes_Partition
@@ -337,9 +337,7 @@ FNdt("  r6 (MDB) = %6x8")
 	SWI	X+FileCore_SectorOp
 	MOVVC	r3,r4
 FNdtc(vc, "<<< Image_ReadBytes_Partition")
-	FNpcreturn("VC")		; changed creturn to pcreturn
-FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 ._oldfilecore
 	ADD	r7,r4,r2
@@ -348,9 +346,7 @@ FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
 	SWI	"XFileCore_DiscOp"
 	MOVVC	r3,r4
 FNdtc(vc, "<<< Image_ReadBytes_Partition")
-	FNpcreturn("VC")		; changed creturn to pcreturn
-FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 ._sector_out_of_range
 FNdt("<<! Image_ReadBytes_Partition (sector out of range)")
@@ -379,9 +375,7 @@ FNdt("  r6 (MDB) = %6x8")
 	LDR	r1,[r6,#mnt_filehandle%]
 	SWI	"XOS_GBPB"
 FNdtc(vc, "<<< Image_WriteBytes_File")
-	FNpcreturn("VC")		; changed creturn to pcreturn
-FNdt("<<! Image_WriteBytes_File (OS_GBPB failed)")
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 ; commented out as it wasn't referenced
@@ -402,20 +396,16 @@ FNdt("<<! Image_WriteBytes_File (OS_GBPB failed)")
 ;; On exit:
 ;;------------------------
 ;FNdt("<<! Image_WriteBytes_Partition (we don't do this yet)")
-;	CMP	R0,#&80000000		; added to make 32-bit-clean
-;	CMNVC	R0,#&80000000		; added to make 32-bit-clean
-;	ADD	r0,pc,#0
-;	MOV	PC,R14			; added to make 32-bit-clean
+;	ADD	r0,pc,#0		; added to make 32bit-safe
+;	B	SetVFlagAndMovPcR14
 ;	EQUD	0
 ;	EQUS	"Partition writing is not yet implemented."+CHR$0:FNalign
 
 
 .Image_WriteBytes_ReadOnly
 FNdt("!!! Image_WriteBytes_ReadOnly (we can't write anything)")
-	CMP	R0,#&80000000		; added to make 32-bit-clean
-	CMNVC	R0,#&80000000		; added to make 32-bit-clean
-	ADD	r0,pc,#0
-	MOV	PC,R14			; added to make 32-bit-clean
+	ADD	r0,pc,#0		; added to make 32bit-safe
+	B	SetVFlagAndMovPcR14
 	EQUD	0
 	EQUS	"This partition/image is mounted read-only."+CHR$0:FNalign
 
@@ -464,7 +454,7 @@ FNdt(">>> Image_IdentifyDisc")
 	ADD	r2,r2,#1024		; disc address
 	LDR	r3,[r12,#buffer]
 	SWI	"XFileCore_DiscOp"
-	BVS	_return_error
+	FNreturnOnErr
 	LDR	r4,[r12,#buffer]
 	LDR	r2,[r4,#s_magic%-superblock%]
 	MOV	r2, r2, LSL #16
@@ -510,10 +500,6 @@ FNdt(">>> Image_IdentifyDisc")
 	STR	r2,[r5,#32]		; filetype given to disc
 FNdt("<<< Image_IdentifyDisc")
 	MOV	pc,r14			; changed MOVS to MOV
-
-._return_error
-FNdt("<<! Image_IdentifyDisc (error)")
-	FNreturnKeepR0andV
 
 ._format_name
 	EQUS	format_name$+CHR$0:FNalign
@@ -629,7 +615,7 @@ FNdt("  r2 (buffer for map) = %2x8")
 FNdt("  r5 (size of buffer) = %5i4")
 FNdt("  r6 (MDB) = %6x8")
 ;------------------------
-; Read the used space bitmap of the given image.
+; Read the used space bitmap of the given image (we don't do this yet).
 ;------------------------
 ; On entry:
 ;	r2  =	pointer to buffer for map (filled with 0s)
@@ -638,10 +624,7 @@ FNdt("  r6 (MDB) = %6x8")
 ; On exit:
 ;	r0-r2, r5, r6 preserved
 ;------------------------
-	FNfunction("")
-
-FNdt("<<< Image_ReadUsedSpaceMap (we don't do this yet)")
-	FNreturnClean
+	B	IE_Error_Unsupported
 
 
 ; new code for reading boot option

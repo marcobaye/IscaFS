@@ -17,7 +17,7 @@
 	mov	r0,r0				; magic word
 	teq	r1,#Service_FSReinit		; &40
 	teqne	r1,#Service_IdentifyDisc	; &69
-	movne	pc,r14				; 32-bit
+	movne	pc,r14				; 32bit-safe
 .Module_ServiceKnown
 	teq	r1,#Service_IdentifyDisc
 	ldr	r12,[r12]
@@ -34,8 +34,7 @@ FNdt(">>> FS_Declare")
 	mov	r3,r12
 	swi	"XOS_FSControl"
 FNdt("<<< FS_Declare")
-	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .Module_Initialise
@@ -51,7 +50,7 @@ FNdt("<<< FS_Declare")
 	MOVVC	r12,r2
 	ADDVC	r0,r2,#malloc_tabbase%
 	SWIVC	X+MAlloc_Vectors
-	FNpcreturn("VS")		; ok because R0 isn't stacked
+	FNreturnOnErr
 	MOV	r0,#0
 	MOV	r1,#len_workspace%
 ._lp
@@ -163,3 +162,6 @@ FNdt("%f")
 	EQUD	File_Close	- Module_Base
 	EQUD	IE_File		- Module_Base
 	EQUD	IE_Func		- Module_Base
+
+
+FNhereBeCode2setV		; error maker tail

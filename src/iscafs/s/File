@@ -47,43 +47,6 @@ FNdt(">>> File_FiletypeFromLeafname")
 	FNreturnClean
 
 
-; no longer needed
-;.File_FiletypeFromLeafnameOld
-;FNdt(">>> File_FiletypeFromLeafnameOld")
-;FNdt("  r1 (leafname) = %1z")
-;;------------------------
-;; Work out the filetype of a file from its leafname
-;;------------------------
-;; On entry:
-;;	r1  =	pointer to leafname
-;; On exit:
-;;	r1  =	filetype (default fff)
-;;------------------------
-;	FNfunction("r0,r2")
-;._lp
-;	LDRB	r0,[r1],#1
-;	TEQ	r0,#0
-;	BEQ	_return_default
-;	TEQ	r0,#ASC","
-;	BNE	_lp
-;	LDRB	r0,[r1,#3]		; only 3 chars?
-;	TEQ	r0,#0
-;	BNE	_lp
-;	MOV	r0,#16
-;	ORR	r0,r0,#1<<29		; must be in range 0->r2
-;	FNmovc(2,&fff)
-;	SWI	"XOS_ReadUnsigned"
-;	MOVVC	r1,r2			; value
-;FNdtc(vc, "<<< File_FiletypeFromLeafnameOld")
-;FNdtc(vc, "  r1 (filetype) = %1x8")
-;	FNpcreturn("VC")		; changed creturn to pcreturn
-;._return_default
-;	FNmovc(1,&fff)
-;FNdt("<<< File_FiletypeFromLeafnameOld (default)")
-;FNdt("  r1 (filetype) = %1x8")
-;	FNreturnClean
-
-
 .File_CatalogueInfoFromInode
 FNdt(">>> File_CatalogueInfoFromInode")
 FNdt("  r0 (inode block ptr) = %0x8")
@@ -200,8 +163,7 @@ FNdt("  r6 (MDB) = %6x8")
 	MOV	r0,r1
 ; check for "not found" condition
 	BL	Cache_FindInode		; r0 = inode number (0 if not found)
-	; check for real errors
-	FNpcreturn("VS")		; ok because R0 isn't stacked
+	FNreturnOnErr			; any real error?
 	TEQ	r0,#0			; check for "not found" condition
 	FNpcreturn("EQ")		; is ok because V is clear
 	BL	Cache_GetInodePointer
@@ -214,9 +176,7 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	BLVC	Cache_InodeModified
 FNdtc(vc, "<<< File_WriteCatalogueInfo")
-	FNpreturn			; ok because R0 isn't stacked
-;FNdt("<<! File_WriteCatalogueInfo (Cache_InodeModified returned V set)")
-;	FNreturnKeepR0andV
+	FNreturnAsIs
 #endif
 
 
@@ -241,8 +201,7 @@ FNdt("  r6 (MDB) = %6x8")
 	MOV	r0,r1
 ; check for "not found" condition
 	BL	Cache_FindInode		; r0 = inode number (0 if not found)
-	; check for real errors
-	FNpcreturn("VS")		; ok because R0 isn't stacked
+	FNreturnOnErr			; any real error?
 	TEQ	r0,#0			; check for "not found" condition
 	FNpcreturn("EQ")		; is ok because V is clear
 	BL	Cache_GetInodePointer
@@ -253,9 +212,7 @@ FNdt("  r2 (load address) = %2x8")
 FNdt("  r3 (exec address) = %3x8")
 FNdt("  r4 (length) = %4i4")
 FNdt("  r5 (attributes) = %5x8")
-	FNpreturn			; ok because R0 isn't stacked
-;FNdt("<<! File_ReadCatalogueInfo (something returned an error)")
-;	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .File_Open
@@ -284,14 +241,15 @@ FNdt("  r6 (MDB) = %6x8")
 ; extra checking for that case (indicated by r0=0). By the way, FileSwitch
 ; says it doesn't let this happen at this point. Just making sure.
 	BL	Cache_FindInode		; r0 = inode number (0 if not found)
-	FNpcreturn("VS")		; ok because R0 isn't stacked
+	FNreturnOnErr
 	TEQ	r0,#0
 	MOVEQ	r1,#0			; if not found, return "not found"
 	FNpcreturn("EQ")		; is ok because V is clear
 	MOV	r7,r0			; I'll need the inode number later
 	MOV	r9,r1			; store filetype
 	BL	Cache_GetInodePointer
-	BVS	_cache_error		; added to make 32-bit-clean
+	MOVVS	r1,#0			; on cache miss, return "not found" (huh?)
+	BVS	_cache_error		; added to make 32bit-safe
 	LDR	r8,[r0,#i_mode%]
 	AND	r14,r8,#i_flags_link%
 	TEQ	r14,#i_flags_link%
@@ -336,11 +294,7 @@ FNdt("  r1 (my file handle) = %1x8")
 FNdt("  r2 (buffer size for fileswitch) = %2i4")
 FNdt("  r3 (file extent) = %3i4")
 FNdt("  r4 (space allocated to file) = %4i4")
-	FNreturnClean
-
-; moved here to make 32-bit-clean
 ._cache_error
-	MOV	r1,#0			; on cache miss, return "not found" (huh?)
 	FNreturnClean
 
 ._symbolic_link
@@ -376,8 +330,7 @@ FNdt("  r3 (new exec addr) = %3x8")
 	MOV	r2,r1
 	BL	Memory_Free
 FNdt("<<< File_Close")
-	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .File_GetBytes
@@ -422,7 +375,7 @@ FNdt("  r4 (file offset) = %4i4")
 	ADD	r7,r7,#1
 	MOV	r1,r5
 	BL	Cache_BlockFromInode
-	BVS	_gerror
+	FNreturnOnErr
 	ADD	r0,r0,r4		; add initial offset, then reset it to
 	SUB	r2,r1,r0		; amount of block available
 ;P incorrect instruction removed from here - would have screwed up large-block
@@ -437,7 +390,3 @@ FNdt("  r4 (file offset) = %4i4")
 	BGT	_loop			; loop back if I want more bytes
 FNdt("<<< File_GetBytes")
 	FNreturnClean
-
-._gerror
-FNdt("<<! File_GetBytes (error)")
-	FNreturnKeepR0andV

@@ -84,20 +84,14 @@
 
 
 .IE_Error_ReadOnly
-	ADR	r0,_error_readonly
-	B	_make_error
-
-.IE_Error_Unsupported
-	ADR	r0,_error_unsupp
-._make_error
-	CMP	R0,#&80000000		; works in both 26/32 mode
-	CMNVC	R0,#&80000000
-	MOV	PC,R14
-
-._error_unsupp
-	EQUD	0
-	EQUS	"This operation is not supported by IscaFS."+CHR$0:FNalign
-
-._error_readonly
+	ADD	r0,pc,#0
+	B	SetVFlagAndMovPcR14
 	EQUD	0
 	EQUS	"Filing system is read-only."+CHR$0:FNalign
+
+
+.IE_Error_Unsupported
+	ADD	r0,pc,#0
+	B	SetVFlagAndMovPcR14
+	EQUD	0
+	EQUS	"This operation is not supported by IscaFS."+CHR$0:FNalign

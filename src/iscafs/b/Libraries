@@ -1,4 +1,5 @@
 LIBRARY "<PCFNLib$Dir>.BasAsm.ARMFuncs"
+LIBRARY "<PCFNLib$Dir>.BasAsm.ARMFuncsMB"
 LIBRARY "<PCFNLib$Dir>.BasAsm.SWINums"
 LIBRARY "<PCFNLib$Dir>.BasAsm.Workspace"
 LIBRARY "<PCFNLib$Dir>.BasAsm.AsmConsts"

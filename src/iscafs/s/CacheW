@@ -36,11 +36,10 @@ FNdt("  r5 (cache entry ptr) = %5x8")
 	MOV	r4,r4,LSL r1
 	BL	Image_WriteBytes_File
 FNdt("<<< Cache_FlushBlock")
-	BVS	_gerror
+	FNreturnAsIs
+
 ._clean_exit
 	FNreturnClean
-._gerror
-	FNreturnKeepR0andV
 
 
 .Cache_ClaimBlocks
@@ -149,7 +148,7 @@ FNdt("<<< Cache_FlushBlock")
 	BEQ	_return_blocks_dirty
 	CMP	R0, R0			; added to clear V
 	MOV	pc,r14			; changed MOVS to MOV
-; FIXME - shouldn't FNpreturn or something be used?
+; FIXME - shouldn't FNreturnAsIs or something be used?
 
 ._return_blocks_dirty
 	STRB	r2,[r0]			; write out dirtied bitmap byte
@@ -180,7 +179,7 @@ FNdt("<<< Cache_FlushBlock")
 	EQUD	0
 
 ._error_not_enough_blocks
-	FNreturnError(""Not enough free space on filesystem.")
+	FNreturnError("Not enough free space on filesystem.")
 
 
 .Cache_FreeBlocks
@@ -194,10 +193,7 @@ FNdt("<<< Cache_FlushBlock")
 ; On exit:
 ;	ARP
 ;------------------------
-;	FNfunction("r0-r5")		commented out because useless
-;	FNreturnClean
-	CMP	R0,R0			; clear V
-	MOV	PC,R14			; faster ;)
+	B	IE_Error_ReadOnly
 
 
 .Cache_InodeModified
@@ -225,7 +221,7 @@ FNdt("<<< Cache_FlushBlock")
 ;	STR	r0,[r1,#block_flags%]
 	FNreturnClean
 ._error_partition
-	FNreturnError(""You cannot currently write to partitions.")
+	FNreturnError("You cannot currently write to partitions.")
 
 
 .Cache_CreateInode
@@ -275,7 +271,7 @@ FNdt("<<< Cache_FlushBlock")
 	MUL	r4,r5,r4		; base number of first inode in group
 
 	BL	Cache_GetBlock
-	BVS	_return_error
+	FNreturnOnErr
 	MOV	r3,r0
 ._lp
 	LDRB	r14,[r3],#1
@@ -302,9 +298,7 @@ FNdt("<<< Cache_FlushBlock")
 	MOVVC	r2,r8
 	BLVC	Cache_EnsureInodeSize
 	MOVVC	r0,r4
-	FNpcreturn("VC")		; changed creturn to pcreturn
-._return_error
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .Cache_DeleteInode
@@ -428,12 +422,11 @@ FNdt("<<< Cache_FlushBlock")
 	STR	r14,[r0,#i_blocks%]
 	STR	r2,[r13,#4*2]		; return new size allocated to inode
 
-
 ._clean_exit
 	FNreturnClean
 
 ._not_enough_blocks
-	FNreturnError(""Not enough free space.")
+	FNreturnError("Not enough free space.")
 
 
 .Cache_BlockToInode

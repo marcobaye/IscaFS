@@ -54,7 +54,7 @@ FNdt("  r11 (subroutine) = %11x8")
 	MOV	r9,r2			; store user reg in safe place
 	MOV	r10,r1			; start offset
 	BL	Cache_GetInodePointer	; r0 = inode pointer
-	BVS	_gerror
+	FNreturnOnErr
 	LDR	r1,[r12,#buffer2]
 	MOV	r2,#len_inode%
 	BL	Memory_BlockCopy
@@ -68,7 +68,7 @@ FNdt("  r11 (subroutine) = %11x8")
 	MOV	r7,#2*(4+len_dirent%)	; omit . and ..
 	MOV	r0,r8			; get first block
 	BL	Cache_BlockFromInode
-	BVS	_gerror
+	FNreturnOnErr
 	CMP	r0,#0
 	BLT	_last_item_read
 	SUB	r2,r1,r0
@@ -131,7 +131,7 @@ FNdt("_subroutine_failed")
 	ADD	r8,r8,#1
 	MOV	r0,r8
 	BL	Cache_BlockFromInode
-	BVS	_gerror
+	FNreturnOnErr
 	CMP	r0,#0
 	BLT	_last_item_read
 	SUB	r2,r1,r0		; copy this into a safe place
@@ -141,9 +141,6 @@ FNdt("_subroutine_failed")
 	MOV	r7,#0			; offset from start of block is 0
 	ADD	r1,r1,r2
 	B	_return_from_get_new_block
-
-._gerror
-	FNreturnKeepR0andV
 
 
 .Directory_ReadEntries
@@ -186,7 +183,7 @@ FNdt("  r6 (MDB) = %6x8")
 ; it must be checked for here instead.
 	BL	Cache_FindInode		; r0 = inode number (0 if not found)
 	; check for real errors
-	FNpcreturn("VS")		; ok because R0 isn't stacked
+	FNreturnOnErr
 	TEQ	r0,#0			; check for "not found" condition
 	BEQ	_not_found
 	MOV	r1,r4
@@ -197,11 +194,7 @@ FNdt("  r6 (MDB) = %6x8")
 FNdt("<<< Directory_ReadEntries")
 FNdt("  r3 (number read) = %3i4")
 FNdt("  r4 (new offset) = %4i4")
-;	FNcreturn("VC")			commented out
-	FNpreturn			; ok because R0 isn't stacked
-
-;FNdt("  V was set - something went wrong.")
-;	FNpreturn
+	FNreturnAsIs
 
 ._not_found
 	FNreturnError("Object not found.")

@@ -23,9 +23,7 @@ FNdt(">>> Memory_Initialise")
 	SWI	X+MAlloc_Initialise
 	STRVC	r0,[r12,#heap]
 FNdtc(vc, "<<< Memory_Initialise")
-;	FNcreturn("VC")			commented out
-;FNdt("<<! Memory_Initialise (error)")
-	FNpreturn			; ok because R0 isn't stacked
+	FNreturnAsIs
 ._name
 	EQUS	"IscaFS cache"+CHR$0:FNalign
 
@@ -36,8 +34,7 @@ FNdt(">>> Memory_Finalise")
 	LDR	r1,[r12,#heap]
 	SWI	X+MAlloc_Finalise
 FNdt("<<< Memory_Finalise")
-	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .Memory_Claim
@@ -51,8 +48,7 @@ FNdt("  r3 (size) = %3i4")
 	LDR	pc,[r12,#malloc_claim%]
 FNdt("<<< Memory_Claim")
 FNdt("  r2 (block) = %2x8")
-	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .Memory_Resize
@@ -66,8 +62,7 @@ FNdt("  r3 (new size) = %3i4")
 	ldr	pc,[r12,#malloc_resize%]
 FNdt("<<< Memory_Resize")
 FNdt("  r2 (block) = %2x8")
-	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .Memory_ClaimZero
@@ -81,7 +76,7 @@ FNdt("  r3 (size) = %3i4")
 	MOV	r14,pc
 	LDR	pc,[r12,#malloc_claim%]
 FNdtc(vs, "<<! Memory_Claim (error)")
-	BVS	_gerror		; added to make 32-bit-clean
+	FNreturnOnErr
 	mov	r0,#0
 ._lp
 	subs	r3,r3,#4
@@ -90,9 +85,6 @@ FNdtc(vs, "<<! Memory_Claim (error)")
 FNdt("<<< Memory_Claim")
 FNdt("  r2 (block) = %2x8")
 	FNreturnClean
-
-._gerror
-	FNreturnKeepR0andV
 
 
 .Memory_Free
@@ -105,8 +97,7 @@ FNdt("  r2 (block) = %2x8")
 	MOVNE	r14,pc
 	LDRNE	pc,[r12,#malloc_free%]
 FNdt("<<< Memory_Free")
-	FNpcreturn("VC")	; r0 stacked, so both needed
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .Memory_Shrink
@@ -115,8 +106,7 @@ FNdt(">>> Memory_Shrink")
 	LDR	r1,[r12,#heap]
 	SWI	X+MAlloc_Shrink
 FNdt("<<< Memory_Shrink")
-	FNpcreturn("VC")	; r0 stacked, so both needed
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 ]
@@ -132,17 +122,14 @@ FNdt("Memory_Initialise")
 	FNfunction("r0-r3")
 	MOV	R0,#6
 	MOV	R3,#4096
-	SWI	"XOS_Module"	; added X bit and BVS
-	BVS	_gerror
-	MOV	R0,#0
-	STR	R0,[R2]
-	STR	R2,[R12,#heap]
-	ADD	R1,R2,#4
-	SUB	R3,R3,#8
-	SWI	"XOS_Heap"	; added X bit
-	FNpcreturn("VC")	; changed return to pcreturn
-._gerror
-	FNreturnKeepR0andV
+	SWI	"XOS_Module"		; added X bit
+	MOVVC	R0,#0
+	STRVC	R0,[R2]
+	STRVC	R2,[R12,#heap]
+	ADDVC	R1,R2,#4
+	SUBVC	R3,R3,#8
+	SWIVC	"XOS_Heap"		; added X bit
+	FNreturnAsIs
 
 
 .Memory_Finalise
@@ -202,7 +189,7 @@ FNdt("Memory_ClaimZero")
 	add	r3,r3,#3	; This is an absolute requirement for zeroing.
 	bic	r3,r3,#3
 	bl	Memory_Claim
-	BVS	_gerror		; added to make 32-bit-clean
+	FNreturnOnErr
 	mov	r0,#0
 ._lp
 	subs	r3,r3,#4
@@ -210,18 +197,15 @@ FNdt("Memory_ClaimZero")
 	bgt	_lp
 	FNreturnClean
 
-._gerror
-	FNreturnKeepR0andV
-
 
 .Memory_Resize
 FNdt("Memory_Resize")
 	FNfunction("r0,r1")
+	CMP	R0,R0		; clears V
 	teq	r2,#0
 	blne	Memory_Free
 	blvc	Memory_Claim	; added VC condition
-	FNpcreturn("VC")	; r0 stacked, so both needed
-	FNreturnKeepR0andV
+	FNreturnAsIs
 
 
 .Memory_Free
@@ -235,7 +219,6 @@ FNdt("Memory_Free")
 	BVC	_memory_free_exit
 	MOVS	R1,R10
 	BNE	_memory_free_loop
-
 ._memory_free_exit
 	FNreturnClean
 

@@ -23,14 +23,14 @@ FNdt("  r0 (number of blocks per cache entry) = %0i4")
 ; Claim memory for the cache control block.
 	FNmovc(3, len_cachectrl% << config_cachehashbits%)
 	bl	Memory_Claim
-	FNpcreturn("VS")	; ok because R0 isn't stacked
+	FNreturnOnErr
 	mov	r0,r2
 ;------------------------
 ; Claim memory for the cache entries.
 	mov	r4,r6,lsl #shift_cacheent%
 	mov	r3,r4,lsl #config_cachehashbits%
 	bl	Memory_ClaimZero
-	FNpcreturn("VS")	; ok because R0 isn't stacked
+	FNreturnOnErr
 ;------------------------
 ; Set up and execute loop to fill up cache control blocks.
 	mov	r5,#1 << config_cachehashbits%
@@ -60,18 +60,12 @@ FNdt(">>> Cache_Initialise")
 ; Set up the A and B cache control blocks.
 	mov	r0,#config_blocksA%
 	bl	Cache_CreateCache
-	bvs	_gerror
-	str	r0,[r12,#blocktableA]
-	mov	r0,#config_blocksB%
-	bl	Cache_CreateCache
-	bvs	_gerror
-	str	r0,[r12,#blocktableB]
+	strvc	r0,[r12,#blocktableA]
+	movvc	r0,#config_blocksB%
+	blvc	Cache_CreateCache
+	strvc	r0,[r12,#blocktableB]
 FNdt("<<< Cache_Initialise")
-	FNreturnClean
-
-._gerror
-	FNreturnKeepR0andV
-
+	FNreturnAsIs
 
 
 .Cache_FindBlockInCache
@@ -131,11 +125,8 @@ FNdt("  r6 (MDB) = %6x8")
 ; On exit:
 ;	All registers preserved.
 ;------------------------
-;	FNfunction("r2-r11")		; commented out
 ;FNdt("<<< Cache_CleanBlock")
-;	FNreturnClean
-	CMP	R0,R0			; clears V
-	MOV	PC,R14
+	B	IE_Error_ReadOnly
 
 
 .Cache_GetBlock
@@ -228,7 +219,7 @@ FNdt("  r1 (cache entry) = %1x8")
 	mov	r2,#0
 ._claim_target_block
 	bl	Memory_Resize	; Claim new block (right size!).
-	bvs	_gerror		; !!! Handle this more gracefully.
+	FNreturnOnErr		; !!! Handle this more gracefully.
 	str	r2,[r4,#cacheent_pointer%]
 ._existing_block_ok
 ;------------------------
@@ -254,9 +245,6 @@ FNdt("<<< Cache_GetBlock")
 FNdt("  r0 (block pointer) = %0x8")
 FNdt("  r1 (cache entry) = %1x8")
 	FNreturnClean
-
-._gerror
-	FNreturnKeepR0andV
 
 ._read_from_hole
 ;------------------------
@@ -318,7 +306,7 @@ FNdtc(eq, "  r1 (filetype) = %1x8")
 	ADR	r11,_match_leaf
 	BL	Directory_Scan
 FNdtc(vs, "<<! Cache_FindInode (Directory_Scan failed)")
-	FNpcreturn("VS")		; ok because R0 isn't stacked
+	FNreturnOnErr
 	MOV	r1,r3			; filetype
 	TEQ	r2,#0
 	BEQ	_not_found
@@ -392,10 +380,6 @@ FNdt("_match_leaf")
 	ORR	r3,r3,r4,LSL #8
 	ORR	r3,r3,r5,LSL #16
 ; moved 4-char-string-buffer to workspace
-; old:
-;	STR	r3,_buff
-;	ADR	r1,_buff
-; new:
 	STR	r3,[r12,#threehex]
 	ADD	r1,r12,#threehex
 
@@ -417,9 +401,6 @@ FNdt("_match_leaf")
 	MVN	r0,#0
 	FNlmov(3,filetype_default%)
 	FNreturnClean
-; commented out, module uses workspace instead
-;._buff
-;	EQUD	0
 
 
 .Cache_GetInodePointer
@@ -461,8 +442,7 @@ FNdt("  r6 (MDB) = %6x8")
 	ADDVC	r0,r0,r2,LSL #7		; inode offset in block
 FNdt("<<< Cache_GetInodePointer")
 FNdt("  r0 (inode structure) = %0x8")
-;	FNcreturn("VC")			commented out
-	FNpreturn			; ok because R0 isn't stacked
+	FNreturnAsIs
 
 
 .Cache_BlockFromInode
@@ -488,7 +468,7 @@ FNdt("  r6 (MDB) = %6x8")
 	MOV	r3,r3,LSL r2
 	BL	Cache_BlockNumberFromInode
 FNdtc(vs, "<<! Cache_BlockFromInode (Cache_BlockNumberFromInode failed)")
-	FNpcreturn("VS")		; ok because R0 isn't stacked
+	FNreturnOnErr
 	CMP	r0,#0
 FNdtc(lt, "<<? Cache_BlockFromInode (negative block pointer)")
 	BLT	_clean_exit		; changed creturn to BNE
@@ -543,8 +523,7 @@ FNdt("  r0 (block number) = %0i4")
 	LDRVC	r0,[r0,r4,LSL #2]
 FNdt("<<< Cache_BlockNumberFromInode (indirected block)")
 FNdt("  r0 (block number) = %0i4")
-;	FNcreturn("VC")			commented out
-	FNpreturn			; ok because R0 isn't stacked
+	FNreturnAsIs
 
 ._sub_sub_block
 	SUB	r4,r4,r3
@@ -560,8 +539,7 @@ FNdt("  r0 (block number) = %0i4")
 	LDRVC	r0,[r0,r4,LSL #2]
 FNdt("<<< Cache_BlockNumberFromInode (doubly indirected block)")
 FNdt("  r0 (block number) = %0i4")
-;	FNcreturn("VC")			commented out
-	FNpreturn			; ok because R0 isn't stacked
+	FNreturnAsIs
 
 ._sub_sub_sub_block
 	SUB	r4,r4,r3
@@ -579,8 +557,7 @@ FNdt("  r0 (block number) = %0i4")
 	LDRVC	r0,[r0,r4,LSL #2]
 FNdt("<<< Cache_BlockNumberFromInode (triply indirected block)")
 FNdt("  r0 (block number) = %0i4")
-;	FNcreturn("VC")			commented out
-	FNpreturn			; ok because R0 isn't stacked
+	FNreturnAsIs
 
 ._no_such_block
 FNdt("<<? Cache_BlockNumberFromInode (unknown block)")

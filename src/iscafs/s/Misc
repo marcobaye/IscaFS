@@ -51,7 +51,7 @@ FNdt("<<< Divide")
 FNdt("  r0 (r2 DIV r3) = %0i4")
 FNdt("  r2 (r2 MOD r3) = %2i4")
 ._clean_exit
-	FNreturnClean	; unfortunately, this cannot be done conditionally
+	FNreturnClean
 
 ._DivisionByZero
 FNdt("<<! Divide (division by zero)")
