@@ -154,8 +154,25 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("")
 	MOV	r0,r1
-	BL	Cache_FindInode
-	BLVC	Cache_GetInodePointer
+; old:
+;	BL	Cache_FindInode
+;	BLVC	Cache_GetInodePointer
+;;------------------------
+;; for now, just write load and exec addresses
+;	MOV	r14,#&35		; special byte
+;	STRB	r14,[r0,#i_loadexecflag%]
+;	STRVC	r2,[r0,#i_loadaddr%]
+;	STRVC	r3,[r0,#i_execaddr%]
+;;------------------------
+;	BLVC	Cache_InodeModified
+FNdtc(vc, "<<< File_WriteCatalogueInfo")
+	FNcreturn("VC")
+; new:
+	BL	Cache_FindInode		; r0 = inode number (0 if not found)
+	BVS	_some_other_error	; check for real errors
+	TEQ	r0,#0			; check for "not found" condition
+	FNcreturn("EQ")
+	BL	Cache_GetInodePointer
 ;------------------------
 ; for now, just write load and exec addresses
 	MOV	r14,#&35		; special byte
@@ -166,6 +183,8 @@ FNdt("  r6 (MDB) = %6x8")
 	BLVC	Cache_InodeModified
 FNdtc(vc, "<<< File_WriteCatalogueInfo")
 	FNcreturn("VC")
+._some_other_error
+
 FNdt("<<! File_WriteCatalogueInfo (Cache_InodeModified returned V set)")
 	FNgerror
 #endif
@@ -190,8 +209,23 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("")
 	MOV	r0,r1
-	BL	Cache_FindInode
-	BLVC	Cache_GetInodePointer
+; old:
+;	BL	Cache_FindInode
+;	BLVC	Cache_GetInodePointer
+;	BLVC	File_CatalogueInfoFromInode
+;FNdt("<<< File_ReadCatalogueInfo")
+;FNdt("  r0 (object type) = %0i4")
+;FNdt("  r2 (load address) = %2x8")
+;FNdt("  r3 (exec address) = %3x8")
+;FNdt("  r4 (length) = %4i4")
+;FNdt("  r5 (attributes) = %5x8")
+;	FNcreturn("VC")
+; new:
+	BL	Cache_FindInode		; r0 = inode number (0 if not found)
+	BVS	_some_other_error2	; check for real errors
+	TEQ	r0,#0			; check for "not found" condition
+	FNcreturn("EQ")
+	BL	Cache_GetInodePointer
 	BLVC	File_CatalogueInfoFromInode
 FNdt("<<< File_ReadCatalogueInfo")
 FNdt("  r0 (object type) = %0i4")
@@ -200,6 +234,8 @@ FNdt("  r3 (exec address) = %3x8")
 FNdt("  r4 (length) = %4i4")
 FNdt("  r5 (attributes) = %5x8")
 	FNcreturn("VC")
+._some_other_error2
+
 FNdt("<<! File_ReadCatalogueInfo (something returned an error)")
 	FNgerror
 
@@ -225,12 +261,28 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("r5-r9")
 	MOV	r0,r1
-	BL	Cache_FindInode
-	BVS	_not_found
+; Cache_FindInode no longer returns errors upon "object not found". So, add
+; extra checking for that case (indicated by r0=0). By the way, FileSwitch
+; says it doesn't let this happen at this point. Just making sure.
+; old:
+;	BL	Cache_FindInode
+;	BVS	_not_found
+;	MOV	r7,r0			; I'll need the inode number later
+;	MOV	r9,r1			; store filetype
+;	BL	Cache_GetInodePointer
+;	BVS	_not_found
+; new:
+	BL	Cache_FindInode		; r0 = inode number (0 if not found)
+	FNpcreturn("VS")
+	TEQ	r0,#0
+	MOVEQ	r1,#0			; if not found, return "not found"
+	FNcreturn("EQ")
 	MOV	r7,r0			; I'll need the inode number later
 	MOV	r9,r1			; store filetype
 	BL	Cache_GetInodePointer
-	BVS	_not_found
+	MOVVS	r1,#0			; on error, return "not found" (huh?)
+	FNcreturn("VS")
+
 	LDR	r8,[r0,#i_mode%]
 	AND	r14,r8,#i_flags_link%
 	TEQ	r14,#i_flags_link%
@@ -270,11 +322,6 @@ FNdt("  r1 (my file handle) = %1x8")
 FNdt("  r2 (buffer size for fileswitch) = %2i4")
 FNdt("  r3 (file extent) = %3i4")
 FNdt("  r4 (space allocated to file) = %4i4")
-	FNreturn
-
-._not_found
-FNdt("<<< File_Open (file not found)")
-	MOV	r0,#0
 	FNreturn
 
 ._symbolic_link

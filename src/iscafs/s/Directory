@@ -185,19 +185,47 @@ FNdt("  r6 (MDB) = %6x8")
 	ADREQ	r11,Directory_ReadNames
 	ADRNE	r11,Directory_ReadFullInfo
 	MOV	r0,r1
-	BL	Cache_FindInode		; r0 = inode number
-	MOVVC	r1,r4
-	MOVVC	r4,r3
-	MOVVC	r3,#0			; init items counter
-	BLVC	Directory_Scan
+; In this entry point, "object not found" is really an error.
+; Because Cache_FindInode does no longer raise that error,
+; it must be checked for here instead.
+; old:
+;	BL	Cache_FindInode		; r0 = inode number
+;	MOVVC	r1,r4
+;	MOVVC	r4,r3
+;	MOVVC	r3,#0			; init items counter
+;	BLVC	Directory_Scan
+;	MOVVC	r4,r1			; new start offset or -1
+;FNdt("<<< Directory_ReadEntries")
+;FNdt("  r3 (number read) = %3i4")
+;FNdt("  r4 (new offset) = %4i4")
+;	FNcreturn("VC")
+;FNdt("  V was set - something went wrong.")
+;	FNpreturn
+; new:
+	BL	Cache_FindInode		; r0 = inode number (0 if not found)
+	BVS	_some_other_error	; check for real errors
+	TEQ	r0,#0			; check for "not found" condition
+	BEQ	_not_found
+	MOV	r1,r4
+	MOV	r4,r3
+	MOV	r3,#0			; init items counter
+	BL	Directory_Scan
+
 	MOVVC	r4,r1			; new start offset or -1
 FNdt("<<< Directory_ReadEntries")
 FNdt("  r3 (number read) = %3i4")
 FNdt("  r4 (new offset) = %4i4")
 	FNcreturn("VC")
+
+._some_other_error
 FNdt("  V was set - something went wrong.")
 	FNpreturn
 
+; This was copied over from "Cache"
+._not_found
+	FNrerror
+	EQUD	0
+	EQUS	"Object not found."+CHR$0:ALIGN
 
 .Directory_ReadNames
 FNdt(">>> Directory_ReadNames")
