@@ -1,10 +1,10 @@
 
 
-                                IscaFS 0.12
-                                16 Apr 2004
+                                IscaFS 0.12plus
+                                18 Apr 2004
 
 
-This is release 0.12 of IscaFS. If you did not download this archive from
+This is release 0.12plus of IscaFS. If you did not download this archive from
     http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
 or
     http://splodge.fluff.org/~phil/
@@ -25,12 +25,9 @@ Supported OS versions:
         module or you will have to re-assemble IscaFS after configuring it to
         use the RMA instead of a dynamic area. See the file !IscaFS.Docs.Build
         on how to do this.
-    RISC OS 3.5 or higher 26-bit versions:
+    RISC OS 3.5 or higher:
         IscaFS should work without problems.
-    RISC OS 5 or higher 32-bit versions:
-        IscaFS will refuse to work. Though the IscaFS module itself is now
-        32bit-clean, the MAlloc module isn't. This may change in the near
-        future. Sending me an Iyonix as a present might speed things up. :-)=)
+        It's 32bit-clean, so it should run on Iyonix as well. If not, tell me.
 
 
 Where the docs are:
@@ -47,6 +44,12 @@ What this archive contains:
         See the file !IscaFS.Docs.Build on how to do this.
     Support
         Some small helper programs. See the file !IscaFS.Docs.Support
+
+
+Changes from release 0.12,     16 Apr 2004
+          to release 0.12plus, 18 Apr 2004:
+
+    Replaced MAlloc module with 32bit-clean version.
 
 
 Changes from release 0.11, 16 Mar 2004
@@ -80,5 +83,5 @@ Changes from release 0.11, 16 Mar 2004
 
 I think that's all for now.
 Have fun.
-Marco Baye, 16 Apr 2004
+Marco Baye, 18 Apr 2004
 

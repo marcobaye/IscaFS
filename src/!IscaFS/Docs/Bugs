@@ -3,13 +3,12 @@
                                 IscaFS - Bugs
 
 
-16 Apr 2004
+18 Apr 2004
 ~~~~~~~~~~~
- * Doesn't work with RO 5 because MAlloc isn't 32bit-clean yet.
  * Still no write support ;)
  * I (Marco) hate to write documentation and therefore I have been too lazy to
    actually mark which parts of the docs were added/changed by me and which
-   parts were copied from Phil's original 0.08 release (most docs belong to
+   parts were copied from Phil's original 0.08 release (most stuff belongs to
    the latter category).
 
 

@@ -2,10 +2,8 @@
 Set IscaFS$Dir <Obey$Dir>
 IconSprites <IscaFS$Dir>.!Sprites
 Set File$Type_0B0 "ext2fs"
-| Choose correct version of MAlloc module
-Set MAlloc$Ext 32
-RMEnsure UtilityModule 5.00 Set MAlloc$Ext 26
-RMEnsure MemoryAllocator 1.09 RMLoad <IscaFS$Dir>.MAlloc<MAlloc$Ext>
+| Make sure MAlloc module is loaded
+RMEnsure MemoryAllocator 1.09 RMLoad <IscaFS$Dir>.MAlloc
 RMEnsure MemoryAllocator 1.09 Error 0 IscaFS needs the MemoryAllocator module.
 | Check for MimeMap, but don't insist
 RMEnsure MimeMap 0.01 RMLoad System:Modules.Network.MimeMap

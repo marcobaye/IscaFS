@@ -7,8 +7,12 @@ To do
 ~~~~~
  * Add WIMP front-end for generating pseudo image files
  * Add write capability (MB: I think I won't do that)
- * Compatibility to RISC OS 5 (actually, the IscaFS module *is* compatible,
-   it's the MAlloc module which isn't).
+
+
+18 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Replaced MAlloc module with 32bit-clean version.
+ * Released as version 0.12plus.
 
 
 16 Apr 2004, Marco Baye
@@ -60,8 +64,9 @@ To do
 29 Mar 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Now correctly recognizes UNIX pipes, character devices, block devices and
-   sockets and refuses to load them. Better conversion of UNIX access mode
-   bits to RISC OS attributes (but read access is always granted).
+   sockets and refuses to load them.
+ * Better conversion of UNIX access mode bits to RISC OS attributes (but read
+   access is always granted).
 
 
 28 Mar 2004, Marco Baye
