@@ -1,0 +1,37 @@
+
+
+                                IscaFS - Build
+
+
+This file describes how to assemble/compile "IscaFS" and "ReadPartns".
+
+
+Assembling IscaFS
+~~~~~~~~~~~~~~~~~
+Firstly, I should stress that you don't need any compilers or assemblers other than what's supplied with this distribution and what's included in your computer's ROM (ie BASIC).
+
+Open the directory Source.IscaFS and you should find:
+    !PCFNLib
+        an assembly library which IscaFS requires for its compilation.
+    !PNAsm
+        a preassembler used to compile IscaFS with.
+    b
+        a directory containing files holding definitions.
+    Makefile
+        a Makefile for use with !PNAsm.
+    o
+        a directory holding intermediate files.
+    s
+        a directory holding the actual assembler source files.
+
+To recompile IscaFS, simply double-click on the Makefile.  As long as PNAsm and PCFNLib have been seen (do ensure that if you already have these, the new ones supplied with this release of IscaFS are the ones which will be used) it should assemble correctly first time. The new module will be created in the Source.IscaFS directory, so you will have to copy it into the actual !IscaFS application by hand afterwards.
+
+IscaFS is currently configured and compiled with rather a lot of first and second-level cache.  If you are using a low-memory machine and wish to change this, change the relevant values in the 'Source.IscaFS.b.Config' file and recompile IscaFS.
+
+To use IscaFS on a machine without support for dynamic areas, you will have to alter the file "Source.IscaFS.b.Config" as well. Change the variable "config_dynamicareas%" to 0 and then re-assemble the module.
+(MB, 16 Apr 2004: I only tried that once, and IscaFS crashed. It seems that RMA support is somewhat broken.)
+
+
+Compiling GetPartns
+~~~~~~~~~~~~~~~~~~~
+If you have Acorn C, recompiling GetPartns shouldn't be a problem. However, if you are a GCC user like me, you will have to edit the Makefile. I (Marco) haven't recompiled it myself, yet. :)

@@ -1,5 +1,5 @@
 
-* !ReadMe
+* !ReadMeNow
 
 The main README file accompanying the IscaFS release.
 

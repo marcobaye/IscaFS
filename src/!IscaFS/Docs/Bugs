@@ -1,25 +1,28 @@
 
 
-			      IscaFS - Bugs
-			      ~~~~~~~~~~~~~
-			Version 0.11, 16 Mar 2004
+                                IscaFS - Bugs
 
 
-
-28th March, 1998
-~~~~~~~~~~~~~~~~
-
-
-Blocks bitmap IE
-----------------
-
-The ImageFS entry point for getting the used blocks bitmap from an image is not yet supported.  This is because I haven't got around to it yet.  AFAIK the only instance in which this will be used is when an ext2 floppy is being backed up, so just don't backup any ext2 floppies and everything should be just fine.  This would be a remarkably simple routine, except that while ext2 filesystems' block sizes can go up to 4k, FileSwitch only supports block sizes of up to 1k (moan, complain, moan).
-
-
+16 Apr 2004
+~~~~~~~~~~~
+ * Doesn't work with RO 5 because MAlloc isn't 32bit-clean yet.
+ * Still no write support ;)
+ * I (Marco) hate to write documentation and therefore I have been too lazy to
+   actually mark which parts of the docs were added/changed by me and which
+   parts were copied from Phil's original 0.08 release (most docs belong to
+   the latter category).
 
 
 10th April, 1999
 ~~~~~~~~~~~~~~~~
-
-
 Chris Rutter's mentioned having data aborts.  This needs to be looked into at some point soon, but these are the only ones I've heard about.
+MB, 16 Apr 2004> I wish I knew whether those errors still happen with my releases (0.11 and 0.12).
+
+
+28th March, 1998
+~~~~~~~~~~~~~~~~
+Blocks bitmap IE
+----------------
+The ImageFS entry point for getting the used blocks bitmap from an image is not yet supported.  This is because I haven't got around to it yet.  AFAIK the only instance in which this will be used is when an ext2 floppy is being backed up, so just don't backup any ext2 floppies and everything should be just fine.  This would be a remarkably simple routine, except that while ext2 filesystems' block sizes can go up to 4k, FileSwitch only supports block sizes of up to 1k (moan, complain, moan).
+MB, 16 Apr 2004> IscaFS now gives an error if this function is called, instead of failing silently.
+

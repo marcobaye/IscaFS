@@ -1,0 +1,85 @@
+
+
+                                IscaFS - !ReadMe
+
+
+Introduction
+~~~~~~~~~~~~
+ExeterFS was originally written to allow files to be copied from linux ext2 partitions to RiscOS.  IscaFS has been written in order to do the job of ExeterFS in a much nicer way.  Since IscaFS works as an image filing system, you can do all the things with it that you can do with a normal filing system (although IscaFS is currently read-only, so you won't be able to alter anything).  You can even read the linux source code in StrongEd or play an MPEG3 from your linux partition.
+
+
+Disclaimer
+~~~~~~~~~~
+A full disclaimer is included in sections 11 and 12 of the GNU General Public Licence, version 2 (distributed with this package in the 'Legal' file).
+
+
+Files in the "Docs" directory
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    !ReadMe
+        *This* file, general information.
+    Bugs
+        Description of known bugs.
+    Build
+        Information on how to assemble/compile IscaFS and its helper programs.
+    ChangeLog
+        Detailed information on what has changed.
+    Credits
+        Who contributed to IscaFS.
+    Glossary
+        Introduction to some ext2/ext3 terms.
+    Legal
+        The GNU General Public License and info on what files it applies to.
+    OldNews
+        Older release notes I didn't want to remove.
+    PseudoImg
+        Information on the pseudo image files used to access HD partitions.
+    Support
+        Information on helper programs (GetPartns, lsattr-isc and ReadPart).
+
+
+Supported image types
+~~~~~~~~~~~~~~~~~~~~~
+Two image types are supported.  The first is a simple image file.  This could be a file on your hard drive which happens to be a linux ext2 disc image (if you set the file type of 'suppimg' to &0b0 and double-click on it, IscaFS will let you read it).  This also works with ext2 floppy discs (ADFS has a highly cunning way of allowing an entire floppy disc to be read as a file - DOSFS uses this too).
+
+The second type is to use a pseudo image file.  This is an image file (created by hand or by using the 'GetPartns' program) which simply serves to tell IscaFS where to find the linux partition by specifying a filing system, disc drive and sector numbers, and then IscaFS uses FileCore calls to read sectors directly off the specified drive.
+
+
+Installation
+~~~~~~~~~~~~
+You do not need to double-click !IscaFS to use it. When the application is first "seen" by the filer, it registers its file type. The module isn't loaded until you try to open an ext2 image file for the first time. I guess the easiest way to permanently install IscaFS is to copy the application into your BootResources directory (alongside !Fonts, !Internet, !System, !Scrap, etc.)
+
+
+Filetypes
+~~~~~~~~~
+In principle, IscaFS could be used to run RiscOS applications from within an ext2 partition. But the ext2 format does not store RISC OS file types, therefore the NFS method is used (using a comma followed by three hexadecimal digits, i.e. "!Sprites,ff9") to denote file type.
+
+Since release 0.12, IscaFS also makes use of the MimeMap module, so file names with dot extensions (=slash extensions under RO) are automatically given the matching filetype from the MimeMap database. In short: When accessing your ARMLinux mp3 collection, all files ending in "/mp3" are given the RISC OS filetype "AMPEG".
+
+IscaFS currently uses the filetype &0b0 as a linux ext2 partition filetype.  This is one of the 'reserved for the user' filetypes and has not been allocated by Acorn.
+
+
+Program names and their pronunciation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+IscaFS is pronounced as a single word (iscafs) with a hard 'c'.  It should be pronounced 'isker-fuss'
+
+ExeterFS was chosen as a name for the original program because 'exeterfs' sounds very much like 'ext2fs' and is easier to pronounce, and also Exeter was where ExeterFS was written.
+
+IscaFS was chosen for the image filing system version because it is derived from ExeterFS, and the old Roman name for Exeter is Isca, and also Isca starts with 'I', and IscaFS is an 'I'mage filing system.
+
+PNAsm, the preassembler supplied with the self-compile release of IscaFS, is pronounced with 'pn' as in 'pneumatic' and the 'asm' as in 'orgasm'.
+
+PNAsm was named using the Justin Fletcher convention for naming programs (ie name it by preceding a short description of what it does with your first and last initials - eg JFPatch, JFTerm, JFProxy).
+
+
+Contacting the authors
+~~~~~~~~~~~~~~~~~~~~~~
+IscaFS was originally written by Phil Norman, with additional code contributed by Matthew Wilcox, Dickon Hood and Nicholas Clark. In 2004, Marco Baye fixed some bugs and released version 0.11, and since then somewhat took over development.
+
+Phil Norman (original author)
+Web site: http://splodge.fluff.org/~phil/
+Email: mailto:forrey@eh.org
+
+Marco Baye (made releases 0.11 and 0.12)
+Web site: http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
+Email: mailto:marco@baye.de
+

@@ -1,18 +1,15 @@
 
 
-			  IscaFS - Pseudo Images
-			  ~~~~~~~~~~~~~~~~~~~~~~
-			Version 0.11, 16 Mar 2004
+                                IscaFS - Pseudo Images
 
 
 Introduction
 ~~~~~~~~~~~~
 ext2fs partition files are now implemented almost perfectly.  As an extra feature, and also in order to test more fully the block fetching and other functions, pseudo images have been implemented.  This is done by using a dummy image file which simply contains enough information for the image filing system to read blocks from the relevant partition/disc.
 
-In order to keep the size of IscaFS down, a separate application has been written to create image files which contain just the bare essential information required to access the relevant partition files, and IscaFS does not contain code to read partition tables, but just that required to read the given range of sectors from the disc.
+In order to keep the size of IscaFS down, a separate application ("GetPartns") has been written to create image files which contain just the bare essential information required to access the relevant partition files, and IscaFS does not contain code to read partition tables, but just that required to read the given range of sectors from the disc.
 
 Note - if you are using the old version of FileCore (RiscOS 3.5 or lower without the Clan FileCore patch) and you have a linux partition which extends over the 512meg limit, IscaFS will REFUSE to look at it.  This is because your version of FileCore will not read past the 512meg limit and so there is no way for IscaFS to do so (IscaFS uses the FileCore SWIs to read disc sectors).  This is not my problem, it's Acorn's, and there's nothing I can do about it.
-
 
 
 Format

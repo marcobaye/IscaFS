@@ -1,8 +1,6 @@
 
 
-				IscaFS - Legal
-				~~~~~~~~~~~~~~
-			  Version 0.11, 16 Mar 2004
+                                IscaFS - Legal
 
 
 Application
@@ -13,6 +11,7 @@ This licence applies to the IscaFS package, which consists of the entire content
 2:	Matthew Wilcox's debugging code (which is © Matthew Wilcox).
 3:	Phil Norman's !PCFNLib and !PNAsm (which are © Phil Norman).
 4:	Dickon Hood's debugging functions (which can be found in !PCFNLib).
+5:	Marco Baye's 32bit extension to !PCFNLib (which is © Marco Baye).
 
 The copyright also applies to any IscaFS modules compiled using the IscaFS source code.
 

@@ -1,12 +1,206 @@
 
 
-				IscaFS - Changelog
-				~~~~~~~~~~~~~~~~~~
-			    Version 0.11, 16 Mar 2004
+                                IscaFS - ChangeLog
+
+
+To do
+~~~~~
+ * Add WIMP front-end for generating pseudo image files
+ * Add write capability (MB: I think I won't do that)
+ * Compatibility to RISC OS 5 (actually, the IscaFS module *is* compatible,
+   it's the MAlloc module which isn't).
+
+
+16 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Changed ordering in this file, now the newest stuff is located at the top.
+ * Updated documentation.
+ * Released as version 0.12.
+
+
+09 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Corrected usage of "i_blocks%" (now renamed to i_512bblocks%), which gives
+   the allocated size in traditional UNIX blocks (512 byte), not the FS's
+   logical blocks.
+ * Wrote "lsattr-isc" program to display UNIX file mode bits.
+
+
+08 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * "!Run" file now tries to load correct version of MAlloc module (26-bit or
+   32-bit). At the moment, only a 26-bit version exists.
+
+
+07 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Added MimeMap calls so IscaFS now copes with ".ext" type extensions as well
+   (in addition to ",hex" extensions). It's a bit slower though.
+
+
+06 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Added "RMEnsure MimeMap" to "!Run" file.
+
+
+31 Mar 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Spaces in filenames are now converted to ALT-Spaces.
+
+
+30 Mar 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * "Divide" now throws errors for numerators > &7fffffff and works correctly
+   for numerators > &3fffffff.
+ * Fixed bug which used wild inode numbers when scanning empty directories.
+   Note: When these two bugs worked hand-in-hand, they were able to freeze the
+   machine.
+
+
+29 Mar 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Now correctly recognizes UNIX pipes, character devices, block devices and
+   sockets and refuses to load them. Better conversion of UNIX access mode
+   bits to RISC OS attributes (but read access is always granted).
+
+
+28 Mar 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Tampered with Phil's library to include 32bit-clean versions of the macros
+   used. Changed the source to use the new macros.
+
+
+22-24 Mar 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * Started to 32bit-clean the module (though I don't have an Iyonix. If you
+   want to give me one as a present, go ahead).
+ * Improved handling of "," in filenames. Older versions truncated at first
+   comma, new version truncates at "," if and only if exactly 3 chars follow.
+
+
+16 Mar 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Improved behaviour on "Object not found" condition. There are situations
+   where this is not an error, yet IscaFS always returned errors.
+ * Fixed bug in dirent match function. It didn't properly check the length of
+   an ext2 dir entry, resulting in sometimes accessing the wrong inode.
+ * Updated documentation to contain link to homepage.
+ * Released as version 0.11.
+
+
+15 Mar 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Fixed bug which prevented usage of file systems where blocksize != 1024.
+   Now copes with all three ext2 block sizes (1024, 2048, 4096).
+ * Changed ReadFreeSpace32 call: If values are larger than 4GB, restrict to
+   4GB instead of delivering just the low word. Otherwise, USED = TOTAL - FREE
+   calculations in !ImageFree may give bogus results.
+ * Changed !Boot and !Run files so module is autoloaded when needed.
+ * Added Nicholas Clark to list of developers.
+ * Set version number to 0.11.
+
+
+14 Mar 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Added dummy "ImageEntryFunc_ReadBootOption" to get *ex and *cat to work.
+ * Actually activated all those nice SA optimisations and bug fixes done by
+   Nicholas Clark. Release 0.08 did include the relevant file, but it wasn't
+   actually used when assembling.
+ * Added some instructions to cope with ext2's "filetype" feature (used in
+   ext2 file systems by default nowadays).
+ * Fixed group descriptor structure definition - some fields were assumed to
+   be 32b instead of 16b. Actually, this is of no interest until write
+   capability comes along.
+ * Now reads global copy of group descriptors instead of (wrongly) assuming
+   each group has its own. This means mounting large file systems does no
+   longer take ages, and accessing them actually works, even when using the
+   "sparse_super" feature (used in ext2 file systems by default nowadays).
+ * Added "ReadFreeSpace64" entry point, so there's a useable interface to find
+   out how much space is used/unused in an ext2 file system, even if the file
+   system is larger than 4GB.
+ * Changed help string: Development time is now given as "1997-2004"
+ * Added myself to list of developers.
+ * Set version number to 0.09.
+
+
+3rd April, 1999 Nicholas Clark (added to source tree 10th April)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * Fixed the disc access so that partitions of greater than 4gig in size can
+   now be accessed.
+ * Added various StrongARM optimisations.
+ * Released as version 0.08.
+
+
+28th March, 1999 Phil Norman
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * Rewrote the cacheing system.  This should now be a lot faster than the
+   previous one, and now allows IscaFS to be upgraded to read/write without
+   the filesystem corruption the old cache system would have caused.
+
+
+28th October, 1998 Phil Norman
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * Bug fix in Cache (yes, another one) - bad block numbers were being used in
+   files of over 64meg in length.  Thanks to Timothy Baldwin for spotting
+   the bug.
+
+
+28th May, 1998 Matthew Wilcox
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * Added some GNU ext2 extensions for filesystem naming and other funky stuff.
+
+
+28th May, 1998 Phil Norman
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * Bug fix in Cache - would have broken during 1/2 to 3/4 of reads on large-
+   block filesystems (2k or 4k block).
+ * Bug fix - last sector in partitions was erroneously triggering an error.
+ * Split Cache into Cache and CacheW, CacheW containing all the new write
+   cache code (all write code is currently commented out).
+ * Modified the 'b.Workspace' file to use the new Workspace library in PCFNLib.
+ * Mounting code now loads all the group descriptors and keeps them in memory,
+   resulting in a 5% (approx.) speed benefit.
+
+
+28th March, 1998 Phil Norman
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * Renamed 'IdentifyDisc' to 'Image_IdentifyDisc' so it blends in with the
+   current naming convention.
+ * Image_IdentifyDisc no longer assumes the buffer supplied for the format
+   name is word-aligned.
+ * Image_IdentifyDisc now preserves all the registers it should do (MW had
+   forgotten it was a service call rather than an FS entry point and had
+   removed the register preservation).
+ * Optimised and fixed parts of File_CatalogueInfoFromInode.
+ * Added a new debugging function - FNdbg_func(name$,rin$,rout$) which
+   currently doesn't work properly (it does very odd things which cause
+   Directory_Scan to notice '.' and '..' (which is should ignore).  The use
+   of dbg_func can be toggled between full use and just use of FNdbg_str with
+   the dbg_config_func% variable in 'Config'.
+ * Added Memory_QuickCopy which copies large blocks of data (multiples of 128
+   bytes in size).  This function stores whole cache-lines at a time, so all
+   target pointers should ideally be cache-line aligned.
+ * Altered Cache_Initialise so it uses one large block of memory for all the
+   cache blocks and tables.  It also cache-line aligns the cache blocks.
+ * Altered Module_Initialise so it dimensions 'buffer' and 'buffer2' together,
+   forcing 'buffer' to be cache-line aligned (for speed when Memory_QC is
+   used).
+ * Optimised Memory_BlockCopy since I realised it doesn't need to do any stack
+   storage, but can simply load the pc from the correct offset on the stack.
+ * Fixed FNladr in PCFNLib - it was using an ORR rather than an ADD.  This is
+   a Bad Thing (TM) since an ADR adds things onto the pc, and the required
+   bits which are ORRed may already be set on the currently-assembled address.
+ * Changed 'debug_bufsize' to 64k since it was being flushed too often when
+   FNdbg_func was being used.
+ * Fixed a bug in FNdbg_reg where, if reg%=13 the amount of stuff on the stack
+   was being SUBbed rather than ADDed.
+ * Fixed Directory_Scan so it notices if a directory has no blocks allocated
+   to it.  Previously (including the notable case of /dev/aztcd) it was trying
+   to read the contents of the address -1 if the first block wasn't there.
 
 
 ??th March, 1998 Matthew Wilcox
-
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * Documented pcfnlib
  * Changed a lot of routines to conditionally execute on VC
    rather than exit on a VS
@@ -52,115 +246,3 @@
 ====  Lost loads of changelog info cos of PN's stupidity.  MW> If you have a
 ====  copy of what was done here please email it to me.
 
-
-28th March, 1998 Phil Norman
-
- * Renamed 'IdentifyDisc' to 'Image_IdentifyDisc' so it blends in with the
-   current naming convention.
- * Image_IdentifyDisc no longer assumes the buffer supplied for the format name
-   is word-aligned.
- * Image_IdentifyDisc now preserves all the registers it should do (MW had
-   forgotten it was a service call rather than an FS entry point and had
-   removed the register preservation).
- * Optimised and fixed parts of File_CatalogueInfoFromInode.
- * Added a new debugging function - FNdbg_func(name$,rin$,rout$) which
-   currently doesn't work properly (it does very odd things which cause
-   Directory_Scan to notice '.' and '..' (which is should ignore).  The use
-   of dbg_func can be toggled between full use and just use of FNdbg_str with
-   the dbg_config_func% variable in 'Config'.
- * Added Memory_QuickCopy which copies large blocks of data (multiples of 128
-   bytes in size).  This function stores whole cache-lines at a time, so all
-   target pointers should ideally be cache-line aligned.
- * Altered Cache_Initialise so it uses one large block of memory for all the
-   cache blocks and tables.  It also cache-line aligns the cache blocks.
- * Altered Module_Initialise so it dimensions 'buffer' and 'buffer2' together,
-   forcing 'buffer' to be cache-line aligned (for speed when Memory_QC is
-   used).
- * Optimised Memory_BlockCopy since I realised it doesn't need to do any stack
-   storage, but can simply load the pc from the correct offset on the stack.
- * Fixed FNladr in PCFNLib - it was using an ORR rather than an ADD.  This is
-   a Bad Thing (TM) since an ADR adds things onto the pc, and the required bits
-   which are ORRed may already be set on the currently-assembled address.
- * Changed 'debug_bufsize' to 64k since it was being flushed too often when
-   FNdbg_func was being used.
- * Fixed a bug in FNdbg_reg where, if reg%=13 the amount of stuff on the stack
-   was being SUBbed rather than ADDed.
- * Fixed Directory_Scan so it notices if a directory has no blocks allocated
-   to it.  Previously (including the notable case of /dev/aztcd) it was trying
-   to read the contents of the address -1 if the first block wasn't there.
-
-
-
-28th May, 1998 Matthew Wilcox
-
- * Added some GNU ext2 extensions for filesystem naming and other funky stuff.
-
-
-28th May, 1998 Phil Norman
-
- * Bug fix in Cache - would have broken during 1/2 to 3/4 of reads on large-
-   block filesystems (2k or 4k block).
- * Bug fix - last sector in partitions was erroneously triggering an error.
- * Split Cache into Cache and CacheW, CacheW containing all the new write cache
-   code (all write code is currently commented out).
- * Modified the 'b.Workspace' file to use the new Workspace library in PCFNLib.
- * Mounting code now loads all the group descriptors and keeps them in memory,
-   resulting in a 5% (approx.) speed benefit.
-
-
-28th October, 1998 Phil Norman
-
- * Bug fix in Cache (yes, another one) - bad block numbers were being used in
-   files of over 64meg in length.  Thanks to Timothy Baldwin for spotting
-   the bug.
-
-
-28th March, 1999 Phil Norman
-
- * Rewrote the cacheing system.  This should now be a lot faster than the
-   previous one, and now allows IscaFS to be upgraded to read/write without
-   the filesystem corruption the old cache system would have caused.
-
-
-3rd April, 1999 Nicholas Clark (added to source tree 10th April)
-
- * Fixed the disc access so that partitions of greater than 4gig in size can
-   now be accessed.
- * Added various StrongARM optimisations.
-
-
-16th March, 2004 Marco Baye
-
- * Actually activated all of Nicholas Clark's changes. The v0.08 release did
-   include the relevant file, but it wasn't actually used when assembling.
- * Added "ImageEntryFunc_ReadBootOption" entry point to get the *ex and *cat
-   commands to work. It doesn't really do anything useful, but if it's not
-   there, RISC OS cannot perform *ex and *cat.
- * Added some instructions to cope with ext2's "filetype" feature, which is
-   used in ext2 partitions by default nowadays.
- * Fixed group descriptor structure definition - some fields were assumed to be
-   32b instead of 16b. Actually, this is of no interest until write capability
-   comes along.
- * Fixed loading of block group descriptors. Now reads global copy of group
-   descriptors instead of wrongly assuming each group has its own. This means
-   mounting large partitions does no longer take ages, and accessing them
-   actually works, even when using the "sparse_super" feature, which is used
-   in ext2 partitions by default nowadays.
- * Added "ReadFreeSpace64" entry point, so there's a useable interface to find
-   out how much space is used/unused in an ext2 partition, even if the
-   partition is larger than 4GB.
- * Fixed bug in "ReadFreeSpace32" entry point: If values are larger than 4GB,
-   restrict to 4GB instead of delivering just the low word. Otherwise,
-   USEDSPACE = TOTALSPACE - FREESPACE calculations could give bogus results.
- * Fixed bug that prevented usage of partitions where blocksize != 1024.
-   Now IscaFS finally copes with ext2 partitions of all three block sizes
-   (1024, 2048, 4096).
- * Changed !Boot and !Run files so module is autoloaded when needed.
- * Fixed bug where IscaFS raised "Object not found" errors in situations where
-   it's not really an error.
- * Fixed bug in dirent matching. It didn't properly check the length of an ext2
-   dir entry, resulting in sometimes accessing the wrong inode.
- * Changed version number to 0.11.
- * Changed help string: Development time is given as "1997-2004", and I added
-   Nicholas Clark and myself to the list of developers.
- * Updated documentation to contain link to homepage.

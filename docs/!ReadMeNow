@@ -1,0 +1,84 @@
+
+
+                                IscaFS 0.12
+                                16 Apr 2004
+
+
+This is release 0.12 of IscaFS. If you did not download this archive from
+    http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
+or
+    http://splodge.fluff.org/~phil/
+just now, then I suggest you check whether there's a newer version available.
+
+
+Legalese:
+    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the file !IscaFS.Docs.Legal for more details.
+
+
+What it is:
+    IscaFS is an image filing system allowing read-only access to ext2/ext3 file systems. In addition to floppy discs and image files, it also handles hard disc partitions (so if you have ARMLinux, you can access the files on your ext2/ext3 partitions).
+
+
+Supported OS versions:
+    RISC OS < 3.5:
+        You will either need a copy of Justin Fletcher's dynamic areas support
+        module or you will have to re-assemble IscaFS after configuring it to
+        use the RMA instead of a dynamic area. See the file !IscaFS.Docs.Build
+        on how to do this.
+    RISC OS 3.5 or higher 26-bit versions:
+        IscaFS should work without problems.
+    RISC OS 5 or higher 32-bit versions:
+        IscaFS will refuse to work. Though the IscaFS module itself is now
+        32bit-clean, the MAlloc module isn't. This may change in the near
+        future. Sending me an Iyonix as a present might speed things up. :-)=)
+
+
+Where the docs are:
+    The complete documentation is contained in the !IscaFS.Docs directory. Open the Filer's menu over the !IscaFS icon and choose the "Help" menu entry to open the directory containing the documentation. Start by reading the file !IscaFS.Docs.!ReadMe
+
+
+What this archive contains:
+    !IscaFS
+         The actual application containing the image filing system module.
+    !ReadMeNow
+        *This* file.
+    Source
+        Needed if you want to assemble/compile IscaFS or its helper programs.
+        See the file !IscaFS.Docs.Build on how to do this.
+    Support
+        Some small helper programs. See the file !IscaFS.Docs.Support
+
+
+Changes from release 0.11, 16 Mar 2004
+          to release 0.12, 16 Apr 2004:
+
+    Fixed a bug which could freeze the machine when scanning empty dirs.
+    Added MimeMap calls so IscaFS now copes with ".ext" type extensions as
+        well (in addition to ",hex" extensions). It's a bit slower though.
+    Spaces in filenames are now converted to ALT-Spaces.
+    Improved handling of "," in filenames. Older versions truncated at first
+        comma, new version truncates at comma if exactly 3 chars follow.
+    32bit-cleaned the module (though I don't have an Iyonix. If you want to
+        give me one as a present, go ahead).
+    Added "lsattr-isc" program to display UNIX file mode bits.
+    Correctly recognizes UNIX pipes, character devices, block devices and
+        sockets and refuses to load them. Better conversion of UNIX access
+        mode bits to RISC OS attributes (but read access is always granted).
+    Updated documentation.
+    Changed ordering in ChangeLog file.
+    Corrected usage of "i_blocks%" (now renamed to i_512bblocks%), which gives
+        the allocated size in traditional UNIX blocks (512 byte), not the FS's
+        logical blocks.
+    "!Run" file now tries to load correct version of MAlloc module (26-bit or
+        32-bit).
+    Added "RMEnsure MimeMap" to "!Run" file.
+    Tampered with Phil's library to include 32bit-clean versions of the macros
+        used. Changed the source to use the new macros.
+
+    For a full list of changes see the file !IscaFS.Docs.ChangeLog
+
+
+I think that's all for now.
+Have fun.
+Marco Baye, 16 Apr 2004
+
