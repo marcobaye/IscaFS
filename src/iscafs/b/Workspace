@@ -238,12 +238,17 @@ PROCwksp_init
 bg_block_bitmap%	= FNwksp_int
 bg_inode_bitmap%	= FNwksp_int
 bg_inode_table%		= FNwksp_int
-bg_free_blocks_count%	= FNwksp_int
-bg_free_inodes_count%	= FNwksp_int
-bg_used_dirs_count%	= FNwksp_int
-bg_pad%			= FNwksp_int
-bg_reserved%		= FNwksp_int
-
+bg_free_blocks_count%	= FNwksp_short	:REM FIXME - code still assumes int!
+bg_free_inodes_count%	= FNwksp_short	:REM FIXME - code still assumes int!
+bg_used_dirs_count%	= FNwksp_short	:REM FIXME - code still assumes int!
+bg_pad%			= FNwksp_short	:REM FIXME - code still assumes int!
 REM Make length =32 so a simple shift can be used for converting name to offset
-len_groupdesc%		= 32
+bg_reserved1%		= FNwksp_int
+bg_reserved2%		= FNwksp_int
+bg_reserved3%		= FNwksp_int
+
+len_groupdesc%		= FNwksp_length
+REM check length is really 32
+IF len_groupdesc% <> 32 THEN PRINT "Group descriptor struct has wrong length!":ERROR 0,"Group descriptor struct has wrong length!"
+
 shift_groupdesc%	= 5

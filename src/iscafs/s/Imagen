@@ -80,29 +80,83 @@ FNdt("_check_image")
 	LDR	r2,[r6,#s_blocks_count%]
 	LDR	r3,[r6,#s_blocks_per_group%]
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
-	MOV	r7,r3
-	TEQ	r2,#0
-	ADDNE	r0,r0,#1
-	MOV	r3,r0,LSL #shift_groupdesc%
-	BL	Memory_Claim
-	STR	r2,[r6,#mnt_groupdescs%]
-	MOV	r9,r2
-	STR	r0,[r6,#mnt_numgroups%]
-	MOV	r5,r0			; number of groups to get info from
-	MOV	r8,#2			; block number
+; This was buggy. Instead of fetching all block group descriptors, it fetched
+; lots of copies of the first block group's group descriptor. If the FS uses
+; the "sparse_super" feature, this bug shows:
+; In that case, only the groups 0, 1, 3^x, 5^x and 7^x have copies of the super
+; block and the group descriptor table. Without that table, this function
+; accessed and interpreted random data.
+; Oh, and if IscaFS had had write capability, the bug would have been surfaced
+; much earlier due to catastrophic data losses... ;)
+; old and buggy:
+;	MOV	r7,r3
+;	TEQ	r2,#0
+;	ADDNE	r0,r0,#1
+;	MOV	r3,r0,LSL #shift_groupdesc%
+;	BL	Memory_Claim
+;	STR	r2,[r6,#mnt_groupdescs%]
+;	MOV	r9,r2
+;	STR	r0,[r6,#mnt_numgroups%]
+;	MOV	r5,r0			; number of groups to get info from
+;	MOV	r8,#2			; block number
+;._lp
+;	MOV	r0,r8
+;	ADD	r8,r8,r7		; set up for next block
+;	BL	Cache_GetBlock
+;	MOV	r1,r9
+;	ADD	r9,r9,#len_groupdesc%
+;	MOV	r2,#len_groupdesc%
+;	BL	Memory_BlockCopy
+;	SUBS	r5,r5,#1
+;	BGT	_lp
+; new:
+	; r3 = blocks per group
+	; r0 = completely usable groups
+	; r2 = remainder (if != 0, there's a last group of smaller size)
+	TEQ	r2,#0			; is there a partially-filled group?
+	ADDNE	r0,r0,#1		; then increment number of groups
+	; r0 = group count
+	LDR	r5,[r6,#s_log_block_size%]	; get log2-10 of block size
+	STR	r0,[r6,#mnt_numgroups%]		; store group count
+	MOV	r3,r0,LSL #shift_groupdesc%	; r3 = size of descriptor table
+	ADD	r7,r5,#10			; r7 = log2 of block size
+	RSB	r8,r5,#22			; r8 = opposite shift value
+	; r3 LSR r7 gives descriptor table size in completely filled blocks
+	; r3 LSL r8 sets Z if any fractional part
+	MOV	r9,r3,LSR r7		; r9 = minimum blocks for table
+	MOVS	r3,r3,LSL r8		; is there a partially-filled block?
+	ADDNE	r9,r9,#1;		; if yes, correct block count
+	; r5 = log2-10 of block size
+	; r7 = log2 of block size
+	; r9 = block count (last block might be partially filled)
+	MOV	r3,r9,LSL r7		; r3 = size of desc table (rounded up)
+	BL	Memory_Claim		; r2 points to mem block of r3 bytes
+	; FIXME - check for V flag!
+	STR	r2,[r6,#mnt_groupdescs%]	; store pointer
+	; r5 = log2-10 of block size
+	; r9 = block count
+; now it should work for block sizes != 1024
+	MOVS	r5,r5			; check block size
+	MOVEQ	r8,#2			; if 1024, table starts at block #2.
+	MOV	r5,#1				; prepare shift
+	MOVNE	r8,#1			; if 2048 or 4096, starts at block #1.
+	MOV	r5,r5,LSL r7			; r5 = block size
+	MOV	r7,r2				; r7 => descriptor table
+	; r9 = number of blocks
 ._lp
-	MOV	r0,r8
-	ADD	r8,r8,r7		; set up for next block
-	BL	Cache_GetBlock
-	MOV	r1,r9
-	ADD	r9,r9,#len_groupdesc%
-	MOV	r2,#len_groupdesc%
-	BL	Memory_BlockCopy
-	SUBS	r5,r5,#1
-	BGT	_lp
+		MOV	r0,r8;			; number of block to read
+		BL	Cache_GetBlock		; r0 => block r0
+		MOV	r1,r7			; r1 => target
+		ADD	r7,r7,r5		; r7 => next target
+		MOV	r2,r5			; r2 = amount to copy
+		BL	Memory_BlockCopy	; ARP, copies multiples of 128!
+		SUBS	r9,r9,#1		; still blocks left?
+		ADD	r8,r8,#1		; next block
+		BGT	_lp
 FNdt("<<< Image_Mount")
 FNdt("  r1 (my file handle) = %1x8")
 	FNreturn
+
 
 ._special_words
 	EQUS	"þhîL"
@@ -521,20 +575,81 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("")
 ;------------------------
-; get disc size
-	LDR	r0,[r6,#s_log_block_size%]
-	LDR	r2,[r6,#s_blocks_count%]
-	ADD	r0,r0,#10
-	LDR	r1,[r6,#s_free_blocks_count%]
-	MOV	r2,r2,LSL r0
-;------------------------
-; get free space - assume biggest object creatable is same size
-	MOV	r1,r1,LSL r0
-	MOV	r0,r1
+; The old code only worked reliably for partitions < 4GB, because just the
+; lower 32 bits of the result were delivered. Then, calculations like
+; USED = TOTAL - FREE could give negative results because of missing bits.
+; The new code checks whether the 4GB limit is reached. If yes, "4GB - 1" is
+; returned instead.
+; old:
+;; get disc size
+;	LDR	r0,[r6,#s_log_block_size%]
+;	LDR	r2,[r6,#s_blocks_count%]
+;	ADD	r0,r0,#10
+;	LDR	r1,[r6,#s_free_blocks_count%]
+;	MOV	r2,r2,LSL r0
+;;------------------------
+;; get free space - assume biggest object creatable is same size
+;	MOV	r1,r1,LSL r0
+;	MOV	r0,r1
+; new:
+; Start by calling 64bit function. Then check high word of disc size.
+; If !=0, use 0xffffffff (4GB - 1) as 32bit value.
+	STMFD	r13!,{r14}		; I know this is stupid, but I don't
+	BL	Image_ReadFreeSpace64
+	LDMFD	r13!,{r14}		; really know how to use Phil's library
+	; r0 = free space, low
+	; r1 = free space, high
+	; r2 = biggest object creatable
+	; r3 = disc size, low
+	; r4 = disc size, high
+	MOV	r0,r2	; 32bit free space = 32bit biggest object creatable
+	MOVS	r4,r4	; check high word of disc size
+	MOV	r1,r2	; move 32bit biggest object creatable into correct reg
+	MOVEQ	r2,r3	; 32bit disc size = low word of 64bit disc size
+	MVNNE	r2,#0	; if disc >= 4GB, limit to &ffffffff (4GB - 1)
+	; r0 = free space, limited to 4GB - 1
+	; r1 = biggest object creatable
+	; r2 = disc size, limited to 4GB - 1
 FNdt("<<< Image_ReadFreeSpace")
 FNdt("  r0 (free space) = %0i4")
 FNdt("  r1 (biggest possible object) = %1i4")
 FNdt("  r2 (disc size) = %2i4")
+	FNreturn
+
+
+.Image_ReadFreeSpace64
+FNdt(">>> Image_ReadFreeSpace64")
+FNdt("  r6 (MDB) = %6x8")
+;------------------------
+; Read the free space and size of the given image, using 64bit values.
+;------------------------
+; On entry:
+;	r6  =	pointer to mount descriptor block
+; On exit:
+;	r0  =	free space, low
+;	r1  =	free space, high
+;	r2  =	biggest object creatable
+;	r3  =	disc size, low
+;	r4  =	disc size, high
+;------------------------
+	FNfunction("")
+;------------------------
+; get disc size
+	LDR	r2,[r6,#s_log_block_size%]
+	LDR	r0,[r6,#s_free_blocks_count%]
+	LDR	r3,[r6,#s_blocks_count%]
+	ADD	r5,r2,#10
+	RSB	r6,r2,#22
+	MOVS	r1,r0,LSR r6	; shift free blocks down to get free space, hi
+	MOV	r4,r3,LSR r6	; shift block count down to get total space, hi
+	MOV	r0,r0,LSL r5	; shift free blocks up to get free space, lo
+	MOV	r3,r3,LSL r5	; shift block count up to get total space, hi
+	; biggest creatable object:
+	; FileCore limits to 2GB. FileSwitch is said to cope with 4GB.
+	; FIXME - limit to 0x7fffffff ?
+	MOVEQ	r2,r0		; if free space < 4GB, just use that
+	MVNNE	r2,#0		; if >= 4GB, limit to &ffffffff (4GB - 1)
+FNdt("<<< Image_ReadFreeSpace64")
 	FNreturn
 
 
@@ -556,4 +671,22 @@ FNdt("  r6 (MDB) = %6x8")
 	FNfunction("")
 
 FNdt("<<< Image_ReadUsedSpaceMap (we don't do this yet)")
+	FNreturn
+
+
+.Image_ReadBootOption
+FNdt(">>> Image_ReadBootOption")
+FNdt("  r1 (my handle for image) = %1x8")
+;------------------------
+; Read boot option. Dummy function, needed for *cat and *ex to work.
+;------------------------
+; On entry:
+;	r6  =	pointer to mount descriptor block
+; On exit:
+;	r0, r1, r6 preserved!
+;	r2  =	boot option
+;------------------------
+	FNfunction("")
+;------------------------
+	MOV	r2, #0;	"no boot action"
 	FNreturn

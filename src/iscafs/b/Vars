@@ -3,9 +3,9 @@ REM for IscaFS, © Phil Norman 28th May, 1998
 
 
 mod_title$	= "IscaFS"
-mod_author$	= "Phil Norman and Matthew Wilcox"
-mod_version%	= 8
-mod_year$	= "1997-1999"
+mod_author$	= "Phil Norman, Matthew Wilcox, Nicholas Clark, Marco Baye"
+mod_version%	= 11
+mod_year$	= "1997-2004"
 
 
 REM This is the filetype of ImageFS files I handle...

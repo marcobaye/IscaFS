@@ -37,6 +37,10 @@
 	BEQ	Image_ReadFreeSpace	; for now.
 	TEQ	r0,#29
 	BEQ	Image_ReadUsedSpaceMap
+	TEQ	r0,#35
+	BEQ	Image_ReadFreeSpace64
+	TEQ	r0,#27
+	BEQ	Image_ReadBootOption	; dummy, needed for *cat and *ex
 	SUBS	r0, r0, #8		;P very nice optimisation here ;-)
 	RSBGES  r0, r0, #14
 	ADDGE	pc, pc, r0, LSL #2

@@ -99,10 +99,18 @@ FNdt("  r11 (subroutine) = %11x8")
 	BLT	_subroutine_failed
 ._entry_is_null
 	LDR	r14,[r0,#dirent_entry_length%]
-	BICS	r14,r14,#&ff0000	; get offset to next entry
-	ADDNE	r0,r0,r14
+; needed if FS uses "filetype-in-dir" feature
+; old:
+;	BICS	r14,r14,#&ff0000	; get offset to next entry
+;	ADDNE	r0,r0,r14
+;	MOVEQ	r0,r1
+;	ADDNE	r7,r7,r14		; increment offset from start of block
+; new:
+	MOVS	r14,r14,LSL#16	; get offset to next entry (shifted but clean)
+	ADDNE	r0,r0,r14,LSR#16
 	MOVEQ	r0,r1
-	ADDNE	r7,r7,r14		; increment offset from start of block
+	ADDNE	r7,r7,r14,LSR#16	; increment offset from start of block
+
 	B	_loop
 
 ._not_a_directory
@@ -224,6 +232,7 @@ FNdtc(ge, "<<< Directory_ReadNames (max items read)")
 ; check for buffer filledness
 	LDR	r1,[r0,#dirent_entry_length%]
 	MOV	r1,r1,LSR #16		; get text length
+	AND	r1,r1,#255		; needed if FS uses "filetype-in-dir" feature
 	ADD	r14,r1,#1
 	CMP	r14,r5
 	MVNGT	r0,#0			; no more space in buffer
@@ -288,6 +297,7 @@ FNdtc(ge, "<<< Directory_ReadFullInfo (max items read)")
 ; check for buffer filledness
 	LDR	r1,[r0,#dirent_entry_length%]
 	MOV	r1,r1,LSR #16		; get text length
+	AND	r1,r1,#255		; needed if FS uses "filetype-in-dir" feature
 	ADD	r14,r1,#4+4*5
 	BIC	r14,r14,#3
 	CMP	r14,r5
