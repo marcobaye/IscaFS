@@ -8,7 +8,7 @@ This file explains what the helper programs in the "Support" directory do.
 
 PartTool
 ~~~~~~~~
-Version 0.02, 22 Apr 2004 (should be RO5-compatible. Tell me if not)
+Version 0.02, 23 Apr 2004 (should be RO5-compatible. Tell me if not)
 
 This program was written as an alternative to the older "GetPartns" and "ReadPart" programs (both of which are explained below). PartTool has three uses:
 
@@ -26,8 +26,8 @@ This program was written as an alternative to the older "GetPartns" and "ReadPar
     ext2/ext3 file system, this should give you a working image file (a normal
     one, not a pseudo image file), which can then be used with IscaFS.
     Due to the RISC OS file size limit, this only works for partitions smaller
-    than 4 GB. When using a FileCore-based filing system to hold the output
-    file, the limit's even lower, at 2 Gigabyte.
+    than 4 Gigabyte. When using a FileCore-based filing system to hold the
+    output file, the limit's even lower, at 2 Gigabyte.
 
 
 lsattr-isc
@@ -57,14 +57,14 @@ Example output of my ARMLinux root directory:
 
 Using this program only makes sense inside an ext2/ext3 volume, because IscaFS is the only filing system which supplies the necessary mode bits information. You can run this program in other filing systems as well, but it will give useless output.
 If you find this program useful, copy it to your library directory. If you don't know what it is for, don't bother about it. ;)
-(Tech info - this is how it works: Only the lower eight bits of the file attributes are commonly defined by RISC OS, the upper 24 bits are filing system dependent. Therefore, IscaFS 0.12 simply maps the 16 UNIX mode bits into the upper 16 bits of the RISC OS file attributes, where lsattr-isc can read them.)
+(Tech info - this is how it works: Only the lower eight bits of the file attributes are commonly defined by RISC OS, the upper 24 bits are filing system dependent. Therefore, IscaFS since v0.12 simply maps the 16 UNIX mode bits into the upper 16 bits of the RISC OS file attributes, where lsattr-isc can read them.)
 
 
 GetPartns
 ~~~~~~~~~
 Version 0.01, 07th January, 1998
 
-MB, 22 Apr 2004> This program is not 32bit-clean, and now superseded by PartTool anyway.
+MB, 23 Apr 2004> This program is not 32bit-clean, and now superseded by PartTool anyway.
 
 Introduction
 ------------
@@ -92,4 +92,4 @@ ReadPart
 A little program which allows you to dump entire ext2 partitions into ext2 image files.  It only works for the ADFS 'partitioning' system though.
 The program is somewhat unfinished - you will have to edit it before you can use it, because some parameters (partition number, output file name etc.) are hardcoded inside it.
 
-MB, 22 Apr 2004> This program is now superseded by PartTool anyway.
+MB, 23 Apr 2004> This program is now superseded by PartTool anyway.

@@ -22,7 +22,7 @@
 // linux partition on a given disc and creates IscaFS pseudo image files for
 // each ext2 partition found.
 //
-// 22 Apr 2004
+// 22/23 Apr 2004
 //	Attempted to make it a tiny bit nicer - now it needs OSLib, though ;)
 //	Renamed to PartTool. Now has three uses:
 //	*parttool display <fs> <drive>
@@ -386,6 +386,8 @@ void dump_part_to_file(int id, struct linux_part* p) {
 		NULL,
 		&file_handle));
 
+	puts("Transfer in progress");
+
 	// transfer loop
 	while(bytes_to_transfer > bytes_per_chunk) {
 		read_sectors(startsector, chunk, bytes_per_chunk);
@@ -398,6 +400,7 @@ void dump_part_to_file(int id, struct linux_part* p) {
 			break;
 		startsector += SECTORS_PER_CHUNK;
 		bytes_to_transfer -= bytes_per_chunk;
+		putchar('.');
 	}
 	if((err == NULL) && (unwritten == 0)) {
 		read_sectors(startsector, chunk, bytes_to_transfer);
@@ -406,6 +409,7 @@ void dump_part_to_file(int id, struct linux_part* p) {
 			chunk,
 			bytes_to_transfer,
 			&unwritten);
+		putchar('.');
 	}
 
 	// close file

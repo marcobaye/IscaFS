@@ -3,10 +3,12 @@
                                 IscaFS - Bugs
 
 
-22 Apr 2004
+23 Apr 2004
 ~~~~~~~~~~~
  * Still no write support ;)
  * Won't work with drive numbers > 9
+ * "PartTool" doesn't complain if the partition ID is too high or too low, it
+   just fails silently.
 
 
 18 Apr 2004

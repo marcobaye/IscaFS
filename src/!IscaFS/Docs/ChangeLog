@@ -6,13 +6,15 @@
 To do
 ~~~~~
  * Add WIMP front-end for generating pseudo image files
- * Add write capability (MB: I think I won't do that)
+ * Make ,xxx filetyping optional
+ * Add write capability (MB> I think I won't do that)
 
 
-22 Apr 2004, Marco Baye
-~~~~~~~~~~~~~~~~~~~~~~~
+22/23 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~~~~
  * Fixed SWI number of FileCore_DiscOp64 ("The Last Bug"). RO5 compatible!
  * Wrote "PartTool" to replace the "GetPartns" and "ReadPart" programs.
+ * Changed default file type back to &fff (Text).
  * Released as version 0.13
 
 

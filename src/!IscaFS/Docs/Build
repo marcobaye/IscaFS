@@ -39,4 +39,4 @@ To compile PartTool, you will need a C compiler and OSLib. I use GCC, but Acorn/
 
 Compiling GetPartns
 ~~~~~~~~~~~~~~~~~~~
-If you have Acorn C, recompiling GetPartns shouldn't be a problem. However, if you are a GCC user like me, you will have to edit the Makefile. I (Marco) haven't recompiled it myself, yet. And given the fact that its functionality is superseded by PartTool, I probably won't ever have to do that. :)
+If you have Acorn C, recompiling GetPartns shouldn't be a problem. However, if you are a GCC user like me, you will have to edit the Makefile. I (Marco) haven't recompiled it myself, yet. And given the fact that its functionality is superseded by PartTool, I probably won't ever to it. :)

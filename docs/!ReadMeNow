@@ -1,7 +1,7 @@
 
 
                                 IscaFS 0.13
-                                22 Apr 2004
+                                23 Apr 2004
 
 
 This is release 0.13 of IscaFS. If you did not download this archive from
@@ -22,7 +22,7 @@ What it is:
 Supported OS versions:
     RISC OS < 3.5:
         You will either need a copy of Justin Fletcher's dynamic areas support
-        module (called "DDA" or "Dummy" or you will have to re-assemble IscaFS
+        module (called "DDA" or "Dummy") or you will have to re-assemble IscaFS
         after configuring it to use the RMA instead of a dynamic area. See the
         file !IscaFS.Docs.Build on how to do this.
     RISC OS 3.5 or higher:
@@ -47,7 +47,7 @@ What this archive contains:
 
 
 Changes from release 0.12plus, 18 Apr 2004
-          to release 0.13,     22 Apr 2004:
+          to release 0.13,     23 Apr 2004:
 
     Fixed "The Last Bug", which prevented RO5/Iyonix compatibility.
         Thanks to Daniel Ellis for finding it and helping to fix it.
@@ -91,4 +91,4 @@ Changes from release 0.11, 16 Mar 2004
 
 I think that's all for now.
 Have fun.
-Marco Baye, 22 Apr 2004
+Marco Baye, 23 Apr 2004
