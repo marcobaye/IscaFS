@@ -13,7 +13,7 @@ mod_flags	= 1:REM module is 32bit compatible
 REM This is the filetype of ImageFS files I handle...
 filetype%	= &0b0
 REM and the filetype untyped files assume
-filetype_default%	= &fff
+filetype_default%	= &ffd:REM changed from fff to ffd
 
 
 REM OS_FSControl reasons

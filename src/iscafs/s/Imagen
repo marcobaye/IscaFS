@@ -25,7 +25,7 @@ FNdt("  r2 (buffer size if known) = %2i4")
 ; create block and link into chain
 	MOV	r3,#len_mount%
 	BL	Memory_Claim
-	; FIXME - check for V flag!
+	FNreturnOnErr
 	MOV	r6,r2			; r6 now points at mnt_*
 	STR	r2,[r13]		; return in r1
 	STR	r1,[r6,#mnt_filehandle%]
@@ -82,7 +82,7 @@ FNdt("_check_image")
 	LDR	r2,[r6,#s_blocks_count%]
 	LDR	r3,[r6,#s_blocks_per_group%]
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
-	; FIXME - check for V flag
+	FNreturnOnErr
 ; This was buggy. Instead of fetching all block group descriptors, it fetched
 ; lots of copies of the first block group's group descriptor. If the FS uses
 ; the "sparse_super" feature, this bug shows:
@@ -112,7 +112,7 @@ FNdt("_check_image")
 	; r9 = block count (last block might be partially filled)
 	MOV	r3,r9,LSL r7		; r3 = size of desc table (rounded up)
 	BL	Memory_Claim		; r2 points to mem block of r3 bytes
-	; FIXME - check for V flag!
+	FNreturnOnErr
 	STR	r2,[r6,#mnt_groupdescs%]	; store pointer
 	; r5 = log2-10 of block size
 	; r9 = block count
@@ -127,7 +127,7 @@ FNdt("_check_image")
 ._lp
 		MOV	r0,r8;			; number of block to read
 		BL	Cache_GetBlock		; r0 => block r0
-		; FIXME - check for V flag!
+		FNreturnOnErr
 		MOV	r1,r7			; r1 => target
 		ADD	r7,r7,r5		; r7 => next target
 		MOV	r2,r5			; r2 = amount to copy
@@ -452,10 +452,10 @@ FNdt(">>> Image_IdentifyDisc")
 	MOV	r4,#len_superblock%	; get 60 bytes of the super block
 	MOV	r2,r2,LSL #28
 	ADD	r2,r2,#1024		; disc address
-	LDR	r3,[r12,#buffer]
+	LDR	r3,[r12,#ptr_blockbuffer]
 	SWI	"XFileCore_DiscOp"
 	FNreturnOnErr
-	LDR	r4,[r12,#buffer]
+	LDR	r4,[r12,#ptr_blockbuffer]
 	LDR	r2,[r4,#s_magic%-superblock%]
 	MOV	r2, r2, LSL #16
 	EOR	r2, r2, #&ef000000

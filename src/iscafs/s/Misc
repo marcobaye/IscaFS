@@ -22,9 +22,29 @@ FNdt("  r3 (denominator) = %3i4")
 ;	r0  =	r2 DIV r3
 ;	r2  =	r2 MOD r3
 ;------------------------
+;; start of hardcore debugging
+;	STMFD	R13!,{R0-R2,R14}
+;	MOV	R0,R2
+;	ADR	R1,_debugstring+1
+;	MOV	R2,#12
+;	SWI	"XOS_ConvertHex8"
+;	SUB	R0,R0,#1
+;	SWI	"XOS_Write0"
+;	SWI	&100+ASC("/")
+;	MOV	R0,R3
+;	ADR	R1,_debugstring+1
+;	MOV	R2,#12
+;	SWI	"XOS_ConvertHex8"
+;	SUB	R0,R0,#1
+;	SWI	"XOS_Write0"
+;	SWI	"XOS_NewLine"
+;	LDMFD	R13!,{R0-R2,R14}
+
 	FNfunction("r1")
 	TEQ	r3,#0
 	BEQ	_DivisionByZero
+	MOVS	r2,r2		; fix bug by checking range
+	BMI	_NumeratorTooLarge
 	MOV	r0,#0		; Initialise result
 	CMP	r2,r3		; Is numerator less than denominator?
 FNdtc(lt, "<<? Divide (numerator < denominator)")
@@ -35,7 +55,7 @@ FNdtc(lt, "<<? Divide (numerator < denominator)")
 	CMP	r2,r1,LSL #1	; Check accumulator*2 against numerator
 	MOV	r14,r14,LSL #1	; Shift shift counter
 	MOV	r1,r1,LSL #1	; Shift accumulator up
-	BGT	_UpwardLoop	; Branch back
+	BHI	_UpwardLoop	; Branch back (BGT was buggy)
 ._DownwardLoop
 	CMP	r1,r2		; Is numerator greater than accumulator?
 	SUBLE	r2,r2,r1	; Take accumulator away from numerator
@@ -56,3 +76,9 @@ FNdt("  r2 (r2 MOD r3) = %2i4")
 ._DivisionByZero
 FNdt("<<! Divide (division by zero)")
 	FNreturnError("Division by zero.")
+
+._NumeratorTooLarge
+	FNreturnError("IscaFS IntDIV failed.")
+
+;._debugstring
+;	EQUS	"&............"+CHR$(0):FNalign

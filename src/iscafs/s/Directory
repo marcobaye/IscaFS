@@ -21,10 +21,7 @@ FNdt("  r11 (subroutine) = %11x8")
 ; On entry:
 ;	r0  =	inode number
 ;	r1  =	start offset
-;	r2  =	user register
-;	r3  =	user register
-;	r4  =	user register
-;	r5  =	user register
+;	r2-r5 =	user registers
 ;	r6  =	pointer to MDB
 ;	r11 =	pointer to subroutine
 ; On exit:
@@ -33,9 +30,9 @@ FNdt("  r11 (subroutine) = %11x8")
 ;------------------------
 ; Entry/exit conditions for subroutine:
 ; On entry:
-;	r0  =	pointer to block containing data
-;	r6  =	pointer to mount descriptor block
-;	r7  =	offset from start of block
+;	r0  =	pointer to dirent structure
+;	r2-r5 =	user registers
+;	r6  =	pointer to MDB
 ;	r8  =	number of the block within this directory
 ; On exit:
 ;	r0  =	-1 if manipulation failed (otherwise preserved)
@@ -48,64 +45,76 @@ FNdt("  r11 (subroutine) = %11x8")
 ;	Manipulation may also be flagged as having failed if the subroutine
 ; decides that adding the given item would exceed its maximum number of items
 ; count.  This maximum items count must be maintained by the subroutine.
-;	Subroutines are not allowed to use buffer or buffer2.
+;	Subroutines are not allowed to use blockbuffer or inodebuffer.
 ;------------------------
-	FNfunction("r0-r2,r6-r11")	; BE CAREFUL - FNreturn not always used
-	MOV	r9,r2			; store user reg in safe place
-	MOV	r10,r1			; start offset
-	BL	Cache_GetInodePointer	; r0 = inode pointer
+	FNfunction("r0-r1,r7-r10")	; BE CAREFUL - FNreturn not always used
+; fixed empty dir access and improved register usage
+	; r7 => inode struct
+	; r8 = inode block number
+	; r9 = start offset (from r1)
+	; r10 = user reg (from r2)
+	; Keep input values in safe registers
+	MOV	r9,r1			; start offset
+	MOV	r10,r2			; user reg
+	; Fetch inode into inodebuffer
+	BL	Cache_GetInodePointer	; r0 => inode struct
 	FNreturnOnErr
-	LDR	r1,[r12,#buffer2]
+	LDR	r1,[r12,#ptr_inodebuffer]
 	MOV	r2,#len_inode%
-	BL	Memory_BlockCopy
-	MOV	r2,r9
-	MOV	r9,r1			; keep pointer to inode in here
-	LDR	r14,[r9,#i_mode%]
-	TST	r14,#i_flag_directory%
-	BEQ	_not_a_directory	; if directory flag is unset
-	MOV	r8,#0			; current block in inode definition
-	MOV	r1,r9
-	MOV	r7,#2*(4+len_dirent%)	; omit . and ..
-	MOV	r0,r8			; get first block
-	BL	Cache_BlockFromInode
-	FNreturnOnErr
-	CMP	r0,#0
-	BLT	_last_item_read
-	SUB	r2,r1,r0
-	LDR	r1,[r12,#buffer]
-	BL	Memory_QuickCopy	; buffer is cache-line aligned ;-)
-	ADD	r0,r1,r7		; increment by required offset
-	ADD	r1,r1,r2
+	BL	Memory_BlockCopy	; copy inode into global inode buffer
+	; Make sure inode is a directory
+	LDR	r14,[r1,#i_mode%]	; now checks all four
+	AND	r14,r14,#i_mode_typemask%	; type bits, not only
+	TEQ	r14,#i_type_directory%		; single "dir" one
+	BNE	_not_a_directory	; if different type
+	; Prepare to scan
+	MOV	r7,r1			; keep inode pointer in here
+	MOV	r8,#0			; init inode block number
 ;------------------------
 ; main loop for getting items in the directory
-._loop
-	CMP	r0,r1			; reached the end of the block yet?
-	BGE	_get_new_block
-._return_from_get_new_block
+._next_block
+	; r7 => inode struct
+	; r8 = current inode block number
+	MOV	r0,r8			; get inode block number
+	BL	Cache_BlockFromInode	; and fetch block
+	FNreturnOnErr
+	CMP	r0,#0			; -1 means outside file (EOF)
+	BLT	_last_item_read
+	SUB	r2,r1,r0		; r2 = size of block
+	LDR	r1,[r12,#ptr_blockbuffer]; copy block to global block buffer
+	BL	Memory_QuickCopy	; buffer is cache-line aligned ;-)
+	TEQ	r8,#0			; was it the directory's first block?
+	ADDEQ	r0,r1,#len_dirent%+4	; then skip ".", go straight to ".."...
+	MOVNE	r0,r1
+	ADD	r1,r1,r2
+	BEQ	_next_entry		; ...and pretend it's empty
+._same_block
 	LDR	r14,[r0,#dirent_inode%]
 	TEQ	r14,#0
-	BEQ	_entry_is_null
-	LDR	r14,[r0,#dirent_entry_length%]
-	TST	r14,#&ff0000		; null length leafname?
-	BEQ	_entry_is_null
+	LDRNE	r14,[r0,#dirent_entry_length%]
+	TSTNE	r14,#&ff0000		; null length leafname?
+	BEQ	_next_entry
 ;------------------------
 ; now call the subroutine if I've got to the correct offset
-	SUBS	r10,r10,#1		; reaches -1 at first item to be read
-	BGE	_entry_is_null
-	LDR	r2,[r13,#8]
+	SUBS	r9,r9,#1		; reaches -1 at first item to be read
+	BGE	_next_entry
+	MOV	r2,r10			; restore user register
 	MOV	r14,pc			; call subroutine
 	MOV	pc,r11
-	STR	r2,[r13,#8]
+	MOV	r10,r2			; keep it safe again
 	CMP	r0,#0
 	BLT	_subroutine_failed
-._entry_is_null
+._next_entry
 	LDR	r14,[r0,#dirent_entry_length%]
 ; needed if FS uses "filetype-in-dir" feature
 	MOVS	r14,r14,LSL#16	; get offset to next entry (shifted but clean)
 	ADDNE	r0,r0,r14,LSR#16
 	MOVEQ	r0,r1
-	ADDNE	r7,r7,r14,LSR#16	; increment offset from start of block
-	B	_loop
+	CMP	r0,r1			; reached the end of the block yet?
+	BLT	_same_block
+	MOV	r1,r7			; restore inode pointer
+	ADD	r8,r8,#1		; increment block number
+	B	_next_block
 
 ._not_a_directory
 FNdt("_not_a_directory")
@@ -113,34 +122,20 @@ FNdt("_not_a_directory")
 
 ._last_item_read
 FNdt("_last_item_read")
-	LDMFD	r13!,{r0-r2}
-	MVN	r1,#0
-	CMP	R0,R0			; clears V
-	LDMFD	r13!,{r6-r11,pc}	; removed '^'
+	LDMFD	r13!,{r0-r1}
+	MVN	r1,#0			; -1 in r1 means no more entries
+	MOV	r2,r10			; restore user register
+	CMP	R0,R0			; clear V for 32bit-clean exit
+	LDMFD	r13!,{r7-r10,pc}
 
 ._subroutine_failed
 FNdt("_subroutine_failed")
-	LDMFD	r13!,{r0-r2}
-	SUB	r1,r1,r10		; calculate new start offset
+	LDMFD	r13!,{r0-r1}
+	SUB	r1,r1,r9		; calculate new start offset
+	MOV	r2,r10			; restore user register
 	CMP	R0,R0			; clears V
 	SUB	r1,r1,#1
-	LDMFD	r13!,{r6-r11,pc}	; removed '^'
-
-._get_new_block
-	MOV	r1,r9
-	ADD	r8,r8,#1
-	MOV	r0,r8
-	BL	Cache_BlockFromInode
-	FNreturnOnErr
-	CMP	r0,#0
-	BLT	_last_item_read
-	SUB	r2,r1,r0		; copy this into a safe place
-	LDR	r1,[r12,#buffer]
-	BL	Memory_QuickCopy
-	MOV	r0,r1
-	MOV	r7,#0			; offset from start of block is 0
-	ADD	r1,r1,r2
-	B	_return_from_get_new_block
+	LDMFD	r13!,{r7-r10,pc}	; removed '^'
 
 
 .Directory_ReadEntries
@@ -253,12 +248,14 @@ FNdtc(gt, "<<< Directory_ReadNames (no space in buffer)")
 	TEQ	r14,#ASC","	; if it's a comma,
 	MOVEQ	r1,r14			; pretend name is 4 chars shorter
 ._loop
-	LDRB	r14,[r4],#1
-	TEQ	r14,#ASC"."
-	MOVEQ	r14,#ASC"/"
-	STRB	r14,[r2],#1
-	SUBS	r1,r1,#1
-	BGT	_loop
+		LDRB	r14,[r4],#1	; FIXME - convert invalid chars!
+		TEQ	r14,#ASC"."
+		MOVEQ	r14,#ASC"/"
+		TEQ	r14,#ASC" "
+		MOVEQ	r14,#&a0	; ALT-Space
+		STRB	r14,[r2],#1
+		SUBS	r1,r1,#1
+		BGT	_loop
 	MOV	r14,#0
 	STRB	r14,[r2],#1
 ; REASON-DEPENDANT CODE ENDS HERE
@@ -319,14 +316,17 @@ FNdtc(gt, "<<< Directory_ReadFullInfo (no space in buffer)")
 	MOV	r2,r0			; r2 => dirent structure
 	ADD	r0,r0,#dirent_name%	; r0 => ext2 name
 	BL	File_FiletypeFromLeafname; r0 = filetype, r1 = new length
+	FNreturnOnErr
 	MOV	r8,r1			; r8 = filename length without ",xxx"
 	MOV	r1,r0			; r1 = filetype
 	LDR	r0,[r2,#dirent_inode%]
-	BL	Cache_GetInodePointer		; FIXME - check for V flag
+	BL	Cache_GetInodePointer
+	FNreturnOnErr
 	; r0 => inode structure
 	; r1 = filetype
 	; r8 = filename length without ",xxx"
-	BL	File_CatalogueInfoFromInode	; FIXME - check for V flag
+	BL	File_CatalogueInfoFromInode
+	FNreturnOnErr
 	; r0,r2-r5 = catalogue info
 	STMIA	r7!,{r2-r5}
 	STR	r0,[r7],#4
@@ -335,12 +335,14 @@ FNdtc(gt, "<<< Directory_ReadFullInfo (no space in buffer)")
 	LDMFD	r13!,{r0,r3-r6,r8}
 	ADD	r4,r0,#len_dirent%	; r4 => ext2 filename
 ._loop
-	LDRB	r14,[r4],#1
-	TEQ	r14,#ASC"."
-	MOVEQ	r14,#ASC"/"
-	STRB	r14,[r2],#1
-	SUBS	r1,r1,#1
-	BGT	_loop
+		LDRB	r14,[r4],#1	; FIXME - convert invalid chars!
+		TEQ	r14,#ASC"."
+		MOVEQ	r14,#ASC"/"
+		TEQ	r14,#ASC" "
+		MOVEQ	r14,#&a0	; ALT-Space
+		STRB	r14,[r2],#1
+		SUBS	r1,r1,#1
+		BGT	_loop
 	MOV	r14,#0
 	STRB	r14,[r2],#1
 	ADD	r2,r2,#3		; word align

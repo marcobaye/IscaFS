@@ -6,7 +6,7 @@ REM User-definable values.
 REM =========================================================
 
 REM Define whether IscaFSs memory manager should use dynamic areas or RMA.
-REM	0	= dynamic areas off (use RMA instead)
+REM	0	= use RMA (FIXME - seems to crash and burn)
 REM	1	= dynamic areas on
 config_dynamicareas%	= 1
 

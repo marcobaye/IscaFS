@@ -213,7 +213,7 @@ FNdt("  r1 (cache entry) = %1x8")
 	and	r1,r1,#fcacheent_blksize%
 	cmp	r1,r8		; Compare against filesystem's block size.
 	beq	_existing_block_ok
-; BLLT/MOVLT combo is not 32bit-safe. Added BGE before.
+; BLLT/MOVLT combo wasn't 32bit-safe. Added BGE before.
 	bge	_claim_target_block
 	bl	Memory_Free	; Free old block (wrong size).
 	mov	r2,#0
@@ -329,7 +329,7 @@ FNdt("_match_leaf")
 ; given matches the requested name.  Exits immediately if match is found.
 ;------------------------
 ; On entry:
-;	r0  =	pointer to block containing dirent
+;	r0  =	pointer to dirent structure
 ;	r4  =	length of leafname to find
 ;	r5  =	pointer to leafname
 ; On exit:
@@ -337,11 +337,11 @@ FNdt("_match_leaf")
 ;	r2  =	inode number if matched, unchanged if didn't
 ;	r3  =	filetype of file (if r0=-1)
 ;------------------------
-	FNfunction("r4-r7")
-	LDR	r7,[r0,#dirent_entry_length%]
+	FNfunction("r1,r4-r7")
+	LDR	r1,[r0,#dirent_entry_length%]
 	ADD	r6,r0,#dirent_name%
-	MOV	r7,r7,LSR #16
-	AND	r7,r7,#255		; needed if FS uses "filetype-in-dir" feature
+	MOV	r1,r1,LSR #16
+	AND	r1,r1,#255		; needed if FS uses "filetype-in-dir" feature
 ; Fixed a strange bug:
 ; The length of an ext2 filename is given in the dirent; the entry is *NOT*
 ; nullterminated. Imagine an old and unused direntry called "abcdefghijkl". A
@@ -352,54 +352,33 @@ FNdt("_match_leaf")
 ; later on in the directory, and IscaFS kept accessing the first.
 ; Checking the flags after calculating the length of the hypothetical
 ; "comma-postfix" should fix it:
-	SUBS	r7,r7,r4
+	SUBS	r7,r1,r4
 	BMI	_clean_exit		; changed creturn to BMI
 	TEQNE	r7,#4			; ext2 name must have same
 	BNE	_clean_exit		; length or be 4 (",xxx") chars longer
+	MOV	r7,r4			; save local filename length in r7
 ._lp
-	LDRB	r3,[r6],#1
-	LDRB	r14,[r5],#1
-	TEQ	r3,#ASC"."
-	MOVEQ	r3,#ASC"/"
-	TEQ	r3,r14
-	BNE	_clean_exit		; changed creturn to BNE
-	SUBS	r4,r4,#1
-	BGT	_lp
-	TEQ	r7,#0			; possibility of a comma?
-	BEQ	_no_comma
-	LDRB	r3,[r6],#1
-	TEQ	r3,#ASC","
-; wrong length and no comma
-	BNE	_clean_exit		; changed creturn to BNE
-;------------------------
-; get the filetype from the ,b21 etc
-	MOV	r7,r0
-	LDRB	r3,[r6]
-	LDRB	r4,[r6,#1]
-	LDRB	r5,[r6,#2]
-	ORR	r3,r3,r4,LSL #8
-	ORR	r3,r3,r5,LSL #16
-; moved 4-char-string-buffer to workspace
-	STR	r3,[r12,#threehex]
-	ADD	r1,r12,#threehex
-
-	MOV	r0,#16
-	ORR	r0,r0,#1<<29		; must be in range 0->r2
-	MOV	r2,#&f00
-	ORR	r2,r2,#&ff
-	SWI	"XOS_ReadUnsigned"
-	MOV	r3,r2			; value
-	LDR	r2,[r7,#dirent_inode%]
-	MVN	r0,#0
+		LDRB	r3,[r6],#1	; FIXME - convert invalid chars!
+		LDRB	r14,[r5],#1
+		TEQ	r3,#ASC"."
+		MOVEQ	r3,#ASC"/"
+		TEQ	r3,#ASC" "	; check for SPACE
+		MOVEQ	r3,#&a0		; and replace with ALT-SPACE
+		TEQ	r3,r14
+		BNE	_clean_exit	; has been creturn
+		SUBS	r4,r4,#1
+		BGT	_lp
+	MOV	r5,r0			; save dirent pointer in r5
+	ADD	r0,r0,#dirent_name%
+	; r0 => ext2 filename
+	; r1 = ext2 filename length
+	BL	File_FiletypeFromLeafname	; never fails
+	MOV	r3,r0			; r3 = filetype
+	MOV	r0,r5			; restore dirent pointer
+	TEQ	r1,r7			; do lengths match without ",xxx"?
+	LDREQ	r2,[r0,#dirent_inode%]
+	MVNEQ	r0,#0			; "-1" = matched
 ._clean_exit
-	FNreturnClean
-
-;------------------------
-; matched - return instantly with inode
-._no_comma
-	LDR	r2,[r0,#dirent_inode%]
-	MVN	r0,#0
-	FNlmov(3,filetype_default%)
 	FNreturnClean
 
 
@@ -423,7 +402,7 @@ FNdt("  r6 (MDB) = %6x8")
 	LDR	r3,[r6,#s_inodes_per_group%]
 	MOV	r2,r0
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
-	; FIXME - check for V flag
+	FNreturnOnErr
 ; group descriptors contain *absolute* block numbers!
 	LDR	r14,[r6,#mnt_groupdescs%]
 	ADD	r0,r14,r0,LSL #shift_groupdesc%
@@ -458,7 +437,7 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r1  =	pointer to inode definition
 ;	r6  =	pointer to MDB
 ; On exit:
-;	r0  =	pointer to block
+;	r0  =	pointer to block (-1 = no such block, outside file)
 ;	r1  =	pointer to end of block
 ;	r2  =	pointer to block table entry
 ;------------------------
@@ -471,7 +450,7 @@ FNdtc(vs, "<<! Cache_BlockFromInode (Cache_BlockNumberFromInode failed)")
 	FNreturnOnErr
 	CMP	r0,#0
 FNdtc(lt, "<<? Cache_BlockFromInode (negative block pointer)")
-	BLT	_clean_exit		; changed creturn to BNE
+	BLT	_clean_exit		; changed creturn to BLT
 	BL	Cache_GetBlock
 	MOV	r2,r1
 	ADD	r1,r0,r3
@@ -496,16 +475,31 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r1  =	pointer to inode definition
 ;	r6  =	pointer to MDB
 ; On exit:
-;	r0  =	block number
+;	r0  =	block number (-1 = no such block, outside file)
 ;------------------------
-	FNfunction("r1-r5,r7,r8")
-	ldr	r2,[r1,#i_blocks%]
-	cmp	r0,r2,LSR #1	; for some odd reason it's 2x too big
-	bge	_no_such_block
-	ldr	r2,[r6,#s_log_block_size%]
-	add	r1,r1,#i_block%
-	add	r8, r2, #8	; 8=10-2 (10 add to s_log, 2 for 1word/entry)
-	cmp	r0,#12		; main section?
+	FNfunction("r1-r4,r8")
+; fixed i_512bblocks% usage. i_512bblocks% contains the number of allocated
+; blocks in traditional UNIX fashion - that is, in 512-byte blocks, regardless
+; of the file system's logical block size.
+; In addition to that, the i_512bblocks% count does not include black holes.
+; So now the file extent is used instead to check for "outside file".
+; new:
+	LDR	r2,[r6,#s_log_block_size%]	; r2 = log2-10
+	LDR	r3,[r1,#i_size%]		; r3 = file extent
+	ADD	r2,r2,#10			; r2 = log2
+	CMP	r3,r0,LSL r2			; cmp extent,wantedoffset
+	BLS	_no_such_block
+	ADD	r1,r1,#i_block%
+	SUB	r8,r2,#2			; r8 = block pointers per block
+; old:
+;	ldr	r2,[r1,#i_blocks%]
+;	cmp	r0,r2,LSR #1	; for some odd reason it's 2x too big
+;	bge	_no_such_block
+;	ldr	r2,[r6,#s_log_block_size%]
+;	add	r1,r1,#i_block%
+;	add	r8, r2, #8	; 8=10-2 (10 add to s_log, 2 for 1word/entry)
+
+	subs	r4,r0,#12		; main section?
 	bge	_sub_block
 	ldr	r0,[r1,r0,LSL #2]; get block number
 FNdt("<<< Cache_BlockNumberFromInode (primary block)")
@@ -513,10 +507,9 @@ FNdt("  r0 (block number) = %0i4")
 	FNreturnClean
 
 ._sub_block
-	SUB	r4,r0,#12
 	MOV	r3,#1
 	MOV	r3,r3,LSL r8		; number of words in one block
-	CMP	r4,r3			; this level ok?
+	SUBS	r2,r4,r3		; this level ok?
 	BGE	_sub_sub_block
 	LDR	r0,[r1,#12*4]		; get 13th block number
 	BL	Cache_GetBlock
@@ -526,34 +519,32 @@ FNdt("  r0 (block number) = %0i4")
 	FNreturnAsIs
 
 ._sub_sub_block
-	SUB	r4,r4,r3
 	MOV	r3,r3,LSL r8
-	CMP	r4,r3			; this level ok?
+	SUBS	r4,r2,r3		; this level ok?
 	BGE	_sub_sub_sub_block
 	LDR	r0,[r1,#13*4]		; get 14th block number
 	BL	Cache_GetBlock
-	MOVVC	r7,r4,LSR r8		; get next parent block
-	LDRVC	r0,[r0,r7,LSL #2]
-	BLVC	Cache_GetBlock
-	SUBVC	r4,r4,r7,LSL r8
+	MOVVC	r4,r2,LSR r8		; get next parent block
 	LDRVC	r0,[r0,r4,LSL #2]
+	BLVC	Cache_GetBlock
+	SUBVC	r2,r2,r4,LSL r8
+	LDRVC	r0,[r0,r2,LSL #2]
 FNdt("<<< Cache_BlockNumberFromInode (doubly indirected block)")
 FNdt("  r0 (block number) = %0i4")
 	FNreturnAsIs
 
 ._sub_sub_sub_block
-	SUB	r4,r4,r3
 	LDR	r0,[r1,#14*4]		; get 15th block number
 	BL	Cache_GetBlock
 	MOVVC	r3,r8,LSL #1
-	MOVVC	r7,r4,LSR r3
-	LDRVC	r0,[r0,r7,LSL #2]
-	SUBVC	r4,r4,r7,LSL r3
+	MOVVC	r2,r4,LSR r3
+	LDRVC	r0,[r0,r2,LSL #2]
+	SUBVC	r4,r4,r2,LSL r3
 	BLVC	Cache_GetBlock
-	MOVVC	r7,r4,LSR r8		; get next parent block
-	LDRVC	r0,[r0,r7,LSL #2]
+	MOVVC	r2,r4,LSR r8		; get next parent block
+	LDRVC	r0,[r0,r2,LSL #2]
 	BLVC	Cache_GetBlock
-	SUBVC	r4,r4,r7,LSL r8
+	SUBVC	r4,r4,r2,LSL r8
 	LDRVC	r0,[r0,r4,LSL #2]
 FNdt("<<< Cache_BlockNumberFromInode (triply indirected block)")
 FNdt("  r0 (block number) = %0i4")

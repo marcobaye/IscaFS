@@ -6,45 +6,87 @@
 
 
 ; rewritten, now needs and returns length info
+; rewritten again, now copes with ".ext" extensions as well
 .File_FiletypeFromLeafname
 FNdt(">>> File_FiletypeFromLeafname")
 ;------------------------
 ; Work out the filetype of a file from its leafname
 ;------------------------
 ; On entry:
-;	r0  =>	unterminated leafname
+;	r0  =>	unterminated ext2 leafname
 ;	r1  =	length of leafname
 ; On exit:
-;	r0  =	filetype (default &fff)
+;	r0  =	filetype
 ;	r1  =	corrected length (may be shortened if ",xxx" extension)
 ;------------------------
-	FNfunction("r2,r7,r8")	; r7 = default filetype, r8 = new length
-	FNmovc(7,filetype_default%)	; pre-load default value
-	SUBS	r8,r1,#4	; calculate theoretical offset of comma
-	BLS	_clean_exit	; if name's too short for ",xxx", exit
-	LDRB	r14,[r0,r8]!	; get fourth-last character and check for comma
+	FNfunction("r2-r4")
+	; scan backwards until "." or "," found (or no more characters)
+	SUB	r2,r0,#1	; now r2 points *before* leafname
+	MOVS	r3,r1		; r3 counts backwards
+	BEQ	_use_default	; just to make sure, hopefully never taken
+._scanloop
+		SUBS	r3,r3,#1
+		LDRNEB	r14,[r2,r3]
+		TEQNE	r14,#ASC"."
+		TEQNE	r14,#ASC","
+		BNE	_scanloop
+	TEQ	r3,#0
+	BEQ	_use_default
 	TEQ	r14,#ASC","
-	BNE	_clean_exit	; if name does not end in ",xxx", exit
-	; r0 => ",xxx"
-	; r7 = default filetype
-	; r8 = length without ",xxx"
-	LDRB	r14,[r0,#1]
-	LDRB	r2,[r0,#2]
+	MOV	r4,r1		; save filename length in r4
+	ADD	r0,r0,r3	; r0 => after dot/comma
+	SUB	r2,r1,r3	; r2 = length of stuff after dot/comma
+	BEQ	_found_comma
+; handle ".ext" extension
+	; r0 => after dot
+	; r2 = length of stuff after dot
+	CMP	r2,#len_filetypebuf
+	BGT	_use_default
+	; copy extension to conversion buffer
+	ADD	r1,r12,#filetypebuffer	; pointer to buffer
+._copyloop
+		LDRB	r14,[r0],#1
+		STRB	r14,[r1],#1
+		SUBS	r2,r2,#1
+		BNE	_copyloop
+	MOV	r14,#0			; terminate string
+	STRB	r14,[r1]
+	MOV	r0,#3		; input format = MMM_TYPE_DOT_EXTN
+	ADD	r1,r12,#filetypebuffer	; r1 => terminated extension string
+	MOV	r2,#0		; output format = MMM_TYPE_RISCOS
+	SWI	"XMimeMap_Translate"	; now r3 = filetype
+	MOV	r1,r4		; restore filename length
+	MOVVC	r0,r3		; if no error, use result
+	FNpcreturn("VC")	; and return
+._use_default
+	FNmovc(0,filetype_default%)
+	FNreturnClean
+;------------------------
+
+._found_comma
+; handle ",xxx" extension
+	; r0 => after comma
+	; r2 = length of stuff after comma
+	TEQ	r2,#3		; comma extension length is fixed
+	BNE	_use_default
+	; fetch next three characters
+	LDRB	r14,[r0]
+	LDRB	r2,[r0,#1]
 	ORR	r14,r14,r2,LSL #8
-	LDRB	r2,[r0,#3]
+	LDRB	r2,[r0,#2]
 	ORR	r14,r14,r2,LSL #16
 	MOV	r0,#16			; hex digits use base 16
-	STR	r14,[r12,#threehex]	; store "xxx\0" string
+	STR	r14,[r12,#filetypebuffer]	; store "xxx\0" string
 	MOV	r2,#&f00		; prepare assembling maximum value
-	ADD	r1,r12,#threehex	; pointer to string
+	ADD	r1,r12,#filetypebuffer	; pointer to string
 	ORR	r0,r0,#1<<29		; number must be in range 0->r2
 	ORR	r2,r2,#&ff		; finish assembling maximum value
 	SWI	"XOS_ReadUnsigned"	; parse string
-	MOVVC	r7,r2			; if no error, use result
-	MOV	r1,r8			; in any case, use shortened name
-._clean_exit
-	MOV	r0,r7
-	FNreturnClean
+	MOVVS	r1,r4			; restore filename length
+	BVS	_use_default		; if error, return default filetype
+	SUB	r1,r4,#4		; otherwise, adjust filename length
+	MOV	r0,r2			; and use result value
+	FNpreturn			; is ok because V is clear
 
 
 .File_CatalogueInfoFromInode
@@ -72,16 +114,26 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Entries are of the form 'load,exec,length,attrs,type,name'.
 	LDR	r14,[r1,#i_mode%]
-	TST	r14,#i_flag_directory%
-	MOVEQ	r5,#3			; attrs self-read/write for file
-	MOVNE	r5,#0			; attrs nothing for directory
-	MOVEQ	r0,#1			; file
-	MOVNE	r0,#2			; directory
-	TST	r14,#i_flags_linkbit%	; see b.Workspace for why this works
-	TSTEQ	r14,#i_flags_erkbit%
-	TSTNE	r14,#i_flags_lerkbit%
-	MOVNE	r5,#0
-	MOVNE	r0,#1
+	; Access rights are mapped as far as is sensible (Read access is always
+	; granted). All the original UNIX mode bits are returned in the upper
+	; half of the RISC OS attributes word (is okay because the upper 24 bits
+	; are defined to be filing system dependent).
+	MOV	r5,r14,LSL #16
+;	TST	r5,#&01000000		; check for UNIX owner read bit
+;	ORRNE	r5,r5,#&01		; set RISC OS owner read bit
+	ORR	r5,r5,#&01	; FIXME - read access is always granted ;)
+	TST	r5,#&00800000		; check for UNIX owner write bit
+	ORRNE	r5,r5,#&02		; set RISC OS owner write bit
+	TST	r5,#&00040000		; check for UNIX world read bit
+	ORRNE	r5,r5,#&10		; set RISC OS world read bit
+	TST	r5,#&00020000		; check for UNIX world write bit
+	ORRNE	r5,r5,#&20		; set RISC OS world write bit
+	; now checks all four type bits to recognize dirs.
+	AND	r14,r14,#i_mode_typemask%
+	TEQ	r14,#i_type_directory%
+	MOVNE	r0,#1			; file
+	MOVEQ	r0,#2			; directory
+
 #if config_write%
 ;------------------------
 ; check whether I should use RiscOS load/exec stuff
@@ -250,25 +302,18 @@ FNdt("  r6 (MDB) = %6x8")
 	BL	Cache_GetInodePointer
 	MOVVS	r1,#0			; on cache miss, return "not found" (huh?)
 	BVS	_cache_error		; added to make 32bit-safe
-	LDR	r8,[r0,#i_mode%]
-	AND	r14,r8,#i_flags_link%
-	TEQ	r14,#i_flags_link%
-	BEQ	_symbolic_link
-;MB: FIXME - just a test, undo if stupid
-;new:
-	ANDS	r14,r8,#i_flags_erk%
-;original:
-;	AND	r14,r8,#i_flags_erk%
-;	TEQ	r14,#i_flags_erk%
-;end of test
-	BEQ	_abnormal_file
+	LDR	r8,[r0,#i_mode%]	; now checks all four
+	AND	r14,r8,#i_mode_typemask%	; type bits, not only some
+	TEQ	r14,#i_type_regular%
+	BNE	_not_regular_file
 ;------------------------
 ; get memory for file block and take a copy of the inode structure
 	MOV	r3,#len_file%
-	BL	Memory_Claim		; FIXME - check for V flag
-	MOV	r1,r2
-	MOV	r2,#len_inode%
-	BL	Memory_BlockCopy	; FIXME - check for V flag?
+	BL	Memory_Claim
+	MOVVC	r1,r2
+	MOVVC	r2,#len_inode%
+	BLVC	Memory_BlockCopy
+	FNreturnOnErr
 ;------------------------
 ; fill in the other information about the inode and link in
 	STR	r9,[r1,#file_type%]
@@ -284,10 +329,25 @@ FNdt("  r6 (MDB) = %6x8")
 	MOV	r0,#1<<30		; read permitted, no write
 	MOV	r2,#1024		; buffer size for FileSwitch to use
 	LDR	r3,[r1,#i_size%]	; file extent
-	LDR	r4,[r1,#i_blocks%]	; make space allocated to file
-	LDR	r14,[r6,#s_log_block_size%]
-	ADD	r14, r14, #9		; i_blocks% is number of blocks *2
-	MOV	r4, r4, LSL r14
+; fixed i_512bblocks% usage. i_512bblocks% contains the number of allocated
+; blocks in traditional UNIX fashion - that is, in 512-byte blocks, regardless
+; of the file system's logical block size.
+; FIXME - might still make problems if the file has holes!
+; new:
+	LDR	r4,[r1,#i_512bblocks%]
+	ADD	r4,r4,#1		; round to next even number
+	BIC	r4,r4,#1		; (to have multiple of buffer size)
+	CMP	r4,   #&00800000	; 4GB or more allocated?
+	MVNCS	r4,   #&f0000001	; then build maximum value instead
+	BICCS	r4,r4,#&0f800000
+	;=MOVCS	r4,   #&007ffffe
+	MOV	r4,r4,LSL #9		; convert 512byte count to byte count
+; old:
+;	LDR	r4,[r1,#i_blocks%]	; make space allocated to file
+;	LDR	r14,[r6,#s_log_block_size%]
+;	ADD	r14, r14, #9		; i_blocks% is number of blocks *2
+;	MOV	r4, r4, LSL r14
+
 FNdt("<<< File_Open")
 FNdt("  r0 (image file info word) = %0x8")
 FNdt("  r1 (my file handle) = %1x8")
@@ -296,14 +356,45 @@ FNdt("  r3 (file extent) = %3i4")
 FNdt("  r4 (space allocated to file) = %4i4")
 ._cache_error
 	FNreturnClean
+;------------------------
 
-._symbolic_link
-FNdt("<<< File_Open (symbolic link)")
-	FNreturnError("Symbolic links are not yet supported.")
-
-._abnormal_file
-FNdt("<<< File_Open (abnormal file)")
-	FNreturnError("This is not a normal file.")
+; rewritten
+._not_regular_file
+	MOV	R0,R14
+	FNunstackKeepR0
+	TEQ	r0,#i_type_fifo%
+	ADREQ	r0,_file_is_fifo
+	BEQ	SetVFlagAndMovPcR14
+	TEQ	r0,#i_type_chardev%
+	ADREQ	r0,_file_is_chardev
+	BEQ	SetVFlagAndMovPcR14
+	TEQ	r0,#i_type_blkdev%
+	ADREQ	r0,_file_is_blockdev
+	BEQ	SetVFlagAndMovPcR14
+	TEQ	r0,#i_type_symlink%
+	ADREQ	r0,_file_is_symlink
+	BEQ	SetVFlagAndMovPcR14
+	TEQ	r0,#i_type_socket%
+	ADREQ	r0,_file_is_socket
+	ADDNE	r0,pc,#0
+	B	SetVFlagAndMovPcR14
+	EQUD	0
+	EQUS	"This is not a normal file."+CHR$0:FNalign
+._file_is_fifo
+	EQUD	0
+	EQUS	"UNIX pipes not supported."+CHR$0:FNalign
+._file_is_chardev
+	EQUD	0
+	EQUS	"UNIX character devices not supported."+CHR$0:FNalign
+._file_is_blockdev
+	EQUD	0
+	EQUS	"UNIX block devices not supported."+CHR$0:FNalign
+._file_is_symlink
+	EQUD	0
+	EQUS	"Symbolic links are not yet supported."+CHR$0:FNalign
+._file_is_socket
+	EQUD	0
+	EQUS	"UNIX sockets not supported."+CHR$0:FNalign
 
 
 .File_Close

@@ -1,6 +1,6 @@
 | !Boot for !IscaFS
 Set IscaFS$Dir <Obey$Dir>
-Iconsprites <Obey$Dir>.!Sprites
+IconSprites <IscaFS$Dir>.!Sprites
 Set File$Type_0B0 "ext2fs"
 | Make module load automagically when needed
 Set Alias$@RunType_0B0 <IscaFS$Dir>.!Run %%*0

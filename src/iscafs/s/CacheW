@@ -69,7 +69,7 @@ FNdt("<<< Cache_FlushBlock")
 	LDR	r3,[r6,#s_blocks_per_group%]
 	MOV	r2,r0			; turn target block -> target group
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
-	; FIXME - check for V flag
+	FNreturnOnErr
 	LDR	r3,[r6,#mnt_groupdescs%]
 ; group descriptors contain *absolute* block numbers
 ; this is still totally bogus - but lacking write capability, who cares?
@@ -146,9 +146,8 @@ FNdt("<<< Cache_FlushBlock")
 	ADD	r10,r10,#1
 	SUBS	r9,r9,#1
 	BEQ	_return_blocks_dirty
-	CMP	R0, R0			; added to clear V
-	MOV	pc,r14			; changed MOVS to MOV
-; FIXME - shouldn't FNreturnAsIs or something be used?
+	; FIXME - I feel something's missing here...
+	FNreturnClean
 
 ._return_blocks_dirty
 	STRB	r2,[r0]			; write out dirtied bitmap byte
@@ -215,7 +214,8 @@ FNdt("<<< Cache_FlushBlock")
 	ADD	r1,r1,#10
 	MOV	r3,r3,LSL r1
 	MOV	r4,r4,LSL r1
-	BL	Image_WriteBytes_File	; FIXME - check for V flag
+	BL	Image_WriteBytes_File
+	FNreturnOnErr
 ;	LDR	r0,[r1,#block_flags%]
 ;	ORR	r0,r0,#bflag_dirty%
 ;	STR	r0,[r1,#block_flags%]
@@ -245,7 +245,7 @@ FNdt("<<< Cache_FlushBlock")
 	LDR	r3,[r6,#s_blocks_per_group%]
 	MOV	r2,r0			; turn target block -> target group
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
-	; FIXME - check for V flag
+	FNreturnOnErr
 	LDR	r1,[r6,#mnt_numgroups%]
 ._lp
 	ADD	r3,r3,r0,LSL #shift_groupdesc%
@@ -323,7 +323,7 @@ FNdt("<<< Cache_FlushBlock")
 	LDR	r3,[r6,#s_inodes_per_group%]
 	MOV	r2,r1
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
-	; FIXME - check for V flag
+	FNreturnOnErr
 	LDR	r3,[r6,#mnt_groupdescs%]
 	LDR	r5,[r6,#s_free_inodes_count%]
 	ADD	r3,r3,r0,LSL #shift_groupdesc%
@@ -371,7 +371,7 @@ FNdt("<<< Cache_FlushBlock")
 	ADD	r2,r2,r4
 ;------------------------
 ; get actual size used by current number of blocks
-	LDR	r1,[r0,#i_blocks%]
+	LDR	r1,[r0,#i_blocks%]	; FIXME
 	BIC	r2,r2,r4		; SAO
 	MOV	r7,r2,LSR r14		; number of blocks needed
 	MOV	r1,r1,LSR #1		; it's 2* greater than it should be
@@ -419,7 +419,7 @@ FNdt("<<< Cache_FlushBlock")
 ; last block currently allocated to it.
 ; I need to allocate r10 more blocks.
 	MOV	r14,r7,LSL #1		; it's 2* greater than it should be
-	STR	r14,[r0,#i_blocks%]
+	STR	r14,[r0,#i_blocks%]	; FIXME
 	STR	r2,[r13,#4*2]		; return new size allocated to inode
 
 ._clean_exit
