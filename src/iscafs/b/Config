@@ -12,7 +12,7 @@ config_dynamicareas%	= 1
 
 
 REM Define the number of bits used in the hashing for the two caches.
-config_cachehashbits%	= 3
+config_cachehashbits%	= 2:REM changed from 3
 
 REM Define the number of caches per level.  This, multiplied by
 REM (1 << config_cachehashbits%) will be the number of blocks cached per

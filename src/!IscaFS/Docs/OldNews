@@ -6,6 +6,13 @@
 MB> These are release notes for older versions I didn't want to delete.
 
 
+Changes from release 0.12plus to release 0.13, 23 Apr 2004:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fixed "The Last Bug", which prevented RO5/Iyonix compatibility.
+    Thanks to Daniel Ellis for finding it and helping to fix it.
+Added "PartTool" program as an alternative to "GetPartns" and "ReadPart".
+
+
 Changes from release 0.12 to release 0.12plus, 18 Apr 2004
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Replaced MAlloc module with 32bit-clean version.

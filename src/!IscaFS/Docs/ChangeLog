@@ -10,6 +10,23 @@ To do
  * Add write capability (MB> I think I won't do that)
 
 
+07 Sep 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Two tiny optimisations (LDR-to-LDM, removal of superfluous B)
+ * Radically improved performance by fixing a bug in the cache system: The
+   random number algorithm fell apart when it delivered a value ending in five
+   0 bits: From then on, it only delivered zero, which is rather non-random.
+   I couldn't be bothered to create a proper random number algorithm, so now
+   the random seed is just incremented and returned. Though this isn't exactly
+   "random" either, at least consecutive calls return differing results now.
+   This change resulted in the two-level cache system finally working properly:
+   Compared to IscaFS 0.14, access times are down to 50%-30%.
+   The downside is that the dynamic area grows considerably as much more cache
+   memory is needed. Whereas IscaFS 0.14 used about 100 KB, v0.16 can take
+   up to 800 KB (with 4KB ext2 block size - smaller blocks take less memory :)
+ * Released as version 0.16
+
+
 11 May 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Added directory background to file type sprite.

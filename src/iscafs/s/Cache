@@ -88,8 +88,13 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("r0,r1,r3-r11")
 	add	r2,r2,r1,lsl #shift_cachectrl%
-	ldr	r3,[r2,#cachectrl_numentries%]
-	ldr	r2,[r2,#cachectrl_pointer%]
+; now uses one LDMIA instead of two LDRs
+; old:
+;	ldr	r3,[r2,#cachectrl_numentries%]
+;	ldr	r2,[r2,#cachectrl_pointer%]
+; new:
+	ldmia	r2,{r2,r3}
+
 ; FNdt("iii Checking in cache control block %2x8")
 	ldr	r14,[r6,#mnt_volume_id%]
 ._lp
@@ -183,7 +188,10 @@ FNdt("  r6 (MDB) = %6x8")
 	stmia	r3,{r4,r5,r7,r8}
 	stmia	r2,{r9,r10,r11,r14}
 	mov	r2,r3		; The required block has moved to here.
-	b	_found_cache_entry
+; commented out because fall-through works as well
+;	b	_found_cache_entry
+
+; FALLTHROUGH
 
 ._found_cache_entry
 ;------------------------

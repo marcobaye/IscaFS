@@ -1,10 +1,10 @@
 
 
-                                IscaFS 0.14
-                                08 May 2004
+                                IscaFS 0.16
+                                07 Sep 2004
 
 
-This is release 0.14 of IscaFS. If you did not download this archive from
+This is release 0.16 of IscaFS. If you did not download this archive from
     http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
 or
     http://splodge.fluff.org/~phil/
@@ -46,6 +46,14 @@ What this archive contains:
         Helper programs. See the file !IscaFS.Docs.Support
 
 
+Changes from release 0.14, 08 May 2004
+          to release 0.16, 07 Sep 2004:
+
+    Fixed a bug in the two-level cache system. Now that it finally works as
+    intended, performance improved radically (up to 300%).
+    File type sprite now looks a bit like a directory.
+
+
 Changes from release 0.13, 23 Apr 2004
           to release 0.14, 08 May 2004:
 
@@ -58,17 +66,9 @@ Changes from release 0.13, 23 Apr 2004
     Fixed time/date conversion code. No longer off by 0.76 seconds.
 
 
-Changes from release 0.12plus, 18 Apr 2004
-          to release 0.13,     23 Apr 2004:
-
-    Fixed "The Last Bug", which prevented RO5/Iyonix compatibility.
-        Thanks to Daniel Ellis for finding it and helping to fix it.
-    Added "PartTool" program as an alternative to "GetPartns" and "ReadPart".
-
-
     For a full list of changes see the file !IscaFS.Docs.ChangeLog
 
 
 I think that's all for now.
 Have fun.
-Marco Baye, 08 May 2004
+Marco Baye, 07 Sep 2004

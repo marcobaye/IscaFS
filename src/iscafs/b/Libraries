@@ -25,8 +25,17 @@ IF 0 THEN
 DEF FNrnd(reg%)
 [OPT pass%
 ldr reg%,[r12,#random_seed]
-eor reg%,reg%,reg%,ror reg%
-eor reg%,reg%,reg%,lsr #7
+REM MB, 07 Sep 2004 - this is not very random.
+REM If (random_seed AND 0x1f) ever results in 0, the new random seed will be 0.
+REM And then it stays that way forever...
+REM My new algo (if you want to call it that) is not very random either, but
+REM it gives a different value each time it is called ;-)
+REM old:
+REM eor reg%,reg%,reg%,ror reg%
+REM eor reg%,reg%,reg%,lsr #7
+REM new:
+add reg%, reg%, #1
+REM MB end
 str reg%,[r12,#random_seed]
 ]
 =0
