@@ -1,6 +1,7 @@
 REM >Debug Library
 REM (c) Matthew Wilcox
 REM Lots of useful debugging routines.
+REM not yet 32bitclean
 
 REM 26th March, 1998 - FNdbg_func added by Phil Norman
 REM   Note - use FNdbg_func sparingly - it takes about 320 bytes (depending
@@ -24,7 +25,7 @@ REM Type 3 allows for output to an opened file.
 REM I want to be able to send throwback messages at some stage.
 
 REM You can send many types of debug data to this output:
-REM These routines preserve all registers *and* flags.  They require r13 to be 
+REM These routines preserve all registers *and* flags.  They require r13 to be
 REM valid and may require r12 to be valid, depending on debug type selected.
 REM FNdbg_reg(reg%) - the contents of the register `reg%'
 REM FNdbg_mult - contents of all registers

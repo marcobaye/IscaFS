@@ -2,17 +2,27 @@
 ; ImageEntry
 ; ~~~~~~~~~~
 ; ImageFS function entry points.
+; 23 Mar 2004: 32bitclean
 
 
 .IE_Args
+	; handle supported reason codes
 	TEQ	r0,#4
 	BEQ	Args_ReadAllocatedSize
 	TEQ	r0,#9
 	BEQ	Args_ReadDateStamp
-	MOVS	pc,r14
+	; handle unsupported reason codes
+	TEQ	r0,#3			; WriteFileExtent
+	TEQNE	r0,#6			; NotifyOfFlush
+	TEQNE	r0,#7			; EnsureFileSize
+	TEQNE	r0,#8			; WriteZerosToFile
+	BEQ	IE_Error_ReadOnly
+	; handle unknown reason codes - maybe RO 7 adds a new one? ;)
+	B	IE_Error_Unsupported
 
 
 .IE_File
+	; handle unsupported reason codes
 	TEQ	r0,#0			; save file
 #if config_write%=0
 	TEQNE	r0,#1			; write catalogue information
@@ -21,6 +31,7 @@
 	TEQNE	r0,#7			; create file
 	TEQNE	r0,#8			; create directory
 	BEQ	IE_Error_ReadOnly
+	; handle supported reason codes
 #if config_write%
 	TEQ	r0,#1
 	BEQ	File_WriteCatalogueInfo
@@ -28,52 +39,65 @@
 	TEQ	r0,#5
 	BEQ	File_ReadCatalogueInfo
 	TEQ	r0,#10
-	MOVEQ	r2,#1024		; read block size
-	MOVS	pc,r14
+	;BEQ	File_ReadBlockSize
+	BNE	IE_Error_Unsupported	; handle unknown reason codes
+;.File_ReadBlockSize
+	MOV	r2,#1024
+	CMP	R0,R0			; clears V
+	MOV	pc,r14
 
 
 .IE_Func
-	TEQ	r0,#30			; optimise later - just hack them in
-	BEQ	Image_ReadFreeSpace	; for now.
-	TEQ	r0,#29
-	BEQ	Image_ReadUsedSpaceMap
-	TEQ	r0,#35
-	BEQ	Image_ReadFreeSpace64
-	TEQ	r0,#27
-	BEQ	Image_ReadBootOption	; dummy, needed for *cat and *ex
-	SUBS	r0, r0, #8		;P very nice optimisation here ;-)
-	RSBGES  r0, r0, #14
+; changed ordering. New order speeds up directory lookups and
+; facilitates adding the missing entry points. I blatantly copied MW's
+; optimisation technique and only adjusted the numbers.
+	TEQ	r0,#14			; 14 = "ReadDirEntries"
+	TEQNE	r0,#15			; 15 = "ReadDirEntriesAndInfo"
+	BEQ	Directory_ReadEntries
+	TEQ	r0,#8			;  8 = "Rename"
+	BEQ	IE_Error_ReadOnly
+	; now we'll have to handle an interval:
+	; <21	invalid for image filing systems
+	; 21-37	mostly valid (17 entries)
+	; >37	invalid (may be added in later versions of RISC OS ;))
+	SUBS	r0, r0, #21		;P very nice optimisation here ;-)
+	RSBGES	r0, r0, #16
 	ADDGE	pc, pc, r0, LSL #2
-	B	_unsupported_op		; >22
-	B	Image_Umount		; 22
-	B	Image_Mount		; 21
-	B	_unsupported_op		; 20
-	B	_unsupported_op		; 19
-	B	_unsupported_op		; 18
-	B	_unsupported_op		; 17
-	B	_unsupported_op		; 16
-	B	Directory_ReadEntries	; 15
-	B	Directory_ReadEntries	; 14
-	B	_unsupported_op		; 13
-	B	_unsupported_op		; 12
-	B	_unsupported_op		; 11
-	B	_unsupported_op		; 10
-	B	_unsupported_op		; 9
-	B	_func_rename		; 8
+	B	IE_Error_Unsupported	; >37 or <21
+	B	IE_Error_ReadOnly	; 37 AddDefect64
+	B	IE_Error_Unsupported	; 36 ReadDefectList64
+	B	Image_ReadFreeSpace64	; 35 ReadFreeSpace64
+	B	IE_Error_Unsupported	; 34 illegal for image filing systems
+	B	IE_Error_Unsupported	; 33 GetUsageOfOffset
+	B	IE_Error_ReadOnly	; 32 StampImage
+	B	IE_Error_ReadOnly	; 31 NameImage
+	B	Image_ReadFreeSpace	; 30 ReadFreeSpace
+	B	Image_ReadUsedSpaceMap	; 29 ReadUsedSpaceMap
+	B	IE_Error_ReadOnly	; 28 WriteBootOption
+	B	Image_ReadBootOption	; 27 ReadBootOption
+	B	IE_Error_ReadOnly	; 26 AddDefect
+	B	IE_Error_Unsupported	; 25 ReadDefectList29
+	B	IE_Error_Unsupported	; 24 illegal for image filing systems
+	B	IE_Error_Unsupported	; 23 illegal for image filing systems
+	B	Image_Umount		; 22 CloseImage
+	B	Image_Mount		; 21 OpenImage
 
 
-._unsupported_op
-._func_rename
-;P Bah - you forgot to put the error handler in here!
-	ADR	r0,_error
-	ORRS	pc,r14,#1<<28
-._error
+.IE_Error_ReadOnly
+	ADR	r0,_error_readonly
+	B	_make_error
+
+.IE_Error_Unsupported
+	ADR	r0,_error_unsupp
+._make_error
+	CMP	R0,#&80000000		; works in both 26/32 mode
+	CMNVC	R0,#&80000000
+	MOV	PC,R14
+
+._error_unsupp
 	EQUD	0
 	EQUS	"This operation is not supported by IscaFS."+CHR$0:ALIGN
 
-.IE_Error_ReadOnly
-	ADR	r0,_error
-	ORRS	pc,r14,#1<<28
-._error
+._error_readonly
 	EQUD	0
 	EQUS	"Filing system is read-only."+CHR$0:ALIGN

@@ -2,6 +2,7 @@
 ; Module
 ; ~~~~~~
 ; Miscellaneous module code (Init, final, service etc)
+; 23 Mar 2004: 32bitclean
 
 
 .Module_ServiceTable
@@ -13,12 +14,16 @@
 
 	equd	Module_ServiceTable
 .Module_Service
-	mov	r0,r0			; magic word
-	cmp	r1,#Service_IdentifyDisc	; &69
-	teqne	r1,#Service_FSReinit		; &40
-	movnes	pc,r14
+	mov	r0,r0				; magic word
+	teq	r1,#Service_FSReinit		; &40
+	teqne	r1,#Service_IdentifyDisc	; &69
+	movne	pc,r14				; 32-bit
+.Module_ServiceKnown
+	teq	r1,#Service_IdentifyDisc
 	ldr	r12,[r12]
-	bcs	Image_IdentifyDisc
+	beq	Image_IdentifyDisc
+	;b	FS_Declare
+	;FALLTHROUGH
 
 .FS_Declare
 	FNfunction("r0-r3")
@@ -29,13 +34,8 @@ FNdt(">>> FS_Declare")
 	mov	r3,r12
 	swi	"XOS_FSControl"
 FNdt("<<< FS_Declare")
-	FNreturn
-
-.Module_ServiceKnown
-	ldr	r12,[r12]
-	teq	r1,#Service_IdentifyDisc
-	beq	Image_IdentifyDisc
-	b	FS_Declare
+	FNpcreturn("VC")		; r0 stacked, so both needed
+	FNgerror
 
 
 .Module_Initialise
@@ -51,7 +51,7 @@ FNdt("<<< FS_Declare")
 	MOVVC	r12,r2
 	ADDVC	r0,r2,#malloc_tabbase%
 	SWIVC	X+MAlloc_Vectors
-	FNpcreturn("VS")
+	FNpcreturn("VS")		; ok because R0 isn't stacked
 	MOV	r0,#0
 	MOV	r1,#len_workspace%
 ._lp
@@ -73,10 +73,12 @@ FNdt("<<< FS_Declare")
 #endif
 FNdt(">>> Module_Initialise (debugging just started)")
 	BL	Memory_Initialise
+	; FIXME - check for V flag!
 ;P Cache-line optimisation for memory block #1, which can use the 1024byte
 ;P optimised memory copy.
 	FNmovc(3,len_buffer%+len_buffer2%+32)
 	BL	Memory_Claim
+	; FIXME - check for V flag!
 	AND	r3,r2,#31
 	RSB	r3,r3,#32
 	ADD	r2,r2,r3
@@ -85,19 +87,23 @@ FNdt(">>> Module_Initialise (debugging just started)")
 	STR	r2,[r12,#buffer2]	; so is this, but is small
 ;	MOV	r3,#len_buffer%		; this is all I need for now
 ;	BL	Memory_Claim
+; FIXME - check for V flag!
 ;	STR	r2,[r12,#buffer]
 ;	MOV	r3,#len_buffer2%
 ;	BL	Memory_Claim
+; FIXME - check for V flag!
 ;	STR	r2,[r12,#buffer2]
 	ADR	r1, _newfilecore
 	SWI	"XOS_SWINumberFromString"
 	MOVVC	r0,#0			; 0 => new filecore
-	MOVVS	r0, #1<<31		; 1 => old filecore
-	STR	r0,[r12,#debug]
+	MOVVS	r0,#sysflag_oldfilecore%; 1 => old filecore
+	STR	r0,[r12,#sysflags]
 ;------------------------
 ; init filing system and cache
 	bl	FS_Declare
+	; FIXME - check for V flag!
 	bl	Cache_Initialise
+	; FIXME - check for V flag!
 ;------------------------
 ; Initialise random number generator.
 	eor	r0,r0,r1
@@ -106,7 +112,7 @@ FNdt(">>> Module_Initialise (debugging just started)")
 	eor	r0,r0,r1
 	str	r0,[r12,#random_seed]
 FNdt("<<< Module_Initialise")
-	FNreturn
+	FNreturnClean
 
 ._newfilecore
 	equs	"FileCore_SectorOp"+CHR$0
@@ -115,7 +121,6 @@ FNdt("<<< Module_Initialise")
 .DebugFilename%
 	equs	config_dbg_file$+CHR$0
 	align
-
 
 
 .Module_Finalise
@@ -127,9 +132,12 @@ FNdt(">>> Module_Finalise")
 	MOV	r0,#FSC_RemoveImageFS
 	MOV	r1,#filetype%
 	SWI	"XOS_FSControl"
+; FIXME - check for V flag! But if returning an error in Finalise, mark
+; as "FS already unregistered", so repeated try to finalise succeeds!
 ;------------------------
 ; remove memory and workspace
 	BL	Memory_Finalise
+; FIXME - check for V flag!
 FNdt("Closing debug filehandle")
 FNdt("%f")
 #if debug%
@@ -142,8 +150,7 @@ FNdt("%f")
 	MOV	r2,r12
 	MOV	r0,#7
 	SWI	"XOS_Module"
-	FNreturn
-
+	FNreturnClean
 
 
 .FS_Info

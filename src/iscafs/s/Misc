@@ -1,7 +1,8 @@
 #multipass on
 ; Misc
 ; ~~~~
-; Miscellanious utility functions.
+; Miscellanous utility functions.
+; 23 Mar 2004: 32bitclean
 
 
 .Divide
@@ -22,12 +23,12 @@ FNdt("  r3 (denominator) = %3i4")
 ;	r2  =	r2 MOD r3
 ;------------------------
 	FNfunction("r1")
-	CMP	r3,#0
+	TEQ	r3,#0
 	BEQ	_DivisionByZero
 	MOV	r0,#0		; Initialise result
 	CMP	r2,r3		; Is numerator less than denominator?
 FNdtc(lt, "<<? Divide (numerator < denominator)")
-	FNcreturn("LT")
+	BLT	_clean_exit	; changed creturn to BLT
 	MOV	r1,r3		; Initialise accumulator
 	MOV	r14,#1		; Initialise shift counter
 ._UpwardLoop
@@ -42,16 +43,18 @@ FNdtc(lt, "<<? Divide (numerator < denominator)")
 FNdtc(eq, "<<< Divide")
 FNdtc(eq, "  r0 (r2 DIV r3) = %0i4")
 FNdtc(eq, "  r2 (r2 MOD r3) = %2i4")
-	FNcreturn("EQ")
-	MOV	r1,r1,LSR #1	; Lower accumulator
+	BEQ	_clean_exit	; changed creturn to BEQ
 	MOVS	r14,r14,LSR #1	; Lower shift counter
+	MOV	r1,r1,LSR #1	; Lower accumulator
 	BGT	_DownwardLoop	; Go again if there are more positive shifts
 FNdt("<<< Divide")
 FNdt("  r0 (r2 DIV r3) = %0i4")
 FNdt("  r2 (r2 MOD r3) = %2i4")
-	FNreturn
+._clean_exit
+	FNreturnClean	; unfortunately, this cannot be done conditionally
 
 ._DivisionByZero
 FNdt("<<! Divide (division by zero)")
-	MVN	r0,#1<<31
-	FNreturn
+	FNrerror
+	EQUD	0
+	EQUS	"Division by zero."+CHR$0:ALIGN

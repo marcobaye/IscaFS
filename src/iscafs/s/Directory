@@ -2,6 +2,7 @@
 ; Directory
 ; ~~~~~~~~~
 ; Directory manipulation functions.
+; 23 Mar 2004: 32bitclean
 
 
 .Directory_Scan
@@ -53,7 +54,7 @@ FNdt("  r11 (subroutine) = %11x8")
 	MOV	r9,r2			; store user reg in safe place
 	MOV	r10,r1			; start offset
 	BL	Cache_GetInodePointer	; r0 = inode pointer
-	BVS	_return_error
+	BVS	_gerror
 	LDR	r1,[r12,#buffer2]
 	MOV	r2,#len_inode%
 	BL	Memory_BlockCopy
@@ -67,7 +68,7 @@ FNdt("  r11 (subroutine) = %11x8")
 	MOV	r7,#2*(4+len_dirent%)	; omit . and ..
 	MOV	r0,r8			; get first block
 	BL	Cache_BlockFromInode
-	BVS	_return_error
+	BVS	_gerror
 	CMP	r0,#0
 	BLT	_last_item_read
 	SUB	r2,r1,r0
@@ -100,17 +101,10 @@ FNdt("  r11 (subroutine) = %11x8")
 ._entry_is_null
 	LDR	r14,[r0,#dirent_entry_length%]
 ; needed if FS uses "filetype-in-dir" feature
-; old:
-;	BICS	r14,r14,#&ff0000	; get offset to next entry
-;	ADDNE	r0,r0,r14
-;	MOVEQ	r0,r1
-;	ADDNE	r7,r7,r14		; increment offset from start of block
-; new:
 	MOVS	r14,r14,LSL#16	; get offset to next entry (shifted but clean)
 	ADDNE	r0,r0,r14,LSR#16
 	MOVEQ	r0,r1
 	ADDNE	r7,r7,r14,LSR#16	; increment offset from start of block
-
 	B	_loop
 
 ._not_a_directory
@@ -123,21 +117,23 @@ FNdt("_not_a_directory")
 FNdt("_last_item_read")
 	LDMFD	r13!,{r0-r2}
 	MVN	r1,#0
-	LDMFD	r13!,{r6-r11,pc}^
+	CMP	R0,R0			; clears V
+	LDMFD	r13!,{r6-r11,pc}	; removed '^'
 
 ._subroutine_failed
 FNdt("_subroutine_failed")
 	LDMFD	r13!,{r0-r2}
 	SUB	r1,r1,r10		; calculate new start offset
+	CMP	R0,R0			; clears V
 	SUB	r1,r1,#1
-	LDMFD	r13!,{r6-r11,pc}^
+	LDMFD	r13!,{r6-r11,pc}	; removed '^'
 
 ._get_new_block
 	MOV	r1,r9
 	ADD	r8,r8,#1
 	MOV	r0,r8
 	BL	Cache_BlockFromInode
-	BVS	_return_error
+	BVS	_gerror
 	CMP	r0,#0
 	BLT	_last_item_read
 	SUB	r2,r1,r0		; copy this into a safe place
@@ -148,13 +144,13 @@ FNdt("_subroutine_failed")
 	ADD	r1,r1,r2
 	B	_return_from_get_new_block
 
-._return_error
+._gerror
 	FNgerror
 
 
 .Directory_ReadEntries
 FNdt(">>> Directory_ReadEntries")
-FNdt("  r0 (8=just names 7=full info) = %0i4")
+FNdt("  r0 (14=just names 15=full info) = %0i4")
 FNdt("  r1 (directory name) = %1z")
 FNdt("  r2 (buffer to put data in) = %2x8")
 FNdt("  r3 (number to read) = %3i4")
@@ -165,7 +161,7 @@ FNdt("  r6 (MDB) = %6x8")
 ; Read entries from the given directory into a given block of memory.
 ;------------------------
 ; On entry:
-;	r0  =	8="just names" 7="full info"
+;	r0  =	14="just names" 15="full info"
 ;	r1  =	pointer to (wildcarded) directory name
 ;	r2  =	pointer to buffer into which to put data
 ;	r3  =	number of objects to read
@@ -176,56 +172,44 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r3  =	number of names read
 ;	r4  =	offset of next item to read in directory (-1 if end)
 ;------------------------
+;MB: the following paragraph is no longer true:
 ;P Note - on entry, r0 is not what you'd expect for an ImageEntry_Func for
 ;P directory reading; the changed values are a result of MW's cunning IE_Func
 ;P optimisation.
+;MB: I changed those values back when optimising some more. ;)
 ;------------------------
 	FNfunction("")
-	TEQ	r0,#8
+	TEQ	r0,#14
 	ADREQ	r11,Directory_ReadNames
 	ADRNE	r11,Directory_ReadFullInfo
 	MOV	r0,r1
 ; In this entry point, "object not found" is really an error.
 ; Because Cache_FindInode does no longer raise that error,
 ; it must be checked for here instead.
-; old:
-;	BL	Cache_FindInode		; r0 = inode number
-;	MOVVC	r1,r4
-;	MOVVC	r4,r3
-;	MOVVC	r3,#0			; init items counter
-;	BLVC	Directory_Scan
-;	MOVVC	r4,r1			; new start offset or -1
-;FNdt("<<< Directory_ReadEntries")
-;FNdt("  r3 (number read) = %3i4")
-;FNdt("  r4 (new offset) = %4i4")
-;	FNcreturn("VC")
-;FNdt("  V was set - something went wrong.")
-;	FNpreturn
-; new:
 	BL	Cache_FindInode		; r0 = inode number (0 if not found)
-	BVS	_some_other_error	; check for real errors
+	; check for real errors
+	FNpcreturn("VS")		; ok because R0 isn't stacked
 	TEQ	r0,#0			; check for "not found" condition
 	BEQ	_not_found
 	MOV	r1,r4
 	MOV	r4,r3
 	MOV	r3,#0			; init items counter
 	BL	Directory_Scan
-
 	MOVVC	r4,r1			; new start offset or -1
 FNdt("<<< Directory_ReadEntries")
 FNdt("  r3 (number read) = %3i4")
 FNdt("  r4 (new offset) = %4i4")
-	FNcreturn("VC")
+;	FNcreturn("VC")			commented out
+	FNpreturn			; ok because R0 isn't stacked
 
-._some_other_error
-FNdt("  V was set - something went wrong.")
-	FNpreturn
+;FNdt("  V was set - something went wrong.")
+;	FNpreturn
 
-; This was copied over from "Cache"
 ._not_found
 	FNrerror
 	EQUD	0
 	EQUS	"Object not found."+CHR$0:ALIGN
+
 
 .Directory_ReadNames
 FNdt(">>> Directory_ReadNames")
@@ -234,6 +218,7 @@ FNdt("  r2 (buffer to put data in) = %2x8")
 FNdt("  r3 (items read so far) = %3i4")
 FNdt("  r4 (number to read) = %4i4")
 FNdt("  r5 (bytes left in buffer) = %5i4")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Read the full info for the given file into the buffer
 ;------------------------
@@ -243,6 +228,7 @@ FNdt("  r5 (bytes left in buffer) = %5i4")
 ;	r3  =	number of items read so far
 ;	r4  =	maximum number of items to read
 ;	r5  =	number of bytes left in buffer
+;	r6  =	pointer to MDB
 ; On exit:
 ;	r0  =	-1 if max items read or buffer filled
 ;	r2  =	pointer to after added item
@@ -255,7 +241,7 @@ FNdt("  r5 (bytes left in buffer) = %5i4")
 	CMP	r3,r4
 	MVNGE	r0,#0			; max items read
 FNdtc(ge, "<<< Directory_ReadNames (max items read)")
-	FNcreturn("GE")
+	BGE	_clean_exit		; changed creturn to BGE
 ;------------------------
 ; check for buffer filledness
 	LDR	r1,[r0,#dirent_entry_length%]
@@ -265,7 +251,7 @@ FNdtc(ge, "<<< Directory_ReadNames (max items read)")
 	CMP	r14,r5
 	MVNGT	r0,#0			; no more space in buffer
 FNdtc(gt, "<<< Directory_ReadNames (no space in buffer)")
-	FNcreturn("GT")
+	BGT	_clean_exit		; changed creturn to BGT
 	SUB	r5,r5,r14
 ;------------------------
 ; read item into buffer and update buffer status
@@ -276,6 +262,7 @@ FNdtc(gt, "<<< Directory_ReadNames (no space in buffer)")
 	TEQ	r14,#ASC"."
 	MOVEQ	r14,#ASC"/"
 	TEQ	r14,#ASC","		; kill ,b21 etc
+; FIXME - only chop off ",b21" if exactly 3 chars after comma!
 	BEQ	_comma_found
 	STRB	r14,[r2],#1
 	SUBS	r1,r1,#1
@@ -286,8 +273,8 @@ FNdtc(gt, "<<< Directory_ReadNames (no space in buffer)")
 ; REASON-DEPENDANT CODE ENDS HERE
 	ADD	r3,r3,#1
 FNdt("<<< Directory_ReadNames")
-	FNreturn
-
+._clean_exit
+	FNreturnClean
 
 
 .Directory_ReadFullInfo
@@ -320,7 +307,7 @@ FNdt("  r6 (MDB) = %6x8")
 	CMP	r3,r4
 	MVNGE	r0,#0			; max items read
 FNdtc(ge, "<<< Directory_ReadFullInfo (max items read)")
-	FNcreturn("GE")
+	BGE	_clean_exit		; changed creturn to BGE
 ;------------------------
 ; check for buffer filledness
 	LDR	r1,[r0,#dirent_entry_length%]
@@ -331,7 +318,7 @@ FNdtc(ge, "<<< Directory_ReadFullInfo (max items read)")
 	CMP	r14,r5
 	MVNGT	r0,#0			; no more space in buffer
 FNdtc(gt, "<<< Directory_ReadFullInfo (no space in buffer)")
-	FNcreturn("GT")
+	BGT	_clean_exit		; changed creturn to BGT
 	SUB	r5,r5,r14
 ;------------------------
 ; read item into buffer and update buffer status
@@ -342,13 +329,13 @@ FNdtc(gt, "<<< Directory_ReadFullInfo (no space in buffer)")
 	ADD	r1,r0,#dirent_name%
 	ADD	r8,r8,r1
 	LDR	r0,[r0,#dirent_inode%]
-	BL	Cache_GetInodePointer
+	BL	Cache_GetInodePointer		; FIXME - check for V flag
 	LDRB	r6,[r8]
 	MOV	r14,#0
 	STRB	r14,[r8]
-	BL	File_FiletypeFromLeafname
+	BL	File_FiletypeFromLeafname	; FIXME - check for V flag
 	STRB	r6,[r8]
-	BL	File_CatalogueInfoFromInode
+	BL	File_CatalogueInfoFromInode	; FIXME - check for V flag
 	STMIA	r7!,{r2-r5}
 	STR	r0,[r7],#4
 	MOV	r2,r7
@@ -359,6 +346,7 @@ FNdtc(gt, "<<< Directory_ReadFullInfo (no space in buffer)")
 	TEQ	r14,#ASC"."
 	MOVEQ	r14,#ASC"/"
 	TEQ	r14,#ASC","		; kill ,b21 etc
+; FIXME - only chop off ",b21" if exactly 3 chars after comma!
 	BEQ	_comma_found
 	STRB	r14,[r2],#1
 	SUBS	r1,r1,#1
@@ -371,4 +359,5 @@ FNdtc(gt, "<<< Directory_ReadFullInfo (no space in buffer)")
 ; REASON-DEPENDANT CODE ENDS HERE
 	ADD	r3,r3,#1
 FNdt("<<< Directory_ReadFullInfo")
-	FNreturn
+._clean_exit
+	FNreturnClean

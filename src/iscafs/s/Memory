@@ -2,17 +2,17 @@
 ; Memory
 ; ~~~~~~
 ; Memory management code for dynamic areas or RMA.
+; 23 Mar 2004: 32bitclean
 
 
 ]
 IF config_dynamicareas% THEN
 [OPT pass%
-
 ;=====================================================
 ; MEMORY MANAGEMENT CODE FOR USING MRG'S MEMORYALLOCATOR MODULE
 ;=====================================================
 
-;------------------------
+
 ; Initialises the memory manager.
 .Memory_Initialise
 FNdt(">>> Memory_Initialise")
@@ -23,11 +23,12 @@ FNdt(">>> Memory_Initialise")
 	SWI	X+MAlloc_Initialise
 	STRVC	r0,[r12,#heap]
 FNdtc(vc, "<<< Memory_Initialise")
-	FNcreturn("VC")
-FNdt("<<! Memory_Initialise (error)")
-	FNpreturn
+;	FNcreturn("VC")			commented out
+;FNdt("<<! Memory_Initialise (error)")
+	FNpreturn			; ok because R0 isn't stacked
 ._name
 	EQUS	"IscaFS cache"+CHR$0:ALIGN
+
 
 .Memory_Finalise
 FNdt(">>> Memory_Finalise")
@@ -35,7 +36,9 @@ FNdt(">>> Memory_Finalise")
 	LDR	r1,[r12,#heap]
 	SWI	X+MAlloc_Finalise
 FNdt("<<< Memory_Finalise")
-	FNreturn
+	FNpcreturn("VC")		; r0 stacked, so both needed
+	FNgerror
+
 
 .Memory_Claim
 	;; Note - MAlloc_Claim returns V set if it can't claim.
@@ -43,23 +46,29 @@ FNdt(">>> Memory_Claim")
 FNdt("  r3 (size) = %3i4")
 	FNfunction("r0,r1")
 	LDR	r1,[r12,#heap]
+	CMP	R0,R0			; clear V, maybe MAlloc_Claim doesn't
 	MOV	r14,pc
 	LDR	pc,[r12,#malloc_claim%]
 FNdt("<<< Memory_Claim")
 FNdt("  r2 (block) = %2x8")
-	FNreturn
-	
+	FNpcreturn("VC")		; r0 stacked, so both needed
+	FNgerror
+
+
 .Memory_Resize
 FNdt(">>> Memory_Resize")
 FNdt("  r2 (block) = %2x8")
 FNdt("  r3 (new size) = %3i4")
 	FNfunction("r0,r1")
 	ldr	r1,[r12,#heap]
+	CMP	R0,R0			; clear V, maybe MAlloc_Resize doesn't
 	mov	r14,pc
 	ldr	pc,[r12,#malloc_resize%]
 FNdt("<<< Memory_Resize")
 FNdt("  r2 (block) = %2x8")
-	FNreturn
+	FNpcreturn("VC")		; r0 stacked, so both needed
+	FNgerror
+
 
 .Memory_ClaimZero
 FNdt(">>> Memory_ClaimZero")
@@ -68,10 +77,11 @@ FNdt("  r3 (size) = %3i4")
 	add	r3,r3,#3	; This is an absolute requirement for zeroing.
 	bic	r3,r3,#3
 	LDR	r1,[r12,#heap]
+	CMP	R0,R0		; clear V, maybe MAlloc_Claim doesn't
 	MOV	r14,pc
 	LDR	pc,[r12,#malloc_claim%]
 FNdtc(vs, "<<! Memory_Claim (error)")
-	FNcreturn("VS")
+	BVS	_gerror		; added to make 32-bit-clean
 	mov	r0,#0
 ._lp
 	subs	r3,r3,#4
@@ -79,18 +89,25 @@ FNdtc(vs, "<<! Memory_Claim (error)")
 	bgt	_lp
 FNdt("<<< Memory_Claim")
 FNdt("  r2 (block) = %2x8")
-	FNreturn
+	FNreturnClean
+
+._gerror
+	FNgerror
+
 
 .Memory_Free
 FNdt(">>> Memory_Free")
 FNdt("  r2 (block) = %2x8")
 	FNfunction("r0-r2")
+	CMP	R0,R0		; clear V, maybe MAlloc_Free doesn't
 	TEQ	r2,#0
 	LDRNE	r1,[r12,#heap]
 	MOVNE	r14,pc
 	LDRNE	pc,[r12,#malloc_free%]
 FNdt("<<< Memory_Free")
-	FNreturn
+	FNpcreturn("VC")	; r0 stacked, so both needed
+	FNgerror
+
 
 .Memory_Shrink
 FNdt(">>> Memory_Shrink")
@@ -98,8 +115,8 @@ FNdt(">>> Memory_Shrink")
 	LDR	r1,[r12,#heap]
 	SWI	X+MAlloc_Shrink
 FNdt("<<< Memory_Shrink")
-	FNreturn
-
+	FNpcreturn("VC")	; r0 stacked, so both needed
+	FNgerror
 
 
 ]
@@ -109,19 +126,23 @@ ELSE
 ; MEMORY MANAGEMENT CODE FOR USING SMELLY RISCOS OS_HEAP MANAGER
 ;=====================================================
 
+
 .Memory_Initialise
 FNdt("Memory_Initialise")
 	FNfunction("r0-r3")
 	MOV	R0,#6
 	MOV	R3,#4096
-	SWI	"OS_Module"
+	SWI	"XOS_Module"	; added X bit and BVS
+	BVS	_gerror
 	MOV	R0,#0
 	STR	R0,[R2]
 	STR	R2,[R12,#heap]
 	ADD	R1,R2,#4
 	SUB	R3,R3,#8
-	SWI	"OS_Heap"
-	FNreturn
+	SWI	"XOS_Heap"	; added X bit
+	FNpcreturn("VC")	; changed return to pcreturn
+._gerror
+	FNgerror
 
 
 .Memory_Finalise
@@ -131,10 +152,10 @@ FNdt("Memory_Finalise")
 	MOV	R0,#7
 ._memory_destroy_loop
 	LDR	R10,[R2]
-	SWI	"OS_Module"
+	SWI	"OS_Module"	; FIXME - X bit?
 	MOVS	R2,R10
 	BNE	_memory_destroy_loop
-	FNreturn
+	FNreturnClean
 
 
 .Memory_Claim
@@ -145,7 +166,7 @@ FNdt("Memory_Claim")
 	MOV	R8,R3
 ._memory_claim_loop
 	LDR	R10,[R1],#4
-	SWI	"OS_Heap"
+	SWI	"OS_Heap"	; FIXME - add X bit!
 	CMP	R2,R8
 	BGT	_memory_claim_exit
 	CMP	R10,#0
@@ -161,19 +182,18 @@ FNdt("Memory_Claim")
 	MOV	R3,R7,LSL #12		;size of memory for heap
 	SUB	R11,R1,#4
 	MOV	R0,#6
-	SWI	"OS_Module"
+	SWI	"OS_Module"	; FIXME - add X bit!
 	STR	R2,[R11]
 	MOV	R0,#0
 	STR	R0,[R2],#4
 	SUB	R3,R3,#4
 	MOV	R1,R2
-	SWI	"OS_Heap"
+	SWI	"OS_Heap"	; FIXME - add X bit!
 ._memory_claim_exit
 	MOV	R3,R8
 	MOV	R0,#2
-	SWI	"OS_Heap"
-	FNreturn
-	
+	SWI	"OS_Heap"	; FIXME - add X bit!
+	FNreturnClean
 
 
 .Memory_ClaimZero
@@ -182,25 +202,27 @@ FNdt("Memory_ClaimZero")
 	add	r3,r3,#3	; This is an absolute requirement for zeroing.
 	bic	r3,r3,#3
 	bl	Memory_Claim
-	FNcreturn("VS")
+	BVS	_gerror		; added to make 32-bit-clean
 	mov	r0,#0
 ._lp
 	subs	r3,r3,#4
 	str	r0,[r2,r3]
 	bgt	_lp
-	FNreturn
+	FNreturnClean
 
-	
+._gerror
+	FNgerror
+
 
 .Memory_Resize
 FNdt("Memory_Resize")
 	FNfunction("r0,r1")
 	teq	r2,#0
 	blne	Memory_Free
-	bl	Memory_Claim
-	FNreturn
+	blvc	Memory_Claim	; added VC condition
+	FNpcreturn("VC")	; r0 stacked, so both needed
+	FNgerror
 
-	
 
 .Memory_Free
 FNdt("Memory_Free")
@@ -215,12 +237,13 @@ FNdt("Memory_Free")
 	BNE	_memory_free_loop
 
 ._memory_free_exit
-	FNreturn
+	FNreturnClean
 
 
 .Memory_Shrink
 FNdt("Memory_Shrink")
-	MOVS	pc,r14
+	CMP	R0,R0		; clear V
+	MOV	pc,r14		; changed MOVS to MOV
 ]
 ENDIF
 [OPT pass%
@@ -228,6 +251,7 @@ ENDIF
 
 .Memory_BlockCopy
 FNdt("=== Memory_BlockCopy")
+	CMP	R0,R0		; clear V, maybe MAlloc_* doesn't
 	LDR	pc,[r12,#malloc_blockcopy%]
 
 
@@ -262,7 +286,7 @@ FNdt("  r2 (length) = %2x8")
 	STMIA	r1!,{r3-r9,r14}
 	BGT	_lp
 FNdt("<<< Memory_QuickCopy")
-	FNreturn
+	FNreturnClean
 
 
 .Memory_ZeroBlock
@@ -304,7 +328,7 @@ FNdt("  r2 (length) = %2i4")
 	TST	r2,#4
 	STRNE	r3,[r1]
 FNdt("<<< Memory_ZeroBlock")
-	FNreturn
+	FNreturnClean
 
 ._zeroes
 	EQUD	0

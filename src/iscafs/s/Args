@@ -2,6 +2,7 @@
 ; Args
 ; ~~~~
 ; Open file manipulation functions.
+; 23 Mar 2004: 32bitclean
 
 
 .Args_ReadAllocatedSize
@@ -23,8 +24,7 @@ FNdt("  r1 (my handle for file) = %1h8")
 	mov	r2, r2, LSL r14
 FNdt("<<< Args_ReadAllocatedSize")
 FNdt("  r2 (size allocated to file) = %2i4")
-	FNreturn
-
+	FNreturnClean
 
 
 .Args_ReadDateStamp
@@ -43,8 +43,8 @@ FNdt("  r1 (my handle for file) = %1h8")
 	mov	r0,r1
 	ldr	r6,[r1,#file_mount%]
 	ldr	r1,[r1,#file_type%]
-	bl	File_CatalogueInfoFromInode
+	bl	File_CatalogueInfoFromInode	; cannot fail
 FNdt("<<< Args_ReadDataStamp")
 FNdt("  r2 (load address) = %2h8")
 FNdt("  r3 (exec address) = %3h8")
-	FNreturn
+	FNreturnClean

@@ -3,6 +3,7 @@
 ; ~~~~~~
 ; Cache control code and general high-level filesystem interface for write
 ; operations.
+; 23 Mar 2004: 32bitclean
 #if config_write%
 
 
@@ -22,10 +23,10 @@ FNdt("  r5 (cache entry ptr) = %5x8")
 	FNfunction("r0-r6")
 	LDR	r14,[r5,#block_flags%]
 	TST	r14,#bflag_dirty%
-	FNcreturn("EQ")
+	BEQ	_clean_exit		; changed creturn to BEQ
 	LDR	r6,[r5,#block_mount%]
 	CMP	r6,#0
-	FNcreturn("LE")
+	BLE	_clean_exit		; changed creturn to BLE
 	LDR	r1,[r6,#s_log_block_size%]
 	LDR	r4,[r5,#block_basenumber%]
 	ADD	r1,r1,#10
@@ -35,7 +36,11 @@ FNdt("  r5 (cache entry ptr) = %5x8")
 	MOV	r4,r4,LSL r1
 	BL	Image_WriteBytes_File
 FNdt("<<< Cache_FlushBlock")
-	FNreturn
+	BVS	_gerror
+._clean_exit
+	FNreturnClean
+._gerror
+	FNgerror
 
 
 .Cache_ClaimBlocks
@@ -65,16 +70,10 @@ FNdt("<<< Cache_FlushBlock")
 	LDR	r3,[r6,#s_blocks_per_group%]
 	MOV	r2,r0			; turn target block -> target group
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
+	; FIXME - check for V flag
 	LDR	r3,[r6,#mnt_groupdescs%]
-; group descriptors contain *absolute* block numbers, not relative ones!
-; old and buggy:
-;	LDR	r2,[r6,#s_blocks_per_group%]
-;	ADD	r3,r3,r0,LSL #shift_groupdesc%
-;	LDR	r14,[r3,#bg_block_bitmap%]
-;	MUL	r4,r5,r0		; first block of desired group
-;	LDR	r5,[r6,#s_log_block_size%]
-;	ADD	r0,r14,r4		; block number of block bitmap block
-; new - still totally bogus - but lacking write capability, who cares?
+; group descriptors contain *absolute* block numbers
+; this is still totally bogus - but lacking write capability, who cares?
 	ADD	r3,r3,r0,LSL #shift_groupdesc%
 	LDR	r0,[r3,#bg_block_bitmap%]
 	LDR	r5,[r6,#s_log_block_size%]
@@ -147,8 +146,10 @@ FNdt("<<< Cache_FlushBlock")
 	STR	r4,[r8],#1
 	ADD	r10,r10,#1
 	SUBS	r9,r9,#1
-	MOVNES	pc,r14
-	B	_return_blocks_dirty
+	BEQ	_return_blocks_dirty
+	CMP	R0, R0			; added to clear V
+	MOV	pc,r14			; changed MOVS to MOV
+; FIXME - shouldn't FNpreturn or something be used?
 
 ._return_blocks_dirty
 	STRB	r2,[r0]			; write out dirtied bitmap byte
@@ -161,7 +162,7 @@ FNdt("<<< Cache_FlushBlock")
 	MOVS	r2,r9
 	SUB	r14,r14,r10
 	STR	r14,[r6,#s_free_blocks_count%]
-	FNcreturn("EQ")
+	BEQ	_clean_exit		; changed creturn to BEQ
 ;------------------------
 ; couldn't get enough blocks from this group - tell caller to try the next one
 	LDR	r14,[r6,#s_blocks_per_group%]
@@ -170,7 +171,8 @@ FNdt("<<< Cache_FlushBlock")
 	ADD	r0,r14,r10		; make new target block
 	CMP	r0,r11
 	MOVGE	r0,#0
-	FNreturn
+._clean_exit
+	FNreturnClean
 
 ._block_in_this_group
 	EQUD	0
@@ -194,8 +196,10 @@ FNdt("<<< Cache_FlushBlock")
 ; On exit:
 ;	ARP
 ;------------------------
-	FNfunction("r0-r5")
-	FNreturn
+;	FNfunction("r0-r5")		commented out because useless
+;	FNreturnClean
+	CMP	R0,R0			; clear V
+	MOV	PC,R14			; faster ;)
 
 
 .Cache_InodeModified
@@ -217,11 +221,11 @@ FNdt("<<< Cache_FlushBlock")
 	ADD	r1,r1,#10
 	MOV	r3,r3,LSL r1
 	MOV	r4,r4,LSL r1
-	BL	Image_WriteBytes_File
+	BL	Image_WriteBytes_File	; FIXME - check for V flag
 ;	LDR	r0,[r1,#block_flags%]
 ;	ORR	r0,r0,#bflag_dirty%
 ;	STR	r0,[r1,#block_flags%]
-	FNreturn
+	FNreturnClean
 ._error_partition
 	FNrerror
 	EQUD	0
@@ -249,6 +253,7 @@ FNdt("<<< Cache_FlushBlock")
 	LDR	r3,[r6,#s_blocks_per_group%]
 	MOV	r2,r0			; turn target block -> target group
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
+	; FIXME - check for V flag
 	LDR	r1,[r6,#mnt_numgroups%]
 ._lp
 	ADD	r3,r3,r0,LSL #shift_groupdesc%
@@ -264,17 +269,8 @@ FNdt("<<< Cache_FlushBlock")
 	LDR	r1,[r6,#s_blocks_per_group%]
 	SUB	r14,r14,#1
 	LDR	r4,[r6,#s_free_inodes_count%]
-; group descriptors contain *absolute* block numbers, not relative ones!
-; old and buggy:
-;	MUL	r0,r5,r1		; block number of group base
-;	SUB	r4,r4,#1
-;	STR	r14,[r3,#bg_free_inodes_count%]
-;	LDR	r14,[r3,#bg_inode_bitmap%]
-;	STR	r4,[r6,#s_free_inodes_count%]
-;	LDR	r4,[r6,#s_inodes_per_group%]
-;	ADD	r0,r0,r14
-;	MUL	r4,r5,r4		; base number of first inode in group
-; new - still totally bogus - but lacking write capability, who cares?
+; group descriptors contain *absolute* block numbers
+; this is still totally bogus - but lacking write capability, who cares?
 	SUB	r4,r4,#1
 	STR	r14,[r3,#bg_free_inodes_count%]	; FIXME, only half-word!
 	LDR	r0,[r3,#bg_inode_bitmap%]
@@ -310,7 +306,7 @@ FNdt("<<< Cache_FlushBlock")
 	MOVVC	r2,r8
 	BLVC	Cache_EnsureInodeSize
 	MOVVC	r0,r4
-	FNcreturn("VC")
+	FNpcreturn("VC")		; changed creturn to pcreturn
 ._return_error
 	FNgerror
 
@@ -337,22 +333,12 @@ FNdt("<<< Cache_FlushBlock")
 	LDR	r3,[r6,#s_inodes_per_group%]
 	MOV	r2,r1
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
+	; FIXME - check for V flag
 	LDR	r3,[r6,#mnt_groupdescs%]
 	LDR	r5,[r6,#s_free_inodes_count%]
 	ADD	r3,r3,r0,LSL #shift_groupdesc%
-; group descriptors contain *absolute* block numbers, not relative ones!
-; old and buggy:
-;	LDR	r14,[r3,#bg_free_inodes_count%]
-;	ADD	r5,r5,#1
-;	STR	r5,[r6,#s_free_inodes_count%]
-;	ADD	r14,r14,#1
-;	STR	r14,[r3,#bg_free_inodes_count%]
-;	LDR	r5,[r6,#s_blocks_per_group%]
-;	LDR	r14,[r3,#bg_inode_bitmap%]
-;	MUL	r4,r5,r0		; first block of group containing inode
-;	LDR	r5,[r6,#s_log_block_size%]
-;	ADD	r0,r14,r4		; block number of inode bitmap block
-; new - still totally bogus - but lacking write capability, who cares?
+; group descriptors contain *absolute* block numbers
+; this is still totally bogus - but lacking write capability, who cares?
 	LDR	r14,[r3,#bg_free_inodes_count%]	; FIXME, only half-word!
 	ADD	r5,r5,#1
 	ADD	r14,r14,#1
@@ -370,7 +356,7 @@ FNdt("<<< Cache_FlushBlock")
 	STRB	r14,[r0,r5,LSR #3]
 	ORR	r2,r2,#bflag_dirty%
 	STR	r2,[r1,#block_flags%]
-	FNreturn
+	FNreturnClean
 
 
 .Cache_EnsureInodeSize
@@ -401,7 +387,7 @@ FNdt("<<< Cache_FlushBlock")
 	MOV	r1,r1,LSR #1		; it's 2* greater than it should be
 	TEQ	r1,r7
 	STREQ	r2,[r13,#4*2]
-	FNcreturn("EQ")
+	BEQ	_clean_exit		; changed creturn to BEQ
 ;------------------------
 ; get actual number of blocks required to store all the indirection blocks etc
 	MOV	r8,r5,LSR #2		; no. words that can be fitted in 1blk
@@ -447,8 +433,8 @@ FNdt("<<< Cache_FlushBlock")
 	STR	r2,[r13,#4*2]		; return new size allocated to inode
 
 
-
-	FNreturn
+._clean_exit
+	FNreturnClean
 
 ._not_enough_blocks
 	FNrerror
@@ -492,7 +478,7 @@ FNdt("<<< Cache_FlushBlock")
 	ADD	r1,r1,r7,LSL #10	; = blockcache + 1024*blocknumber
 	MOV	r2,r8
 	BL	Memory_QuickCopy
-	FNreturn
+	FNreturnClean
 
 ._fail_cache2
 ;------------------------
@@ -515,7 +501,7 @@ FNdt("<<< Cache_FlushBlock")
 	ADD	r1,r1,r7,LSL #10	; = blockcache + 1024*blocknumber
 	MOV	r2,r8
 	BL	Memory_QuickCopy
-	FNreturn
+	FNreturnClean
 
 ._fail_cache1
 ;------------------------
@@ -560,7 +546,7 @@ FNdt("<<< Cache_FlushBlock")
 	BL	Memory_QuickCopy
 	ORR	r7,r7,#bflag_dirty%
 	STR	r7,[r4,#block_flags%]
-	FNreturn
+	FNreturnClean
 
 
 #endif

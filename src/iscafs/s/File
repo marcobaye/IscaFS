@@ -2,6 +2,7 @@
 ; File
 ; ~~~~
 ; Whole file manipulation functions.
+; 23 Mar 2004: 32bitclean
 
 
 .File_FiletypeFromLeafname
@@ -22,7 +23,7 @@ FNdt("  r1 (leafname) = %1z")
 	BEQ	_return_default
 	TEQ	r0,#ASC","
 	BNE	_lp
-	LDRB	r0,[r1,#3]		; only 3 chars?
+	LDRB	r0,[r1,#3]		; only 3 chars? FIXME - dangerous!
 	TEQ	r0,#0
 	BNE	_lp
 	MOV	r0,#16
@@ -32,12 +33,12 @@ FNdt("  r1 (leafname) = %1z")
 	MOVVC	r1,r2			; value
 FNdtc(vc, "<<< File_FiletypeFromLeafname")
 FNdtc(vc, "  r1 (filetype) = %1x8")
-	FNcreturn("VC")
+	FNpcreturn("VC")		; changed creturn to pcreturn
 ._return_default
 	FNmovc(1,&fff)
 FNdt("<<< File_FiletypeFromLeafname (default)")
 FNdt("  r1 (filetype) = %1x8")
-	FNreturn
+	FNreturnClean
 
 
 .File_CatalogueInfoFromInode
@@ -108,7 +109,7 @@ FNdt("  r2 (load address) = %2x8")
 FNdt("  r3 (exec address) = %3x8")
 FNdt("  r4 (length) = %4i4")
 FNdt("  r5 (attributes) = %5x8")
-	FNreturn
+	FNreturnClean
 #if config_write%
 ._use_load_and_exec
 	LDR	r2,[r1,#i_loadaddr%]
@@ -120,7 +121,7 @@ FNdt("  r2 (load address) = %2x8")
 FNdt("  r3 (exec address) = %3x8")
 FNdt("  r4 (length) = %4i4")
 FNdt("  r5 (attributes) = %5x8")
-	FNreturn
+	FNreturnClean
 #endif
 ._load_base
 	EQUD	&fff00033
@@ -154,24 +155,12 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("")
 	MOV	r0,r1
-; old:
-;	BL	Cache_FindInode
-;	BLVC	Cache_GetInodePointer
-;;------------------------
-;; for now, just write load and exec addresses
-;	MOV	r14,#&35		; special byte
-;	STRB	r14,[r0,#i_loadexecflag%]
-;	STRVC	r2,[r0,#i_loadaddr%]
-;	STRVC	r3,[r0,#i_execaddr%]
-;;------------------------
-;	BLVC	Cache_InodeModified
-FNdtc(vc, "<<< File_WriteCatalogueInfo")
-	FNcreturn("VC")
-; new:
+; check for "not found" condition
 	BL	Cache_FindInode		; r0 = inode number (0 if not found)
-	BVS	_some_other_error	; check for real errors
+	; check for real errors
+	FNpcreturn("VS")		; ok because R0 isn't stacked
 	TEQ	r0,#0			; check for "not found" condition
-	FNcreturn("EQ")
+	FNpcreturn("EQ")		; is ok because V is clear
 	BL	Cache_GetInodePointer
 ;------------------------
 ; for now, just write load and exec addresses
@@ -182,11 +171,9 @@ FNdtc(vc, "<<< File_WriteCatalogueInfo")
 ;------------------------
 	BLVC	Cache_InodeModified
 FNdtc(vc, "<<< File_WriteCatalogueInfo")
-	FNcreturn("VC")
-._some_other_error
-
-FNdt("<<! File_WriteCatalogueInfo (Cache_InodeModified returned V set)")
-	FNgerror
+	FNpreturn			; ok because R0 isn't stacked
+;FNdt("<<! File_WriteCatalogueInfo (Cache_InodeModified returned V set)")
+;	FNgerror
 #endif
 
 
@@ -209,22 +196,12 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("")
 	MOV	r0,r1
-; old:
-;	BL	Cache_FindInode
-;	BLVC	Cache_GetInodePointer
-;	BLVC	File_CatalogueInfoFromInode
-;FNdt("<<< File_ReadCatalogueInfo")
-;FNdt("  r0 (object type) = %0i4")
-;FNdt("  r2 (load address) = %2x8")
-;FNdt("  r3 (exec address) = %3x8")
-;FNdt("  r4 (length) = %4i4")
-;FNdt("  r5 (attributes) = %5x8")
-;	FNcreturn("VC")
-; new:
+; check for "not found" condition
 	BL	Cache_FindInode		; r0 = inode number (0 if not found)
-	BVS	_some_other_error2	; check for real errors
+	; check for real errors
+	FNpcreturn("VS")		; ok because R0 isn't stacked
 	TEQ	r0,#0			; check for "not found" condition
-	FNcreturn("EQ")
+	FNpcreturn("EQ")		; is ok because V is clear
 	BL	Cache_GetInodePointer
 	BLVC	File_CatalogueInfoFromInode
 FNdt("<<< File_ReadCatalogueInfo")
@@ -233,11 +210,9 @@ FNdt("  r2 (load address) = %2x8")
 FNdt("  r3 (exec address) = %3x8")
 FNdt("  r4 (length) = %4i4")
 FNdt("  r5 (attributes) = %5x8")
-	FNcreturn("VC")
-._some_other_error2
-
-FNdt("<<! File_ReadCatalogueInfo (something returned an error)")
-	FNgerror
+	FNpreturn			; ok because R0 isn't stacked
+;FNdt("<<! File_ReadCatalogueInfo (something returned an error)")
+;	FNgerror
 
 
 .File_Open
@@ -261,42 +236,38 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("r5-r9")
 	MOV	r0,r1
+; extra checks for "object not found" condition
 ; Cache_FindInode no longer returns errors upon "object not found". So, add
 ; extra checking for that case (indicated by r0=0). By the way, FileSwitch
 ; says it doesn't let this happen at this point. Just making sure.
-; old:
-;	BL	Cache_FindInode
-;	BVS	_not_found
-;	MOV	r7,r0			; I'll need the inode number later
-;	MOV	r9,r1			; store filetype
-;	BL	Cache_GetInodePointer
-;	BVS	_not_found
-; new:
 	BL	Cache_FindInode		; r0 = inode number (0 if not found)
-	FNpcreturn("VS")
+	FNpcreturn("VS")		; ok because R0 isn't stacked
 	TEQ	r0,#0
 	MOVEQ	r1,#0			; if not found, return "not found"
-	FNcreturn("EQ")
+	FNpcreturn("EQ")		; is ok because V is clear
 	MOV	r7,r0			; I'll need the inode number later
 	MOV	r9,r1			; store filetype
 	BL	Cache_GetInodePointer
-	MOVVS	r1,#0			; on error, return "not found" (huh?)
-	FNcreturn("VS")
-
+	BVS	_cache_error		; added to make 32-bit-clean
 	LDR	r8,[r0,#i_mode%]
 	AND	r14,r8,#i_flags_link%
 	TEQ	r14,#i_flags_link%
 	BEQ	_symbolic_link
-	AND	r14,r8,#i_flags_erk%
-	TEQ	r14,#i_flags_erk%
+;MB: FIXME - just a test, undo if stupid
+;new:
+	ANDS	r14,r8,#i_flags_erk%
+;original:
+;	AND	r14,r8,#i_flags_erk%
+;	TEQ	r14,#i_flags_erk%
+;end of test
 	BEQ	_abnormal_file
 ;------------------------
 ; get memory for file block and take a copy of the inode structure
 	MOV	r3,#len_file%
-	BL	Memory_Claim
+	BL	Memory_Claim		; FIXME - check for V flag
 	MOV	r1,r2
 	MOV	r2,#len_inode%
-	BL	Memory_BlockCopy
+	BL	Memory_BlockCopy	; FIXME - check for V flag?
 ;------------------------
 ; fill in the other information about the inode and link in
 	STR	r9,[r1,#file_type%]
@@ -322,7 +293,12 @@ FNdt("  r1 (my file handle) = %1x8")
 FNdt("  r2 (buffer size for fileswitch) = %2i4")
 FNdt("  r3 (file extent) = %3i4")
 FNdt("  r4 (space allocated to file) = %4i4")
-	FNreturn
+	FNreturnClean
+
+; moved here to make 32-bit-clean
+._cache_error
+	MOV	r1,#0			; on cache miss, return "not found" (huh?)
+	FNreturnClean
 
 ._symbolic_link
 FNdt("<<< File_Open (symbolic link)")
@@ -335,7 +311,6 @@ FNdt("<<< File_Open (abnormal file)")
 	FNrerror
 	EQUD	0
 	EQUS	"This is not a normal file."+CHR$0:ALIGN
-
 
 
 .File_Close
@@ -362,8 +337,8 @@ FNdt("  r3 (new exec addr) = %3x8")
 	MOV	r2,r1
 	BL	Memory_Free
 FNdt("<<< File_Close")
-	FNreturn
-
+	FNpcreturn("VC")		; r0 stacked, so both needed
+	FNgerror
 
 
 .File_GetBytes
@@ -408,7 +383,7 @@ FNdt("  r4 (file offset) = %4i4")
 	ADD	r7,r7,#1
 	MOV	r1,r5
 	BL	Cache_BlockFromInode
-	BVS	_return_error
+	BVS	_gerror
 	ADD	r0,r0,r4		; add initial offset, then reset it to
 	SUB	r2,r1,r0		; amount of block available
 ;P incorrect instruction removed from here - would have screwed up large-block
@@ -422,8 +397,8 @@ FNdt("  r4 (file offset) = %4i4")
 	ADD	r8,r8,r2
 	BGT	_loop			; loop back if I want more bytes
 FNdt("<<< File_GetBytes")
-	FNreturn
+	FNreturnClean
 
-._return_error
+._gerror
 FNdt("<<! File_GetBytes (error)")
 	FNgerror

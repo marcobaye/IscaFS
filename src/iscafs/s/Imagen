@@ -2,6 +2,7 @@
 ; Image
 ; ~~~~~
 ; Image mounting/umounting and low-level filesystem manipulation.
+; 23 Mar 2004: 32bitclean
 
 
 .Image_Mount
@@ -17,13 +18,14 @@ FNdt("  r2 (buffer size if known) = %2i4")
 ;	r2  =	Buffer size for file if known, otherwise 0
 ; On exit:
 ;	r1  =	IscaFS handle for image file
-;	AORP
+;	AORP				; that's so not true... ;)
 ;------------------------
 	FNfunction("r1")
 ;------------------------
 ; create block and link into chain
 	MOV	r3,#len_mount%
 	BL	Memory_Claim
+	; FIXME - check for V flag!
 	MOV	r6,r2			; r6 now points at mnt_*
 	STR	r2,[r13]		; return in r1
 	STR	r1,[r6,#mnt_filehandle%]
@@ -80,6 +82,7 @@ FNdt("_check_image")
 	LDR	r2,[r6,#s_blocks_count%]
 	LDR	r3,[r6,#s_blocks_per_group%]
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
+	; FIXME - check for V flag
 ; This was buggy. Instead of fetching all block group descriptors, it fetched
 ; lots of copies of the first block group's group descriptor. If the FS uses
 ; the "sparse_super" feature, this bug shows:
@@ -88,28 +91,6 @@ FNdt("_check_image")
 ; accessed and interpreted random data.
 ; Oh, and if IscaFS had had write capability, the bug would have been surfaced
 ; much earlier due to catastrophic data losses... ;)
-; old and buggy:
-;	MOV	r7,r3
-;	TEQ	r2,#0
-;	ADDNE	r0,r0,#1
-;	MOV	r3,r0,LSL #shift_groupdesc%
-;	BL	Memory_Claim
-;	STR	r2,[r6,#mnt_groupdescs%]
-;	MOV	r9,r2
-;	STR	r0,[r6,#mnt_numgroups%]
-;	MOV	r5,r0			; number of groups to get info from
-;	MOV	r8,#2			; block number
-;._lp
-;	MOV	r0,r8
-;	ADD	r8,r8,r7		; set up for next block
-;	BL	Cache_GetBlock
-;	MOV	r1,r9
-;	ADD	r9,r9,#len_groupdesc%
-;	MOV	r2,#len_groupdesc%
-;	BL	Memory_BlockCopy
-;	SUBS	r5,r5,#1
-;	BGT	_lp
-; new:
 	; r3 = blocks per group
 	; r0 = completely usable groups
 	; r2 = remainder (if != 0, there's a last group of smaller size)
@@ -146,6 +127,7 @@ FNdt("_check_image")
 ._lp
 		MOV	r0,r8;			; number of block to read
 		BL	Cache_GetBlock		; r0 => block r0
+		; FIXME - check for V flag!
 		MOV	r1,r7			; r1 => target
 		ADD	r7,r7,r5		; r7 => next target
 		MOV	r2,r5			; r2 = amount to copy
@@ -153,9 +135,10 @@ FNdt("_check_image")
 		SUBS	r9,r9,#1		; still blocks left?
 		ADD	r8,r8,#1		; next block
 		BGT	_lp
+
 FNdt("<<< Image_Mount")
 FNdt("  r1 (my file handle) = %1x8")
-	FNreturn
+	FNreturnClean
 
 
 ._special_words
@@ -166,7 +149,7 @@ FNdt("  r1 (my file handle) = %1x8")
 ._error_return
 	MOV	r2,r6
 	BL	Memory_Free
-	FNpreturn
+	FNpreturn			; ok because R0 isn't stacked
 
 ._bad_image
 FNdt("<<! Image_Mount (bad image)")
@@ -213,7 +196,7 @@ FNdt("_pseudo_image")
 	MOVVC	r3,#22			; max bytes to read
 	MOVVC	r4,#24
 	SWIVC	"XOS_GBPB"
-	FNpcreturn("VS")
+	FNpcreturn("VS")		; ok because R0 isn't stacked
 	MOV	r0,#18
 	ADR	r1,_filecore
 	SWI	"XOS_Module"
@@ -239,9 +222,9 @@ FNdt("_pseudo_image")
 	LDR	r0,[r6,#mnt_lbtsectorlen%]
 	ADD	r2,r2,#1		; disc size is to the end of last sector
 	MOV	r2,r2,LSL r0		; disc size in bytes
-	LDR	r14, [r12, #debug]
+	LDR	r14,[r12,#sysflags]
 	STR	r2,[r1,#desc_disc_size%]
-	TST	r14, #1<<31		; is this old filecore
+	TST	r14,#sysflag_oldfilecore%	; is this old filecore
 	TSTNE	r2,#&e0000000		; and if it is, is it too large?
 	BNE	_partition_is_unreadable
 ;------------------------
@@ -249,7 +232,7 @@ FNdt("_pseudo_image")
 	MOV	r1,r1,LSL #6		; descriptor shifted up
 	ADD	r1,r1,#1
 	MOV	r2,#1024		; disc address to read
-	TST	r14, #1<<31		; EQ -> newfilecore, NE -> old
+	TST	r14,#sysflag_oldfilecore%	; EQ -> newfilecore, NE -> old
 	LDR	r14,[r6,#mnt_startsector%]
 	MOVEQ	r2,r2,LSR r0		; mnt_lbtsectorlen%, from before
 	ADDEQ	r2,r2,r14
@@ -258,8 +241,13 @@ FNdt("_pseudo_image")
 	ADD	r3,r6,#superblock%
 	ADD	r2,r2,r14,LSL #29
 	MOV	r4,#len_superblock%
-	SWIEQ	X+FileCore_SectorOp
-	SWINE	"XFileCore_DiscOp"
+; changed SWIEQ/SWINE combo to 32bit-clean variant
+	BNE	_old_filecore
+	SWI	X+FileCore_SectorOp	; new FileCore
+	BVC	_check_image
+	B	_error_return
+._old_filecore
+	SWI	"XFileCore_DiscOp"	; old FileCore
 	BVC	_check_image
 	B	_error_return
 ;------------------------
@@ -280,7 +268,6 @@ FNdt("<<! Image_Mount (partition is unreadable)")
 
 ._drive
 	EQUS	":0"+CHR$0:ALIGN
-
 
 
 .Image_ReadBytes_File
@@ -307,7 +294,7 @@ FNdt("  r6 (MDB) = %6x8")
 	LDR	r1,[r6,#mnt_filehandle%]
 	SWI	"XOS_GBPB"
 FNdtc(vc, "<<< Image_ReadBytes_File")
-	FNcreturn("VC")
+	FNpcreturn("VC")		; changed creturn to pcreturn
 FNdt("<<! Image_ReadBytes_File (OS_GBPB failed)")
 	FNgerror
 
@@ -340,9 +327,9 @@ FNdt("  r6 (MDB) = %6x8")
 	ADD	r8,r6,#mnt_instanceword% ; point at instance word.
 	MOV	r1,r1,LSL #6		; descriptor shifted up
 	ORR	r1,r1,#1		; reason code 1 (read sectors)
-	LDR	r14, [r12, #debug]
+	LDR	r14,[r12,#sysflags]
 	LDR	r7,[r6,#mnt_startsector%] ; first sector of partition
-	TST	r14, #1<<31		; EQ -> newfilecore, NE -> oldfilecore
+	TST	r14,#sysflag_oldfilecore%	; EQ -> newfilecore, NE -> old
 	ADDEQ	r2,r7,r9,LSR r0		; r0 = mnt_lbtsectorlen%, from before
 	RSBEQ	r14,r0,#32
 	ADDEQ	r2,r2,r5,LSL r14	; add high word of partition offset
@@ -358,7 +345,7 @@ FNdt("  r6 (MDB) = %6x8")
 	SWI	X+FileCore_SectorOp
 	MOVVC	r3,r4
 FNdtc(vc, "<<< Image_ReadBytes_Partition")
-	FNcreturn("VC")
+	FNpcreturn("VC")		; changed creturn to pcreturn
 FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
 	FNgerror
 
@@ -369,7 +356,7 @@ FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
 	SWI	"XFileCore_DiscOp"
 	MOVVC	r3,r4
 FNdtc(vc, "<<< Image_ReadBytes_Partition")
-	FNcreturn("VC")
+	FNpcreturn("VC")		; changed creturn to pcreturn
 FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
 	FNgerror
 
@@ -402,38 +389,43 @@ FNdt("  r6 (MDB) = %6x8")
 	LDR	r1,[r6,#mnt_filehandle%]
 	SWI	"XOS_GBPB"
 FNdtc(vc, "<<< Image_WriteBytes_File")
-	FNcreturn("VC")
+	FNpcreturn("VC")		; changed creturn to pcreturn
 FNdt("<<! Image_WriteBytes_File (OS_GBPB failed)")
 	FNgerror
 
 
-.Image_WriteBytes_Partition
-FNdt(">>> Image_WriteBytes_Partition")
-FNdt("  r2 (pointer to buffer) = %2x8")
-FNdt("  r3 (bytes to write) = %3i4")
-FNdt("  r4 (partition offset) = %4i4")
-FNdt("  r6 (MDB) = %6x8")
-;------------------------
-; Write bytes to the given partition
-;------------------------
-; On entry:
-;	r2  =	pointer to buffer
-;	r3  =	number of bytes to write
-;	r4  =	partition offset
-;	r6  =	pointer to mount descriptor block
-; On exit:
-;------------------------
-FNdt("<<! Image_WriteBytes_Partition (we don't do this yet)")
-	MOV	r0,pc
-	ORRS	pc,r14,#_PSR_Vbit%
-	EQUD	0
-	EQUS	"Partition writing is not yet implemented."+CHR$0:ALIGN
+; commented out as it wasn't referenced
+;.Image_WriteBytes_Partition
+;FNdt(">>> Image_WriteBytes_Partition")
+;FNdt("  r2 (pointer to buffer) = %2x8")
+;FNdt("  r3 (bytes to write) = %3i4")
+;FNdt("  r4 (partition offset) = %4i4")
+;FNdt("  r6 (MDB) = %6x8")
+;;------------------------
+;; Write bytes to the given partition
+;;------------------------
+;; On entry:
+;;	r2  =	pointer to buffer
+;;	r3  =	number of bytes to write
+;;	r4  =	partition offset
+;;	r6  =	pointer to mount descriptor block
+;; On exit:
+;;------------------------
+;FNdt("<<! Image_WriteBytes_Partition (we don't do this yet)")
+;	CMP	R0,#&80000000		; added to make 32-bit-clean
+;	CMNVC	R0,#&80000000		; added to make 32-bit-clean
+;	ADD	r0,pc,#0
+;	MOV	PC,R14			; added to make 32-bit-clean
+;	EQUD	0
+;	EQUS	"Partition writing is not yet implemented."+CHR$0:ALIGN
 
 
 .Image_WriteBytes_ReadOnly
 FNdt("!!! Image_WriteBytes_ReadOnly (we can't write anything)")
-	MOV	r0,pc
-	ORRS	pc,r14,#_PSR_Vbit%
+	CMP	R0,#&80000000		; added to make 32-bit-clean
+	CMNVC	R0,#&80000000		; added to make 32-bit-clean
+	ADD	r0,pc,#0
+	MOV	PC,R14			; added to make 32-bit-clean
 	EQUD	0
 	EQUS	"This partition/image is mounted read-only."+CHR$0:ALIGN
 
@@ -474,7 +466,7 @@ FNdt(">>> Image_IdentifyDisc")
 ; MW thinks this should be:
 ;	MOVLO	r7, #0
 ;	MOVHS	r7, r2
-; this doesn't do the same thing
+; this doesn't do the same thing	FIXME - MB thinks MW is right
 ;XXXXXXXXXXXXXX
 	LDR	r2,[r5,#&c]		; disc address of root directory
 	MOV	r4,#len_superblock%	; get 60 bytes of the super block
@@ -489,7 +481,7 @@ FNdt(">>> Image_IdentifyDisc")
 	EOR	r2, r2, #&ef000000
 	TEQ	r2, #&00530000
 	MOVNE	r1,#&69
-	FNcreturn("NE")
+	FNpcreturn("NE")		; is ok because V is clear
 ;------------------------
 ; it is an ext2 disc - return the right info and update the disc shape
 	LDR	r2,[r4,#s_log_block_size%-superblock%]
@@ -527,7 +519,7 @@ FNdt(">>> Image_IdentifyDisc")
 	MOV	r1,#0
 	STR	r2,[r5,#32]		; filetype given to disc
 FNdt("<<< Image_IdentifyDisc")
-	MOVS	pc,r14
+	MOV	pc,r14			; changed MOVS to MOV
 
 ._return_error
 FNdt("<<! Image_IdentifyDisc (error)")
@@ -557,7 +549,7 @@ FNdt("  r1 (my handle for image) = %1x8")
 	MOV	r2,r1
 	BL	Memory_Free
 FNdt("<<< Image_Umount")
-	FNreturn
+	FNreturnClean
 
 
 .Image_ReadFreeSpace
@@ -575,35 +567,22 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("")
 ;------------------------
+; new code for returning free space
 ; The old code only worked reliably for partitions < 4GB, because just the
 ; lower 32 bits of the result were delivered. Then, calculations like
 ; USED = TOTAL - FREE could give negative results because of missing bits.
 ; The new code checks whether the 4GB limit is reached. If yes, "4GB - 1" is
 ; returned instead.
-; old:
-;; get disc size
-;	LDR	r0,[r6,#s_log_block_size%]
-;	LDR	r2,[r6,#s_blocks_count%]
-;	ADD	r0,r0,#10
-;	LDR	r1,[r6,#s_free_blocks_count%]
-;	MOV	r2,r2,LSL r0
-;;------------------------
-;; get free space - assume biggest object creatable is same size
-;	MOV	r1,r1,LSL r0
-;	MOV	r0,r1
-; new:
 ; Start by calling 64bit function. Then check high word of disc size.
 ; If !=0, use 0xffffffff (4GB - 1) as 32bit value.
-	STMFD	r13!,{r14}		; I know this is stupid, but I don't
 	BL	Image_ReadFreeSpace64
-	LDMFD	r13!,{r14}		; really know how to use Phil's library
 	; r0 = free space, low
 	; r1 = free space, high
 	; r2 = biggest object creatable
 	; r3 = disc size, low
 	; r4 = disc size, high
 	MOV	r0,r2	; 32bit free space = 32bit biggest object creatable
-	MOVS	r4,r4	; check high word of disc size
+	TEQ	r4,#0	; check high word of disc size
 	MOV	r1,r2	; move 32bit biggest object creatable into correct reg
 	MOVEQ	r2,r3	; 32bit disc size = low word of 64bit disc size
 	MVNNE	r2,#0	; if disc >= 4GB, limit to &ffffffff (4GB - 1)
@@ -614,9 +593,10 @@ FNdt("<<< Image_ReadFreeSpace")
 FNdt("  r0 (free space) = %0i4")
 FNdt("  r1 (biggest possible object) = %1i4")
 FNdt("  r2 (disc size) = %2i4")
-	FNreturn
+	FNreturnClean
 
 
+; new code for returning 64-bit free space
 .Image_ReadFreeSpace64
 FNdt(">>> Image_ReadFreeSpace64")
 FNdt("  r6 (MDB) = %6x8")
@@ -650,7 +630,7 @@ FNdt("  r6 (MDB) = %6x8")
 	MOVEQ	r2,r0		; if free space < 4GB, just use that
 	MVNNE	r2,#0		; if >= 4GB, limit to &ffffffff (4GB - 1)
 FNdt("<<< Image_ReadFreeSpace64")
-	FNreturn
+	FNreturnClean
 
 
 .Image_ReadUsedSpaceMap
@@ -671,12 +651,11 @@ FNdt("  r6 (MDB) = %6x8")
 	FNfunction("")
 
 FNdt("<<< Image_ReadUsedSpaceMap (we don't do this yet)")
-	FNreturn
+	FNreturnClean
 
 
+; new code for reading boot option
 .Image_ReadBootOption
-FNdt(">>> Image_ReadBootOption")
-FNdt("  r1 (my handle for image) = %1x8")
 ;------------------------
 ; Read boot option. Dummy function, needed for *cat and *ex to work.
 ;------------------------
@@ -686,7 +665,6 @@ FNdt("  r1 (my handle for image) = %1x8")
 ;	r0, r1, r6 preserved!
 ;	r2  =	boot option
 ;------------------------
-	FNfunction("")
-;------------------------
-	MOV	r2, #0;	"no boot action"
-	FNreturn
+	MOV	R2, #0;	"no boot action"
+	CMP	R0,R0			; clears V
+	MOV	PC,R14

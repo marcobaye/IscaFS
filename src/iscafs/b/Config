@@ -38,6 +38,7 @@ REM 0 - none
 REM 1 - to file
 REM 2 - to screen
 REM 3 - to throwback module (unimplemented)
+REM Leave this =0 on Iyonix, as debug isn't yet 32bitclean
 config_debug%		= 0
 config_dbg_file$	= "<IscaFS$Dir>.logfile"
 

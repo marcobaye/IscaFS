@@ -12,7 +12,8 @@ firstmount	= FNwksp_int
 firstfile	= FNwksp_int
 buffer		= FNwksp_int
 buffer2		= FNwksp_int
-debug		= FNwksp_int
+sysflags	= FNwksp_int:REM renamed from "debug"
+	sysflag_oldfilecore%	= 1<<31
 deb2		= FNwksp_int
 len_workspace%	= FNwksp_length
 IF debug% THEN
@@ -106,8 +107,8 @@ s_wtime%		= FNwksp_int
 s_mnt_count%		= FNwksp_short
 s_max_mnt_count%	= FNwksp_short
 s_magic%		= FNwksp_short
-s_state%		= FNwksp_short 
-s_errors%		= FNwksp_short 
+s_state%		= FNwksp_short
+s_errors%		= FNwksp_short
 s_minor_rev_level%	= FNwksp_short
 s_lastcheck%		= FNwksp_int
 s_checkinterval%	= FNwksp_int
@@ -169,8 +170,8 @@ mntflag_synchronous%	= 1<<2		:REM synchronous writes are wanted
 REM directory entry structure
 PROCwksp_init
 dirent_inode%		= FNwksp_int
-dirent_entry_length%	= FNwksp_short
-dirent_name_length%	= FNwksp_short
+dirent_entry_length%	= FNwksp_short	:REM always loaded as a word,
+dirent_name_length%	= FNwksp_short	:REM so you won't find "_name_"
 dirent_name%		= FNwksp_current
 
 len_dirent%		= FNwksp_length	:REM Note - only base length
@@ -187,12 +188,12 @@ i_size%			= FNwksp_int
 i_atime%		= FNwksp_int
 i_ctime%		= FNwksp_int
 i_mtime%		= FNwksp_int
-i_dtime%		= FNwksp_int 
-i_gid%			= FNwksp_short  
-i_links_count%		= FNwksp_short  
+i_dtime%		= FNwksp_int
+i_gid%			= FNwksp_short
+i_links_count%		= FNwksp_short
 i_blocks%		= FNwksp_int
-i_flags%		= FNwksp_int 
-i_reserved1%		= FNwksp_int 
+i_flags%		= FNwksp_int
+i_reserved1%		= FNwksp_int
 i_block%		= FNwksp_add(4,15):REM Pointers to blocks
 i_version%		= FNwksp_int
 i_file_acl%		= FNwksp_int
@@ -228,9 +229,9 @@ i_flag_directory%	= &4000
 i_flags_link%		= &a000		:REM &a = %1010
 i_flags_erk%		= &c000		:REM &c = %1100
 i_flags_linkerk%	= &e000		:REM &e = %1110
-i_flags_lerkbit%	= %1000 << 12
 i_flags_linkbit%	= %0010 << 12
 i_flags_erkbit%		= %0100 << 12
+i_flags_lerkbit%	= %1000 << 12
 
 
 REM group descriptor structure
@@ -241,14 +242,14 @@ bg_inode_table%		= FNwksp_int
 bg_free_blocks_count%	= FNwksp_short	:REM FIXME - code still assumes int!
 bg_free_inodes_count%	= FNwksp_short	:REM FIXME - code still assumes int!
 bg_used_dirs_count%	= FNwksp_short	:REM FIXME - code still assumes int!
-REM Make length =32 so a simple shift can be used for converting name to offset
 bg_pad%			= FNwksp_short
 bg_reserved1%		= FNwksp_int
 bg_reserved2%		= FNwksp_int
 bg_reserved3%		= FNwksp_int
 
 len_groupdesc%		= FNwksp_length
-REM check length is really 32
+REM ensure length is really 32,
+REM so a simple shift can be used for converting name to offset
 IF len_groupdesc% <> 32 THEN PRINT "Group descriptor struct has wrong length!":ERROR 0,"Group descriptor struct has wrong length!"
 
 shift_groupdesc%	= 5

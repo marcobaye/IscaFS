@@ -3,9 +3,11 @@ REM for IscaFS, © Phil Norman 28th May, 1998
 
 
 mod_title$	= "IscaFS"
+REM FIXME - change version number before releasing
 mod_author$	= "Phil Norman, Matthew Wilcox, Nicholas Clark, Marco Baye"
-mod_version%	= 11
+mod_version%	= 12
 mod_year$	= "1997-2004"
+mod_flags	= 1:REM module is 32-bit compatible
 
 
 REM This is the filetype of ImageFS files I handle...
