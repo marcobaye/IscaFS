@@ -91,12 +91,19 @@ FNdt("  r6 (MDB) = %6x8")
 	ldr	r3,[r2,#cachectrl_numentries%]
 	ldr	r2,[r2,#cachectrl_pointer%]
 ; FNdt("iii Checking in cache control block %2x8")
+	ldr	r14,[r6,#mnt_volume_id%]
 ._lp
 	ldr	r1,[r2,#cacheent_blocknum%]
-	ldr	r4,[r2,#cacheent_mount%]
+	ldr	r4,[r2,#cacheent_vol_id%]
 ; FNdt("iii Checking entry %1x8, %4x8 (%0x8, %6x8), r3 = %3i4")
 	teq	r0,r1		; Same block number?
-	teqeq	r6,r4		; Same mount descriptor block?
+; this was buggy. After umounting/mounting, same MDB could
+; mean different volume. Now checks (unique!) volume id instead of MDB.
+; old:
+;	teqeq	r6,r4		; Same mount descriptor block?
+; new:
+	teqeq	r14,r4		; Same volume id?
+
 FNdtc(eq, "<<< Cache_FindBlockInCache (succeeded)")
 FNdtc(eq, "  r2 (cache entry) = %2x8")
 	BEQ	_clean_exit	; changed creturn to BEQ
@@ -191,12 +198,16 @@ FNdt("  r1 (cache entry) = %1x8")
 ._cache_miss
 ;------------------------
 ; Find a block in cache A we can load the data into.
-	ldr	r3,[r12,#blocktableB]
+; fixed wrong cache references.
+;	ldr	r3,[r12,#blocktableB]
+	ldr	r3,[r12,#blocktableA]
 	add	r3,r3,r1,lsl #shift_cachectrl%
 	ldr	r3,[r3,#cachectrl_pointer%]
 	FNrnd(4)
-	and	r4,r4,#config_blocksB%-1
+;	and	r4,r4,#config_blocksB%-1
+	and	r4,r4,#config_blocksA%-1
 	add	r4,r3,r4,lsl #shift_cacheent%
+
 ;------------------------
 ; If there's no block currently there, claim one.
 	ldr	r2,[r4,#cacheent_pointer%]
@@ -226,7 +237,13 @@ FNdt("  r1 (cache entry) = %1x8")
 ; Store all pertinent information about this block.
 	movs	r7,r0		; Put block number into a stmable register.
 				; set flags here - EQ implies hole
-	stmib	r4,{r6-r8}	; Mount, block num, flags (block size).
+; changed to fix MDB problem. Now uses unique volume id.
+; old:
+;	stmib	r4,{r6-r8}	; Mount, block num, flags (block size).
+; new:
+	ldr	r5,[r6,#mnt_volume_id%]	; get unique volume id
+	stmib	r4,{r5,r7,r8}	; vol id, block num, flags (block size).
+
 ;------------------------
 ; Store all pertinent information about this block.
 	mov	r1,r4		; Return value - pointer to cache entry.

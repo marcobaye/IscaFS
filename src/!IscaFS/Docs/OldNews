@@ -6,6 +6,37 @@
 MB> These are release notes for older versions I didn't want to delete.
 
 
+Changes from release 0.12 to release 0.12plus, 18 Apr 2004
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Replaced MAlloc module with 32bit-clean version.
+
+
+Changes from release 0.11 to release 0.12, 16 Apr 2004
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fixed a bug which could freeze the machine when scanning empty dirs.
+Added MimeMap calls so IscaFS now copes with ".ext" type extensions as
+    well (in addition to ",hex" extensions). It's a bit slower though.
+Spaces in filenames are now converted to ALT-Spaces.
+Improved handling of "," in filenames. Older versions truncated at first
+    comma, new version truncates at comma if exactly 3 chars follow.
+32bit-cleaned the module (though I don't have an Iyonix. If you want to
+    give me one as a present, go ahead).
+Added "lsattr-isc" program to display UNIX file mode bits.
+Correctly recognizes UNIX pipes, character devices, block devices and
+    sockets and refuses to load them. Better conversion of UNIX access
+    mode bits to RISC OS attributes (but read access is always granted).
+Updated documentation.
+Changed ordering in ChangeLog file.
+Corrected usage of "i_blocks%" (now renamed to i_512bblocks%), which gives
+    the allocated size in traditional UNIX blocks (512 byte), not the FS's
+    logical blocks.
+"!Run" file now tries to load correct version of MAlloc module (26-bit or
+    32-bit).
+Added "RMEnsure MimeMap" to "!Run" file.
+Tampered with Phil's library to include 32bit-clean versions of the macros
+    used. Changed the source to use the new macros.
+
+
 Changes from release 0.08 to release 0.11, 16 Mar 2004
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 IscaFS now finally copes with all three block sizes and the standard ext2 filesystem features ("sparse_super" and "filetype"). In short, IscaFS is now able to access all current ext2/ext3 partitions. In addition to that, some bugs were fixed and some simple entry points added. See "Changes" and "ChangeLog" for details.

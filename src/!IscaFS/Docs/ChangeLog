@@ -10,6 +10,26 @@ To do
  * Add write capability (MB> I think I won't do that)
 
 
+07 May 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Fixed bug in cache usage (cache A wasn't used at all).
+ * Fixed bug where repeated (dis)mounting could result in stale cache entries
+   being used. Surfaced when using floppies, as image files are almost never
+   dismounted.
+ * Released as version 0.14
+
+
+06 May 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Format description changed from "ext2fs 1.44M" to "ext2fs" as ext2 floppies
+   can have any size.
+
+
+24 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Corrected time/date conversion code. No longer off by 0.76 seconds.
+
+
 22/23 Apr 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
  * Fixed SWI number of FileCore_DiscOp64 ("The Last Bug"). RO5 compatible!

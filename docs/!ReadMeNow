@@ -1,10 +1,10 @@
 
 
-                                IscaFS 0.13
-                                23 Apr 2004
+                                IscaFS 0.14
+                                08 May 2004
 
 
-This is release 0.13 of IscaFS. If you did not download this archive from
+This is release 0.14 of IscaFS. If you did not download this archive from
     http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
 or
     http://splodge.fluff.org/~phil/
@@ -46,6 +46,18 @@ What this archive contains:
         Helper programs. See the file !IscaFS.Docs.Support
 
 
+Changes from release 0.13, 23 Apr 2004
+          to release 0.14, 08 May 2004:
+
+    Just bug fixes:
+
+    Fixed bug in two-level cache usage (cache A wasn't used at all).
+    Fixed bug which could result in stale cache entries being used. This only
+        surfaced when dismounting volumes (for example floppy discs).
+        Thanks to Rien Mertens for reporting that bug.
+    Fixed time/date conversion code. No longer off by 0.76 seconds.
+
+
 Changes from release 0.12plus, 18 Apr 2004
           to release 0.13,     23 Apr 2004:
 
@@ -54,41 +66,9 @@ Changes from release 0.12plus, 18 Apr 2004
     Added "PartTool" program as an alternative to "GetPartns" and "ReadPart".
 
 
-Changes from release 0.12,     16 Apr 2004
-          to release 0.12plus, 18 Apr 2004:
-
-    Replaced MAlloc module with 32bit-clean version.
-
-
-Changes from release 0.11, 16 Mar 2004
-          to release 0.12, 16 Apr 2004:
-
-    Fixed a bug which could freeze the machine when scanning empty dirs.
-    Added MimeMap calls so IscaFS now copes with ".ext" type extensions as
-        well (in addition to ",hex" extensions). It's a bit slower though.
-    Spaces in filenames are now converted to ALT-Spaces.
-    Improved handling of "," in filenames. Older versions truncated at first
-        comma, new version truncates at comma if exactly 3 chars follow.
-    32bit-cleaned the module (though I don't have an Iyonix. If you want to
-        give me one as a present, go ahead).
-    Added "lsattr-isc" program to display UNIX file mode bits.
-    Correctly recognizes UNIX pipes, character devices, block devices and
-        sockets and refuses to load them. Better conversion of UNIX access
-        mode bits to RISC OS attributes (but read access is always granted).
-    Updated documentation.
-    Changed ordering in ChangeLog file.
-    Corrected usage of "i_blocks%" (now renamed to i_512bblocks%), which gives
-        the allocated size in traditional UNIX blocks (512 byte), not the FS's
-        logical blocks.
-    "!Run" file now tries to load correct version of MAlloc module (26-bit or
-        32-bit).
-    Added "RMEnsure MimeMap" to "!Run" file.
-    Tampered with Phil's library to include 32bit-clean versions of the macros
-        used. Changed the source to use the new macros.
-
     For a full list of changes see the file !IscaFS.Docs.ChangeLog
 
 
 I think that's all for now.
 Have fun.
-Marco Baye, 23 Apr 2004
+Marco Baye, 08 May 2004

@@ -24,7 +24,7 @@ Open the directory Source.IscaFS and you should find:
     s
         a directory holding the actual assembler source files.
 
-To recompile IscaFS, simply double-click on the Makefile.  As long as PNAsm and PCFNLib have been seen (do ensure that if you already have these, the new ones supplied with this release of IscaFS are the ones which will be used) it should assemble correctly first time. The new module will be created in the Source.IscaFS directory, so you will have to copy it into the actual !IscaFS application by hand afterwards.
+To recompile IscaFS, simply double-click on the Makefile.  As long as PNAsm and PCFNLib have been seen (do ensure that if you already have these, the new ones supplied with this release of IscaFS are the ones which will be used) it should assemble correctly first time. The new module will be created in the directory Source.IscaFS, so you will have to copy it into the actual !IscaFS application by hand afterwards.
 
 IscaFS is currently configured and compiled with rather a lot of first and second-level cache.  If you are using a low-memory machine and wish to change this, change the relevant values in the 'Source.IscaFS.b.Config' file and recompile IscaFS.
 
@@ -39,4 +39,4 @@ To compile PartTool, you will need a C compiler and OSLib. I use GCC, but Acorn/
 
 Compiling GetPartns
 ~~~~~~~~~~~~~~~~~~~
-If you have Acorn C, recompiling GetPartns shouldn't be a problem. However, if you are a GCC user like me, you will have to edit the Makefile. I (Marco) haven't recompiled it myself, yet. And given the fact that its functionality is superseded by PartTool, I probably won't ever to it. :)
+If you have Acorn C, recompiling GetPartns shouldn't be a problem. However, if you are a GCC user like me, you will have to edit the Makefile. I (Marco) haven't recompiled it myself, yet. And given the fact that its functionality is superseded by PartTool, I probably won't ever do it. :)

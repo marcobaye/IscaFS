@@ -5,7 +5,7 @@ REM for IscaFS, © Phil Norman 28th May, 1998
 mod_title$	= "IscaFS"
 REM FIXME - change version number before releasing
 mod_author$	= "Phil Norman, Matthew Wilcox, Nicholas Clark, Marco Baye"
-mod_version%	= 13
+mod_version%	= 14
 mod_year$	= "1997-2004"
 mod_flags	= 1:REM module is 32bit compatible
 
@@ -22,7 +22,7 @@ FSC_RemoveImageFS		= 36
 
 
 REM Strings
-format_name$	= "ext2fs 1.44M"
+format_name$	= "ext2fs":REM changed from "ext2fs 1.44M"
 
 REM more SWI names so assembly works without relevant modules
 MimeMap_Translate		= &50b00

@@ -78,6 +78,12 @@ FNdt("_check_image")
 	ADD	r3,r12,#firstmount
 	STR	r3,[r6,#last%]
 ;------------------------
+; ugly kluge to solve MDB problem (stale cache entries)
+	LDR	r0,[r12,#last_volume_id]	; get last id
+	ADD	r0,r0,#1			; increment
+	STR	r0,[r12,#last_volume_id]	; store for next time
+	STR	r0,[r6,#mnt_volume_id%]		; and assign to this new volume
+;------------------------
 ; claim memory for all the group descriptors and load them in
 	LDR	r2,[r6,#s_blocks_count%]
 	LDR	r3,[r6,#s_blocks_per_group%]

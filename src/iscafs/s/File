@@ -184,7 +184,7 @@ FNdt("  r5 (attributes) = %5x8")
 ._load_base
 	EQUD	&fff00033
 ._exec_base_bottom
-	EQUD	&996a4c
+	EQUD	&996a00			; low byte was &4c
 ._exec_base_top
 	EQUD	&6e
 

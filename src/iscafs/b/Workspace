@@ -8,7 +8,7 @@ heap		= FNwksp_int
 blocktableA	= FNwksp_int
 blocktableB	= FNwksp_int
 random_seed	= FNwksp_int
-firstmount	= FNwksp_int
+firstmount	= FNwksp_int:REM FIXME - check whether used correctly
 firstfile	= FNwksp_int
 ptr_blockbuffer	= FNwksp_int:REM renamed from "buffer"
 ptr_inodebuffer	= FNwksp_int:REM renamed from "buffer2"
@@ -21,6 +21,7 @@ len_filetypebuf	= 11:REM maximum length of ".ext" extension
 REM deb2		= FNwksp_int	commented out
 read_part_fn	= FNwksp_int:REM ReadPartition function ptr
 disc_size_limit	= FNwksp_int:REM number of bits (!) - FIXME, rename to log2 or something
+last_volume_id	= FNwksp_int:REM added to solve caching bug
 len_workspace%	= FNwksp_length
 IF debug% THEN
 DebugHandle%	= FNwksp_int
@@ -62,7 +63,9 @@ shift_cachectrl%	= 3
 REM Cache entry block
 PROCwksp_init
 cacheent_pointer%	= FNwksp_int	:REM 0 if no block claimed for it.
-cacheent_mount%		= FNwksp_int	:REM 0 if the cache entry is invalid.
+REM adjusted name (was "cacheent_mount%")
+cacheent_vol_id%	= FNwksp_int	:REM 0 if the cache entry is invalid.
+
 cacheent_blocknum%	= FNwksp_int
 cacheent_flags%		= FNwksp_int
 
@@ -95,6 +98,7 @@ mnt_inodeblockaddr%	= FNwksp_int
 mnt_inodetabaddr%	= FNwksp_int
 mnt_numgroups%		= FNwksp_int
 mnt_groupdescs%		= FNwksp_int
+mnt_volume_id%		= FNwksp_int
 
 REM superblock structure (inside image descriptor structure)
 superblock%		= FNwksp_length

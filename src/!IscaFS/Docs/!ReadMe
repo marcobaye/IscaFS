@@ -41,6 +41,7 @@ Files in the "Docs" directory
 Supported image types
 ~~~~~~~~~~~~~~~~~~~~~
 Two image types are supported.  The first is a simple image file.  This could be a file on your hard drive which happens to be a linux ext2 disc image (if you set the file type of 'suppimg' to &0b0 and double-click on it, IscaFS will let you read it).  This also works with ext2 floppy discs (ADFS has a highly cunning way of allowing an entire floppy disc to be read as a file - DOSFS uses this too).
+Make sure your ext2 floppies have different volume labels, otherwise RISC OS might confuse them.
 
 The second type is to use a pseudo image file.  This is an image file which simply serves to tell IscaFS where to find the linux partition by specifying a filing system, disc drive and sector numbers, and then IscaFS uses FileCore calls to read sectors directly off the specified drive.
 
@@ -49,7 +50,9 @@ See the file !IscaFS.Docs.Support on how to create these files.
 
 Installation
 ~~~~~~~~~~~~
-You do not need to double-click !IscaFS to use it. When the application is first "seen" by the filer, it registers its file type. The module isn't loaded until you try to open an ext2 image file for the first time. I guess the easiest way to permanently install IscaFS is to copy the application into your BootResources directory (alongside !Fonts, !Internet, !System, !Scrap, etc.)
+You do not need to double-click !IscaFS to use it. When the application is first "seen" by the filer, it registers its file type. The module isn't loaded until you try to open an ext2 image file for the first time. I guess the easiest way to permanently install IscaFS is to copy the application into your BootResources directory (alongside !Fonts, !Internet, !System, !Scrap, etc.).
+
+This auto-loading does not work with floppy discs, though. To recognise ext2 floppies, the module must be in memory. So if your ext2 floppies aren't recognised, either click the application or an image file. This will load the module, and afterwards floppies should be recognised.
 
 
 Filetypes
@@ -82,6 +85,6 @@ Phil Norman (original author)
 Web site: http://splodge.fluff.org/~phil/
 Email: mailto:forrey@eh.org
 
-Marco Baye (made releases 0.11 through 0.13)
+Marco Baye (releases v0.11 and higher)
 Web site: http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
 Email: mailto:marco@baye.de
