@@ -14,6 +14,7 @@ buffer		= FNwksp_int
 buffer2		= FNwksp_int
 sysflags	= FNwksp_int:REM renamed from "debug"
 	sysflag_oldfilecore%	= 1<<31
+threehex	= FNwksp_int:REM converts ",abc" to &abc
 deb2		= FNwksp_int
 len_workspace%	= FNwksp_length
 IF debug% THEN

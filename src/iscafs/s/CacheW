@@ -40,7 +40,7 @@ FNdt("<<< Cache_FlushBlock")
 ._clean_exit
 	FNreturnClean
 ._gerror
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Cache_ClaimBlocks
@@ -180,9 +180,7 @@ FNdt("<<< Cache_FlushBlock")
 	EQUD	0
 
 ._error_not_enough_blocks
-	FNrerror
-	EQUD	0
-	EQUS	"Not enough free space on filesystem."+CHR$0:ALIGN
+	FNreturnError(""Not enough free space on filesystem.")
 
 
 .Cache_FreeBlocks
@@ -227,9 +225,7 @@ FNdt("<<< Cache_FlushBlock")
 ;	STR	r0,[r1,#block_flags%]
 	FNreturnClean
 ._error_partition
-	FNrerror
-	EQUD	0
-	EQUS	"You cannot currently write to partitions."+CHR$0:ALIGN
+	FNreturnError(""You cannot currently write to partitions.")
 
 
 .Cache_CreateInode
@@ -308,7 +304,7 @@ FNdt("<<< Cache_FlushBlock")
 	MOVVC	r0,r4
 	FNpcreturn("VC")		; changed creturn to pcreturn
 ._return_error
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Cache_DeleteInode
@@ -437,9 +433,7 @@ FNdt("<<< Cache_FlushBlock")
 	FNreturnClean
 
 ._not_enough_blocks
-	FNrerror
-	EQUD	0
-	EQUS	"Not enough free space."+CHR$0:ALIGN
+	FNreturnError(""Not enough free space.")
 
 
 .Cache_BlockToInode

@@ -96,8 +96,8 @@
 
 ._error_unsupp
 	EQUD	0
-	EQUS	"This operation is not supported by IscaFS."+CHR$0:ALIGN
+	EQUS	"This operation is not supported by IscaFS."+CHR$0:FNalign
 
 ._error_readonly
 	EQUD	0
-	EQUS	"Filing system is read-only."+CHR$0:ALIGN
+	EQUS	"Filing system is read-only."+CHR$0:FNalign

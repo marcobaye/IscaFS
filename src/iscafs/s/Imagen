@@ -155,17 +155,13 @@ FNdt("  r1 (my file handle) = %1x8")
 FNdt("<<! Image_Mount (bad image)")
 	MOV	r2,r6
 	BL	Memory_Free
-	FNrerror
-	EQUD	0
-	EQUS	"Not a valid ext2fs image."+CHR$0:ALIGN
+	FNreturnError("Not a valid ext2fs image.")
 
 ._no_such_device
 FNdt("<<! Image_Mount (no such device)")
 	MOV	r2,r6
 	BL	Memory_Free
-	FNrerror
-	EQUD	0
-	EQUS	"The device this partition lives on is not active."+CHR$0:ALIGN
+	FNreturnError("The device this partition lives on is not active.")
 
 ._filecore
 	EQUS	"FileCore%"
@@ -260,14 +256,10 @@ FNdt("<<! Image_Mount (partition is unreadable)")
 	SWI	"OS_Module"
 	MOV	r2,r6
 	BL	Memory_Free
-	FNrerror
-	EQUD	0
-	EQUS	"This partition is not readable by your version of FileCore."
-	EQUB	0
-	ALIGN
+	FNreturnError("This partition is not readable by your version of FileCore.")
 
 ._drive
-	EQUS	":0"+CHR$0:ALIGN
+	EQUS	":0"+CHR$0:FNalign
 
 
 .Image_ReadBytes_File
@@ -296,7 +288,7 @@ FNdt("  r6 (MDB) = %6x8")
 FNdtc(vc, "<<< Image_ReadBytes_File")
 	FNpcreturn("VC")		; changed creturn to pcreturn
 FNdt("<<! Image_ReadBytes_File (OS_GBPB failed)")
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Image_ReadBytes_Partition
@@ -347,7 +339,7 @@ FNdt("  r6 (MDB) = %6x8")
 FNdtc(vc, "<<< Image_ReadBytes_Partition")
 	FNpcreturn("VC")		; changed creturn to pcreturn
 FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
-	FNgerror
+	FNreturnKeepR0andV
 
 ._oldfilecore
 	ADD	r7,r4,r2
@@ -358,13 +350,11 @@ FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
 FNdtc(vc, "<<< Image_ReadBytes_Partition")
 	FNpcreturn("VC")		; changed creturn to pcreturn
 FNdt("<<! Image_ReadBytes_Partition (OS_GBPB failed)")
-	FNgerror
+	FNreturnKeepR0andV
 
 ._sector_out_of_range
 FNdt("<<! Image_ReadBytes_Partition (sector out of range)")
-	FNrerror
-	EQUD	0
-	EQUS	"Sector out of range."+CHR$0:ALIGN
+	FNreturnError("Sector out of range.")
 
 
 .Image_WriteBytes_File
@@ -391,7 +381,7 @@ FNdt("  r6 (MDB) = %6x8")
 FNdtc(vc, "<<< Image_WriteBytes_File")
 	FNpcreturn("VC")		; changed creturn to pcreturn
 FNdt("<<! Image_WriteBytes_File (OS_GBPB failed)")
-	FNgerror
+	FNreturnKeepR0andV
 
 
 ; commented out as it wasn't referenced
@@ -417,7 +407,7 @@ FNdt("<<! Image_WriteBytes_File (OS_GBPB failed)")
 ;	ADD	r0,pc,#0
 ;	MOV	PC,R14			; added to make 32-bit-clean
 ;	EQUD	0
-;	EQUS	"Partition writing is not yet implemented."+CHR$0:ALIGN
+;	EQUS	"Partition writing is not yet implemented."+CHR$0:FNalign
 
 
 .Image_WriteBytes_ReadOnly
@@ -427,7 +417,7 @@ FNdt("!!! Image_WriteBytes_ReadOnly (we can't write anything)")
 	ADD	r0,pc,#0
 	MOV	PC,R14			; added to make 32-bit-clean
 	EQUD	0
-	EQUS	"This partition/image is mounted read-only."+CHR$0:ALIGN
+	EQUS	"This partition/image is mounted read-only."+CHR$0:FNalign
 
 
 .Image_IdentifyDisc
@@ -523,10 +513,10 @@ FNdt("<<< Image_IdentifyDisc")
 
 ._return_error
 FNdt("<<! Image_IdentifyDisc (error)")
-	FNgerror
+	FNreturnKeepR0andV
 
 ._format_name
-	EQUS	format_name$+CHR$0:ALIGN
+	EQUS	format_name$+CHR$0:FNalign
 
 
 .Image_Umount

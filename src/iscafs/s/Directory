@@ -109,9 +109,7 @@ FNdt("  r11 (subroutine) = %11x8")
 
 ._not_a_directory
 FNdt("_not_a_directory")
-	FNrerror
-	EQUD	0
-	EQUS	"Not a directory."+CHR$0:ALIGN
+	FNreturnError("Not a directory.")
 
 ._last_item_read
 FNdt("_last_item_read")
@@ -145,7 +143,7 @@ FNdt("_subroutine_failed")
 	B	_return_from_get_new_block
 
 ._gerror
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Directory_ReadEntries
@@ -206,9 +204,7 @@ FNdt("  r4 (new offset) = %4i4")
 ;	FNpreturn
 
 ._not_found
-	FNrerror
-	EQUD	0
-	EQUS	"Object not found."+CHR$0:ALIGN
+	FNreturnError("Object not found.")
 
 
 .Directory_ReadNames
@@ -257,17 +253,19 @@ FNdtc(gt, "<<< Directory_ReadNames (no space in buffer)")
 ; read item into buffer and update buffer status
 ; REASON-DEPENDANT CODE STARTS HERE
 	ADD	r4,r0,#len_dirent%
+; added code to better deal with ",xxx" extensions
+	SUBS	r14,r1,#4	; calculate theoretical offset of comma
+	BLS	_loop		; if name's too short for ",xxx", skip this
+	LDRB	r14,[r4,r14]	; get fourth-last character
+	TEQ	r14,#ASC","	; if it's a comma,
+	MOVEQ	r1,r14			; pretend name is 4 chars shorter
 ._loop
 	LDRB	r14,[r4],#1
 	TEQ	r14,#ASC"."
 	MOVEQ	r14,#ASC"/"
-	TEQ	r14,#ASC","		; kill ,b21 etc
-; FIXME - only chop off ",b21" if exactly 3 chars after comma!
-	BEQ	_comma_found
 	STRB	r14,[r2],#1
 	SUBS	r1,r1,#1
 	BGT	_loop
-._comma_found
 	MOV	r14,#0
 	STRB	r14,[r2],#1
 ; REASON-DEPENDANT CODE ENDS HERE
@@ -324,34 +322,32 @@ FNdtc(gt, "<<< Directory_ReadFullInfo (no space in buffer)")
 ; read item into buffer and update buffer status
 ; REASON-DEPENDANT CODE STARTS HERE
 	MOV	r7,r2
-	STMFD	r13!,{r0,r1,r3-r6,r8}
-	MOV	r8,r1
-	ADD	r1,r0,#dirent_name%
-	ADD	r8,r8,r1
-	LDR	r0,[r0,#dirent_inode%]
+	STMFD	r13!,{r0,r3-r6,r8}
+	MOV	r2,r0			; r2 => dirent structure
+	ADD	r0,r0,#dirent_name%	; r0 => ext2 name
+	BL	File_FiletypeFromLeafname; r0 = filetype, r1 = new length
+	MOV	r8,r1			; r8 = filename length without ",xxx"
+	MOV	r1,r0			; r1 = filetype
+	LDR	r0,[r2,#dirent_inode%]
 	BL	Cache_GetInodePointer		; FIXME - check for V flag
-	LDRB	r6,[r8]
-	MOV	r14,#0
-	STRB	r14,[r8]
-	BL	File_FiletypeFromLeafname	; FIXME - check for V flag
-	STRB	r6,[r8]
+	; r0 => inode structure
+	; r1 = filetype
+	; r8 = filename length without ",xxx"
 	BL	File_CatalogueInfoFromInode	; FIXME - check for V flag
+	; r0,r2-r5 = catalogue info
 	STMIA	r7!,{r2-r5}
 	STR	r0,[r7],#4
 	MOV	r2,r7
-	LDMFD	r13!,{r0,r1,r3-r6,r8}
-	ADD	r4,r0,#len_dirent%
+	MOV	r1,r8			; r1 = filename length without ",xxx"
+	LDMFD	r13!,{r0,r3-r6,r8}
+	ADD	r4,r0,#len_dirent%	; r4 => ext2 filename
 ._loop
 	LDRB	r14,[r4],#1
 	TEQ	r14,#ASC"."
 	MOVEQ	r14,#ASC"/"
-	TEQ	r14,#ASC","		; kill ,b21 etc
-; FIXME - only chop off ",b21" if exactly 3 chars after comma!
-	BEQ	_comma_found
 	STRB	r14,[r2],#1
 	SUBS	r1,r1,#1
 	BGT	_loop
-._comma_found
 	MOV	r14,#0
 	STRB	r14,[r2],#1
 	ADD	r2,r2,#3		; word align

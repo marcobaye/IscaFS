@@ -55,6 +55,4 @@ FNdt("  r2 (r2 MOD r3) = %2i4")
 
 ._DivisionByZero
 FNdt("<<! Divide (division by zero)")
-	FNrerror
-	EQUD	0
-	EQUS	"Division by zero."+CHR$0:ALIGN
+	FNreturnError("Division by zero.")

@@ -35,7 +35,7 @@ FNdt(">>> FS_Declare")
 	swi	"XOS_FSControl"
 FNdt("<<< FS_Declare")
 	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Module_Initialise

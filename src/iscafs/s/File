@@ -5,40 +5,83 @@
 ; 23 Mar 2004: 32bitclean
 
 
+; rewritten, now needs and returns length info
 .File_FiletypeFromLeafname
 FNdt(">>> File_FiletypeFromLeafname")
-FNdt("  r1 (leafname) = %1z")
 ;------------------------
 ; Work out the filetype of a file from its leafname
 ;------------------------
 ; On entry:
-;	r1  =	pointer to leafname
+;	r0  =>	unterminated leafname
+;	r1  =	length of leafname
 ; On exit:
-;	r1  =	filetype (default fff)
+;	r0  =	filetype (default &fff)
+;	r1  =	corrected length (may be shortened if ",xxx" extension)
 ;------------------------
-	FNfunction("r0,r2")
-._lp
-	LDRB	r0,[r1],#1
-	TEQ	r0,#0
-	BEQ	_return_default
-	TEQ	r0,#ASC","
-	BNE	_lp
-	LDRB	r0,[r1,#3]		; only 3 chars? FIXME - dangerous!
-	TEQ	r0,#0
-	BNE	_lp
-	MOV	r0,#16
-	ORR	r0,r0,#1<<29		; must be in range 0->r2
-	FNmovc(2,&fff)
-	SWI	"XOS_ReadUnsigned"
-	MOVVC	r1,r2			; value
-FNdtc(vc, "<<< File_FiletypeFromLeafname")
-FNdtc(vc, "  r1 (filetype) = %1x8")
-	FNpcreturn("VC")		; changed creturn to pcreturn
-._return_default
-	FNmovc(1,&fff)
-FNdt("<<< File_FiletypeFromLeafname (default)")
-FNdt("  r1 (filetype) = %1x8")
+	FNfunction("r2,r7,r8")	; r7 = default filetype, r8 = new length
+	FNmovc(7,filetype_default%)	; pre-load default value
+	SUBS	r8,r1,#4	; calculate theoretical offset of comma
+	BLS	_clean_exit	; if name's too short for ",xxx", exit
+	LDRB	r14,[r0,r8]!	; get fourth-last character and check for comma
+	TEQ	r14,#ASC","
+	BNE	_clean_exit	; if name does not end in ",xxx", exit
+	; r0 => ",xxx"
+	; r7 = default filetype
+	; r8 = length without ",xxx"
+	LDRB	r14,[r0,#1]
+	LDRB	r2,[r0,#2]
+	ORR	r14,r14,r2,LSL #8
+	LDRB	r2,[r0,#3]
+	ORR	r14,r14,r2,LSL #16
+	MOV	r0,#16			; hex digits use base 16
+	STR	r14,[r12,#threehex]	; store "xxx\0" string
+	MOV	r2,#&f00		; prepare assembling maximum value
+	ADD	r1,r12,#threehex	; pointer to string
+	ORR	r0,r0,#1<<29		; number must be in range 0->r2
+	ORR	r2,r2,#&ff		; finish assembling maximum value
+	SWI	"XOS_ReadUnsigned"	; parse string
+	MOVVC	r7,r2			; if no error, use result
+	MOV	r1,r8			; in any case, use shortened name
+._clean_exit
+	MOV	r0,r7
 	FNreturnClean
+
+
+; no longer needed
+;.File_FiletypeFromLeafnameOld
+;FNdt(">>> File_FiletypeFromLeafnameOld")
+;FNdt("  r1 (leafname) = %1z")
+;;------------------------
+;; Work out the filetype of a file from its leafname
+;;------------------------
+;; On entry:
+;;	r1  =	pointer to leafname
+;; On exit:
+;;	r1  =	filetype (default fff)
+;;------------------------
+;	FNfunction("r0,r2")
+;._lp
+;	LDRB	r0,[r1],#1
+;	TEQ	r0,#0
+;	BEQ	_return_default
+;	TEQ	r0,#ASC","
+;	BNE	_lp
+;	LDRB	r0,[r1,#3]		; only 3 chars?
+;	TEQ	r0,#0
+;	BNE	_lp
+;	MOV	r0,#16
+;	ORR	r0,r0,#1<<29		; must be in range 0->r2
+;	FNmovc(2,&fff)
+;	SWI	"XOS_ReadUnsigned"
+;	MOVVC	r1,r2			; value
+;FNdtc(vc, "<<< File_FiletypeFromLeafnameOld")
+;FNdtc(vc, "  r1 (filetype) = %1x8")
+;	FNpcreturn("VC")		; changed creturn to pcreturn
+;._return_default
+;	FNmovc(1,&fff)
+;FNdt("<<< File_FiletypeFromLeafnameOld (default)")
+;FNdt("  r1 (filetype) = %1x8")
+;	FNreturnClean
 
 
 .File_CatalogueInfoFromInode
@@ -173,7 +216,7 @@ FNdt("  r6 (MDB) = %6x8")
 FNdtc(vc, "<<< File_WriteCatalogueInfo")
 	FNpreturn			; ok because R0 isn't stacked
 ;FNdt("<<! File_WriteCatalogueInfo (Cache_InodeModified returned V set)")
-;	FNgerror
+;	FNreturnKeepR0andV
 #endif
 
 
@@ -212,7 +255,7 @@ FNdt("  r4 (length) = %4i4")
 FNdt("  r5 (attributes) = %5x8")
 	FNpreturn			; ok because R0 isn't stacked
 ;FNdt("<<! File_ReadCatalogueInfo (something returned an error)")
-;	FNgerror
+;	FNreturnKeepR0andV
 
 
 .File_Open
@@ -302,15 +345,11 @@ FNdt("  r4 (space allocated to file) = %4i4")
 
 ._symbolic_link
 FNdt("<<< File_Open (symbolic link)")
-	FNrerror
-	EQUD	0
-	EQUS	"Symbolic links are not yet supported."+CHR$0:ALIGN
+	FNreturnError("Symbolic links are not yet supported.")
 
 ._abnormal_file
 FNdt("<<< File_Open (abnormal file)")
-	FNrerror
-	EQUD	0
-	EQUS	"This is not a normal file."+CHR$0:ALIGN
+	FNreturnError("This is not a normal file.")
 
 
 .File_Close
@@ -338,7 +377,7 @@ FNdt("  r3 (new exec addr) = %3x8")
 	BL	Memory_Free
 FNdt("<<< File_Close")
 	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .File_GetBytes
@@ -401,4 +440,4 @@ FNdt("<<< File_GetBytes")
 
 ._gerror
 FNdt("<<! File_GetBytes (error)")
-	FNgerror
+	FNreturnKeepR0andV

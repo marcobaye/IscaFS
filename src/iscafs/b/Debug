@@ -1,7 +1,7 @@
 REM >Debug Library
 REM (c) Matthew Wilcox
 REM Lots of useful debugging routines.
-REM not yet 32bitclean
+REM 23 Mar 2004: not yet 32bitclean
 
 REM 26th March, 1998 - FNdbg_func added by Phil Norman
 REM   Note - use FNdbg_func sparingly - it takes about 320 bytes (depending
@@ -150,7 +150,7 @@ IF debug_file$="" THEN debug_file$="ADFS::4.$.logfile"
   EQUB	  0
 .dbg_eol
   EQUB	  10
-  ALIGN
+  FNalign
 
 .dbg_newline				;
   STMFD	  r13!, {r0-r4, r14}		;
@@ -270,7 +270,7 @@ ENDCASE
 .dbg_reg_cntts
   EQUS	  "000000000"
 .dbg_reg_end
-  ALIGN
+  FNalign
 .dbg_reg
   STMFD	  r13!, {r14}			;
   ADR	  r1, dbg_reg_reg		; register number
@@ -465,13 +465,13 @@ ENDCASE
   EQUD    0
 .dbg_func_in
   EQUS    "> "
-  ALIGN
+  FNalign
 .dbg_func_from
   EQUS    " (from &"
 .dbg_func_hex_parent
   EQUS    "XXXXXXXX)"+CHR$10
 .dbg_func_endfrom
-  ALIGN
+  FNalign
 .dbg_func_calledby
   EQUS    " (called by "
 .dbg_func_atoffset
@@ -486,20 +486,20 @@ ENDCASE
   EQUS    "< "
 .dbg_func_nl
   EQUB    10
-  ALIGN
+  FNalign
 .dbg_func_separator
   EQUS    "---"+CHR$10
 .dbg_func_endseparator
-  ALIGN
+  FNalign
 .dbg_func_specialword
   EQUS    "Ttam"
 
-  ALIGN
+  FNalign
 ;P End of added by PCFN bit
 
 .dbg_eol
   EQUB	  10
-  ALIGN
+  FNalign
 .dbg_raw
   CMP	  r1, #1024*1024		; 1 Mb
   MOVHIS  pc, r14			; return if higher
@@ -634,7 +634,7 @@ FNdbg_str("Full register dump:")
 .dbg_mult_txt4
   EQUS	"r12 = XXXXXXXX, r13 = XXXXXXXX, r14 = XXXXXXXX, r15 = XXXXXXXX "
 .dbg_mult_txt5
-  ALIGN
+  FNalign
 
 ; now the memory debugging code.
 
@@ -778,7 +778,7 @@ IF debug% THEN
   .dbg_func_special
     EQUS    "Ttam"
   .dbg_func_name
-    EQUS    name$:ALIGN
+    EQUS    name$:FNalign
   .dbg_func_function
   ]
   NEXT
@@ -820,7 +820,7 @@ WHEN 1
   BL	  dbg_str
   EQUS	  str$
   EQUB	  10
-  ALIGN
+  FNalign
   LDMFD	  r13!, {r0, r14}
 ]
 WHEN 2
@@ -830,7 +830,7 @@ WHEN 2
   BL	  dbg_str
   EQUS	  str$
   EQUB	  10 : EQUB 13
-  ALIGN
+  FNalign
   LDMFD	  r13!, {r0, r14}
 ]
 ENDCASE
@@ -933,7 +933,7 @@ IF debug% THEN
 [ OPT pass%
   SWI	  "XOS_WriteS"
   EQUZ	  str$
-  ALIGN
+  FNalign
 ]
 ENDIF
 =0

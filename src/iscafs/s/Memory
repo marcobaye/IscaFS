@@ -27,7 +27,7 @@ FNdtc(vc, "<<< Memory_Initialise")
 ;FNdt("<<! Memory_Initialise (error)")
 	FNpreturn			; ok because R0 isn't stacked
 ._name
-	EQUS	"IscaFS cache"+CHR$0:ALIGN
+	EQUS	"IscaFS cache"+CHR$0:FNalign
 
 
 .Memory_Finalise
@@ -37,7 +37,7 @@ FNdt(">>> Memory_Finalise")
 	SWI	X+MAlloc_Finalise
 FNdt("<<< Memory_Finalise")
 	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Memory_Claim
@@ -52,7 +52,7 @@ FNdt("  r3 (size) = %3i4")
 FNdt("<<< Memory_Claim")
 FNdt("  r2 (block) = %2x8")
 	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Memory_Resize
@@ -67,7 +67,7 @@ FNdt("  r3 (new size) = %3i4")
 FNdt("<<< Memory_Resize")
 FNdt("  r2 (block) = %2x8")
 	FNpcreturn("VC")		; r0 stacked, so both needed
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Memory_ClaimZero
@@ -92,7 +92,7 @@ FNdt("  r2 (block) = %2x8")
 	FNreturnClean
 
 ._gerror
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Memory_Free
@@ -106,7 +106,7 @@ FNdt("  r2 (block) = %2x8")
 	LDRNE	pc,[r12,#malloc_free%]
 FNdt("<<< Memory_Free")
 	FNpcreturn("VC")	; r0 stacked, so both needed
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Memory_Shrink
@@ -116,7 +116,7 @@ FNdt(">>> Memory_Shrink")
 	SWI	X+MAlloc_Shrink
 FNdt("<<< Memory_Shrink")
 	FNpcreturn("VC")	; r0 stacked, so both needed
-	FNgerror
+	FNreturnKeepR0andV
 
 
 ]
@@ -142,7 +142,7 @@ FNdt("Memory_Initialise")
 	SWI	"XOS_Heap"	; added X bit
 	FNpcreturn("VC")	; changed return to pcreturn
 ._gerror
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Memory_Finalise
@@ -211,7 +211,7 @@ FNdt("Memory_ClaimZero")
 	FNreturnClean
 
 ._gerror
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Memory_Resize
@@ -221,7 +221,7 @@ FNdt("Memory_Resize")
 	blne	Memory_Free
 	blvc	Memory_Claim	; added VC condition
 	FNpcreturn("VC")	; r0 stacked, so both needed
-	FNgerror
+	FNreturnKeepR0andV
 
 
 .Memory_Free

@@ -6,7 +6,6 @@
 ; 23 Mar 2004: 32bitclean
 
 
-
 .Cache_CreateCache
 FNdt(">>> Cache_CreateCache")
 FNdt("  r0 (number of blocks per cache entry) = %0i4")
@@ -71,7 +70,7 @@ FNdt("<<< Cache_Initialise")
 	FNreturnClean
 
 ._gerror
-	FNgerror
+	FNreturnKeepR0andV
 
 
 
@@ -257,7 +256,7 @@ FNdt("  r1 (cache entry) = %1x8")
 	FNreturnClean
 
 ._gerror
-	FNgerror
+	FNreturnKeepR0andV
 
 ._read_from_hole
 ;------------------------
@@ -367,6 +366,8 @@ FNdt("_match_leaf")
 ; "comma-postfix" should fix it:
 	SUBS	r7,r7,r4
 	BMI	_clean_exit		; changed creturn to BMI
+	TEQNE	r7,#4			; ext2 name must have same
+	BNE	_clean_exit		; length or be 4 (",xxx") chars longer
 ._lp
 	LDRB	r3,[r6],#1
 	LDRB	r14,[r5],#1
@@ -376,23 +377,28 @@ FNdt("_match_leaf")
 	BNE	_clean_exit		; changed creturn to BNE
 	SUBS	r4,r4,#1
 	BGT	_lp
-	CMP	r7,#0			; possibility of a comma?
-	BLE	_no_comma
+	TEQ	r7,#0			; possibility of a comma?
+	BEQ	_no_comma
 	LDRB	r3,[r6],#1
 	TEQ	r3,#ASC","
 ; wrong length and no comma
 	BNE	_clean_exit		; changed creturn to BNE
 ;------------------------
 ; get the filetype from the ,b21 etc
-; FIXME - only check for comma-separated filetype if exactly 3 chars follow!
 	MOV	r7,r0
 	LDRB	r3,[r6]
 	LDRB	r4,[r6,#1]
 	LDRB	r5,[r6,#2]
 	ORR	r3,r3,r4,LSL #8
 	ORR	r3,r3,r5,LSL #16
-	STR	r3,_buff
-	ADR	r1,_buff
+; moved 4-char-string-buffer to workspace
+; old:
+;	STR	r3,_buff
+;	ADR	r1,_buff
+; new:
+	STR	r3,[r12,#threehex]
+	ADD	r1,r12,#threehex
+
 	MOV	r0,#16
 	ORR	r0,r0,#1<<29		; must be in range 0->r2
 	MOV	r2,#&f00
@@ -411,8 +417,9 @@ FNdt("_match_leaf")
 	MVN	r0,#0
 	FNlmov(3,filetype_default%)
 	FNreturnClean
-._buff
-	EQUD	0			; FIXME - move this to workspace
+; commented out, module uses workspace instead
+;._buff
+;	EQUD	0
 
 
 .Cache_GetInodePointer
