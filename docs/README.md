@@ -3,6 +3,5 @@
 
 The main README file accompanying the IscaFS release.
 
-* Documents
-
-All the remaining documentation.
+All the remaining documentation can be found in the "!IscaFS.Docs"
+directory.
