@@ -2,7 +2,7 @@
 
 				IscaFS - Glossary
 				~~~~~~~~~~~~~~~~~
-			Version 0.06, 28th October, 1998
+			    Version 0.11, 16 Mar 2004
 
 
 Introduction
@@ -43,11 +43,17 @@ This is the disc descriptor.  It can be found at 1k from the start of an ext2 pa
 
 Group
 -----
-A group is a collection of blocks.  In the discs I have seen, a group is defined as being 8192 block big (8 megabytes).  Group size is constant throughout the disc.  The first group begins at the start of the device, and each group contains a copy of the superblock at 1k from its start, and its block descriptor at 2k from its start.  Each group has its own set of inodes, and another number of blocks for storing data.  It also has bitmaps of used inodes and used blocks.  The positions of these are given in the group descriptor.
+A group is a collection of blocks.  The group size depends on the block size:
+ Block size     Group size
+   1024            8192 blocks =   8 MB
+   2048           16384 blocks =  32 MB
+   4096           32768 blocks = 128 MB
+As the block size is constant throughout the disc, the group size is as well.  The first group begins at the start of the device. On older ext2 partitions, each group contains a copy of the superblock and the group descriptor table. Newer ext2 partitions use the "sparse_super" feature, which means that only groups 0, 1, 3^x, 5^x and 7^x contain that copy.  Each group has its own set of inodes, and another number of blocks for storing data.  It also has bitmaps of used inodes and used blocks.  The positions of these are given in the group descriptor.
 
 Group descriptor
 ----------------
-The group descriptor contains information about where to find the various structures in the group.  All block offsets are given as offsets from the start of the group.
+The group descriptor contains information about where to find the various structures in the group (given as absolute block numbers).  A table of all group descriptors is stored after each copy of the superblock (starting in the next block).
+
 
 Files
 -----

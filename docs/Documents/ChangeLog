@@ -2,7 +2,7 @@
 
 				IscaFS - Changelog
 				~~~~~~~~~~~~~~~~~~
-			  Version 0.08, 10th April 1999
+			    Version 0.11, 16 Mar 2004
 
 
 ??th March, 1998 Matthew Wilcox
@@ -127,3 +127,40 @@
  * Fixed the disc access so that partitions of greater than 4gig in size can
    now be accessed.
  * Added various StrongARM optimisations.
+
+
+16th March, 2004 Marco Baye
+
+ * Actually activated all of Nicholas Clark's changes. The v0.08 release did
+   include the relevant file, but it wasn't actually used when assembling.
+ * Added "ImageEntryFunc_ReadBootOption" entry point to get the *ex and *cat
+   commands to work. It doesn't really do anything useful, but if it's not
+   there, RISC OS cannot perform *ex and *cat.
+ * Added some instructions to cope with ext2's "filetype" feature, which is
+   used in ext2 partitions by default nowadays.
+ * Fixed group descriptor structure definition - some fields were assumed to be
+   32b instead of 16b. Actually, this is of no interest until write capability
+   comes along.
+ * Fixed loading of block group descriptors. Now reads global copy of group
+   descriptors instead of wrongly assuming each group has its own. This means
+   mounting large partitions does no longer take ages, and accessing them
+   actually works, even when using the "sparse_super" feature, which is used
+   in ext2 partitions by default nowadays.
+ * Added "ReadFreeSpace64" entry point, so there's a useable interface to find
+   out how much space is used/unused in an ext2 partition, even if the
+   partition is larger than 4GB.
+ * Fixed bug in "ReadFreeSpace32" entry point: If values are larger than 4GB,
+   restrict to 4GB instead of delivering just the low word. Otherwise,
+   USEDSPACE = TOTALSPACE - FREESPACE calculations could give bogus results.
+ * Fixed bug that prevented usage of partitions where blocksize != 1024.
+   Now IscaFS finally copes with ext2 partitions of all three block sizes
+   (1024, 2048, 4096).
+ * Changed !Boot and !Run files so module is autoloaded when needed.
+ * Fixed bug where IscaFS raised "Object not found" errors in situations where
+   it's not really an error.
+ * Fixed bug in dirent matching. It didn't properly check the length of an ext2
+   dir entry, resulting in sometimes accessing the wrong inode.
+ * Changed version number to 0.11.
+ * Changed help string: Development time is given as "1997-2004", and I added
+   Nicholas Clark and myself to the list of developers.
+ * Updated documentation to contain link to homepage.

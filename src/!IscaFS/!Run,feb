@@ -6,3 +6,5 @@ RMEnsure MemoryAllocator 1.09 RMLoad <IscaFS$Dir>.MAlloc
 RMEnsure MemoryAllocator 1.09 Error 0 IscaFS needs the MemoryAllocator module.
 
 RMLoad <IscaFS$Dir>.IscaFS
+| If started via Alias$@RunType_0B0, open directory
+If "%0" <> "" Then Filer_Run %*0

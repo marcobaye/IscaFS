@@ -1,11 +1,16 @@
 
-
-				IscaFS - ReadMe
-				~~~~~~~~~~~~~~~
-			Version 0.08, 10th April 1999
+			     IscaFS - ReadMe
+			     ~~~~~~~~~~~~~~~
+			Version 0.11, 16 Mar 2004
 
 
 PLEASE read ALL of this file.  It won't take you long, and it'll be worth it (probably).
+
+The major changes since 0.08 are:
+IscaFS now finally copes with all three block sizes and the standard ext2 filesystem features ("sparse_super" and "filetype"). In short, IscaFS is now able to access all current ext2/ext3 partitions. In addition to that, some bugs were fixed and some simple entry points added. See "Changes" and "ChangeLog" for details.
+
+
+Older stuff:
 
 The major changes since 0.06 are the new cache system (warning: dodgy, not well-tested code, please report any bugs to forrey@eh.org), and Nicholas Clark's patch which allows partitions over 4gig to be accessed.
 

@@ -2,12 +2,26 @@
 
 				IscaFS - Changes
 				~~~~~~~~~~~~~~~~
-			Version 0.08, 10th April 1999
+			   Version 0.11, 16 Mar 2004
 
 
 This file is a brief description of the main changes that have taken place
 between this version and the last release version.  For a full list of
 changes see the 'ChangeLog' file.
+
+
+New in 0.11:
+
+ * Can *really* access partitions larger than 4GB, and mounting them does no
+   longer take ages.
+ * Can handle all three block sizes (1024, 2048 and 4096 bytes).
+ * Can handle ext2's "sparse_super" and "filetype" features.
+ * Several small bits and pieces (see ChangeLog)
+
+Nope, still no write support. :)
+
+
+Older changes (from 0.06 to 0.08):
 
 WARNING!  IscaFS has a new cache system, which was added in 0.07, and isn't particularly well tested.  Please send any bug reports to me (forrey@eh.org) and I'll try to fix them.  It should be a lot faster than the old cache system, but Chris Rutter's been mentioning that it's actually slower - I think I have a bug :-(.
 
