@@ -5,7 +5,7 @@ REM for IscaFS, © Phil Norman 28th May, 1998
 mod_title$	= "IscaFS"
 REM FIXME - change version number before releasing
 mod_author$	= "Phil Norman, Matthew Wilcox, Nicholas Clark, Marco Baye"
-mod_version%	= 12
+mod_version%	= 13
 mod_year$	= "1997-2004"
 mod_flags	= 1:REM module is 32bit compatible
 
@@ -13,7 +13,7 @@ mod_flags	= 1:REM module is 32bit compatible
 REM This is the filetype of ImageFS files I handle...
 filetype%	= &0b0
 REM and the filetype untyped files assume
-filetype_default%	= &ffd:REM changed from fff to ffd
+filetype_default%	= &fff:REM changed back from ffd
 
 
 REM OS_FSControl reasons
@@ -23,3 +23,8 @@ FSC_RemoveImageFS		= 36
 
 REM Strings
 format_name$	= "ext2fs 1.44M"
+
+REM more SWI names so assembly works without relevant modules
+MimeMap_Translate		= &50b00
+FileCore_SectorOp		= &4054a
+FileCore_DiscOp64		= &4054c

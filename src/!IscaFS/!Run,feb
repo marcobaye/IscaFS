@@ -8,6 +8,8 @@ RMEnsure MemoryAllocator 1.09 Error 0 IscaFS needs the MemoryAllocator module.
 | Check for MimeMap, but don't insist
 RMEnsure MimeMap 0.01 RMLoad System:Modules.Network.MimeMap
 
-RMLoad <IscaFS$Dir>.IscaFS
+| Only load IscaFS if not already loaded
+RMEnsure IscaFS 0.13 RMLoad <IscaFS$Dir>.IscaFS
+RMEnsure IscaFS 0.13 Error 0 Failed to load IscaFS.
 | If started via Alias$@RunType_0B0, open directory
 If "%0" <> "" Then Filer_Run %*0

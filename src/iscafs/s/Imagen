@@ -174,7 +174,9 @@ FNdt("<<! Image_Mount (no such device)")
 FNdt("_pseudo_image")
 ;------------------------
 ; sort out the read/write vectors
-	ADR	r0,Image_ReadBytes_Partition
+; uses ReadPartition 29/38/64 function pointer
+	LDR	r0,[r12,#read_part_fn]		; load function ptr
+
 	STR	r0,[r6,#mnt_readbytes%]
 	FNladr(0, Image_WriteBytes_ReadOnly)	; partitions are ALWAYS ro
 	STR	r0,[r6,#mnt_writebytes%]
@@ -218,36 +220,81 @@ FNdt("_pseudo_image")
 ; alter the descriptor block so that it knows the disc is big enough
 	LDR	r2,[r6,#mnt_endsector%]
 	LDR	r0,[r6,#mnt_lbtsectorlen%]
-	ADD	r2,r2,#1		; disc size is to the end of last sector
-	MOV	r2,r2,LSL r0		; disc size in bytes
-	LDR	r14,[r12,#sysflags]
+	ADD	r2,r2,#1			; disc size is to the end of last sector
+	RSB	r14,r0,#32			; 64bit disc size
+	MOV	r14,r2,LSR r14			; high word of disc size in bytes
+	MOV	r2,r2,LSL r0			; low word of disc size in bytes
+	STR	r14,[r1,#desc_disc_size2%]	; 64bit disc size
 	STR	r2,[r1,#desc_disc_size%]
-	TST	r14,#sysflag_oldfilecore%	; is this old filecore
-	TSTNE	r2,#&e0000000		; and if it is, is it too large?
-	BNE	_partition_is_unreadable
+; check whether partition can be fully accessed
+	SUBS	r2,r2,#1			; calculate address of last byte
+	SBC	r14,r14,#0			; fix high word
+	TEQ	r14,#0
+	MOVNE	r2,r14
+	MOVNE	r14,#32
+	; r14 = number of bits already counted
+	; r2 = bits to count
+	CMP	r2,#&00010000
+	MOVCS	r2,r2,LSR #16
+	ADDCS	r14,r14,#16
+	CMP	r2,#&0100
+	MOVCS	r2,r2,LSR #8
+	ADDCS	r14,r14,#8
+	TST	r2,#&f0
+	MOVNE	r2,r2,LSR #4
+	ADDNE	r14,r14,#4
+	TST	r2,#&c
+	MOVNE	r2,r2,LSR #2
+	ADDNE	r14,r14,#2
+	TST	r2,#&2
+	MOVNE	r2,r2,LSR #1
+	ADDNE	r14,r14,#1
+	ADD	r14,r14,r2
+	; r14 = number of bits needed to express disc address of last byte
+	LDR	r2,[r12,#disc_size_limit]
+	CMP	r2,r14
+	BCC	_partition_is_unreadable
+; old:
+;	LDR	r14,[r12,#sysflags]
+;	TST	r14,#sysflag_oldfilecore%	; is this old filecore
+;	TSTNE	r2,#&e0000000			; and if it is, is it too large?
+;	BNE	_partition_is_unreadable
+
 ;------------------------
 ; read the super block
-	MOV	r1,r1,LSL #6		; descriptor shifted up
-	ADD	r1,r1,#1
-	MOV	r2,#1024		; disc address to read
-	TST	r14,#sysflag_oldfilecore%	; EQ -> newfilecore, NE -> old
-	LDR	r14,[r6,#mnt_startsector%]
-	MOVEQ	r2,r2,LSR r0		; mnt_lbtsectorlen%, from before
-	ADDEQ	r2,r2,r14
-	ADDNE	r2,r2,r14,LSL r0	; mnt_lbtsectorlen%, from before
-	LDR	r14,[r6,#mnt_drivenumber%]
-	ADD	r3,r6,#superblock%
-	ADD	r2,r2,r14,LSL #29
-	MOV	r4,#len_superblock%
-; changed SWIEQ/SWINE combo to 32bit-clean variant
-	BNE	_old_filecore
-	SWI	X+FileCore_SectorOp	; new FileCore
+; now uses ReadPartition 29/38/64 function pointer
+; new:
+	ADD	r2,r6,#superblock%	; target buffer
+	MOV	r3,#len_superblock%	; number of bytes to read
+	MOV	r4,#1024		; partition offset to read
+	MOV	r5,#0			; partition offset, high word
+	MOV	r14,pc
+	LDR	pc,[r6,#mnt_readbytes%]	; Image_ReadBytes_Partition 29/38/64
 	BVC	_check_image
 	B	_error_return
-._old_filecore
-	SWI	"XFileCore_DiscOp"	; old FileCore
-	BVC	_check_image
-	B	_error_return
+; old:
+;	MOV	r1,r1,LSL #6			; descriptor shifted up
+;	ADD	r1,r1,#1
+;	MOV	r2,#1024			; disc address to read
+;	TST	r14,#sysflag_oldfilecore%	; EQ -> newfilecore, NE -> old
+;	LDR	r14,[r6,#mnt_startsector%]
+;	MOVEQ	r2,r2,LSR r0			; mnt_lbtsectorlen%, from before
+;	ADDEQ	r2,r2,r14
+;	ADDNE	r2,r2,r14,LSL r0		; mnt_lbtsectorlen%, from before
+;	LDR	r14,[r6,#mnt_drivenumber%]
+;	ADD	r3,r6,#superblock%
+;	ADD	r2,r2,r14,LSL #29
+;	MOV	r4,#len_superblock%
+;; changed SWIEQ/SWINE combo to 32bit-clean variant
+;	BNE	_old_filecore
+;	SWI	X+FileCore_SectorOp		; new FileCore
+;	BVC	_check_image
+;	B	_error_return
+;._old_filecore
+;	SWI	"XFileCore_DiscOp"		; old FileCore
+;	BVC	_check_image
+;	B	_error_return
+
 ;------------------------
 ; Check if the old FileCore is physically able to read all of the partition.
 ; Thanks to Matthew Wilcox for suggesting this.
@@ -291,15 +338,62 @@ FNdtc(vc, "<<< Image_ReadBytes_File")
 	FNreturnAsIs
 
 
-.Image_ReadBytes_Partition
-FNdt(">>> Image_ReadBytes_Partition")
+; split Image_ReadBytes_Partition into three separate functions.
+; Image_ReadBytes_Partition29, FileCore_DiscOp, 29bit byte offset, 512 MB
+; Image_ReadBytes_Partition38, FileCore_SectorOp, ~38bit byte offset, ~256 GB
+; Image_ReadBytes_Partition64, FileCore_DiscOp64, 64bit byte offset, 16 ExbiByte
+
+.Image_ReadBytes_Partition29
+FNdt(">>> Image_ReadBytes_Partition29")
 FNdt("  r2 (pointer to buffer) = %2x8")
 FNdt("  r3 (bytes to read) = %3i4")
 FNdt("  r4 (file offset (low))  = %4x8")
 FNdt("  r5 (file offset (high)) = %5x8")
 FNdt("  r6 (MDB) = %6x8")
 ;------------------------
-; Read bytes from the given partition
+; Read bytes from the given partition, using XFileCore_DiscOp
+;------------------------
+; On entry:
+;	r2  =	pointer to buffer
+;	r3  =	number of bytes to read
+;	r4  =	partition offset (low)
+;	r5  =	partition offset (high) - damn well should be zero
+;	r6  =	pointer to mount descriptor block
+; On exit:
+;	r3  =	number of bytes not read
+;------------------------
+	FNfunction("r0-r2,r4-r5,r7-r9")
+	MOV	r9,r4
+	MOV	r4,r3				; number of bytes to read
+	MOV	r3,r2				; buffer to read data into
+	LDR	r1,[r6,#mnt_descriptor%]	; alternate disc record
+	LDR	r0,[r6,#mnt_lbtsectorlen%]
+	ADD	r8,r6,#mnt_instanceword%	; point at instance word.
+	MOV	r1,r1,LSL #6			; descriptor shifted up
+	ORR	r1,r1,#1			; reason code 1 (read sectors)
+	LDR	r7,[r6,#mnt_startsector%]	; first sector of partition
+	ADD	r2,r9,r7,LSL r0			; r2 = byte offset into drive
+	LDR	r7,[r6,#mnt_drivenumber%]	; get drive number
+	LDR	r5,[r6,#mnt_endsector%]
+	ORR	r2,r2,r7,LSL #29		; calculate disc address
+	ADD	r7,r4,r2
+	CMP	r7,r5,LSL r0
+	FNcunstack("GT")
+	BGT	Err_SectorOutOfRange
+	SWI	"XFileCore_DiscOp"
+	MOVVC	r3,r4
+FNdtc(vc, "<<< Image_ReadBytes_Partition29")
+	FNreturnAsIs
+
+.Image_ReadBytes_Partition38
+FNdt(">>> Image_ReadBytes_Partition38")
+FNdt("  r2 (pointer to buffer) = %2x8")
+FNdt("  r3 (bytes to read) = %3i4")
+FNdt("  r4 (file offset (low))  = %4x8")
+FNdt("  r5 (file offset (high)) = %5x8")
+FNdt("  r6 (MDB) = %6x8")
+;------------------------
+; Read bytes from the given partition, using XFileCore_SectorOp
 ;------------------------
 ; On entry:
 ;	r2  =	pointer to buffer
@@ -312,45 +406,102 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("r0-r2,r4-r5,r7-r9")
 	MOV	r9,r4
-	MOV	r4,r3			; number of bytes to read
-	MOV	r3,r2			; buffer to read data into
-	LDR	r1,[r6,#mnt_descriptor%] ; alternate disc record
+	MOV	r4,r3				; number of bytes to read
+	MOV	r3,r2				; buffer to read data into
+	LDR	r1,[r6,#mnt_descriptor%]	; alternate disc record
 	LDR	r0,[r6,#mnt_lbtsectorlen%]
-	ADD	r8,r6,#mnt_instanceword% ; point at instance word.
-	MOV	r1,r1,LSL #6		; descriptor shifted up
-	ORR	r1,r1,#1		; reason code 1 (read sectors)
-	LDR	r14,[r12,#sysflags]
-	LDR	r7,[r6,#mnt_startsector%] ; first sector of partition
-	TST	r14,#sysflag_oldfilecore%	; EQ -> newfilecore, NE -> old
-	ADDEQ	r2,r7,r9,LSR r0		; r0 = mnt_lbtsectorlen%, from before
-	RSBEQ	r14,r0,#32
-	ADDEQ	r2,r2,r5,LSL r14	; add high word of partition offset
-	ADDNE	r2,r9,r7,LSL r0		;
-	LDR	r7,[r6,#mnt_drivenumber%] ; get drive number
+	ADD	r8,r6,#mnt_instanceword%	; point at instance word.
+	MOV	r1,r1,LSL #6			; descriptor shifted up
+	ORR	r1,r1,#1			; reason code 1 (read sectors)
+	LDR	r7,[r6,#mnt_startsector%]	; first sector of partition
+	ADD	r2,r7,r9,LSR r0			; r0 = mnt_lbtsectorlen%, from before
+	; r2 = sector offset into drive (low word only)
+	RSB	r14,r0,#32
+	ADD	r2,r2,r5,LSL r14		; add high word of partition offset
+	; r2 = sector offset into drive (both words taken into account)
+	LDR	r7,[r6,#mnt_drivenumber%]	; get drive number
 	LDR	r5,[r6,#mnt_endsector%]
-	ORR	r2,r2,r7,LSL #29	; calculate disc address
-	BNE	_oldfilecore
+	ORR	r2,r2,r7,LSL #29		; calculate disc address
 	ADD	r7,r2,r4,LSR r0
-	ADD	r5,r5,#1		; otherwise last sector is never read
+	ADD	r5,r5,#1			; otherwise last sector is never read
 	CMP	r7,r5
-	BGT	_sector_out_of_range
+	FNcunstack("GT")
+	BGT	Err_SectorOutOfRange
 	SWI	X+FileCore_SectorOp
 	MOVVC	r3,r4
-FNdtc(vc, "<<< Image_ReadBytes_Partition")
+FNdtc(vc, "<<< Image_ReadBytes_Partition38")
 	FNreturnAsIs
 
-._oldfilecore
-	ADD	r7,r4,r2
-	CMP	r7,r5,LSL r0
-	BGT	_sector_out_of_range
-	SWI	"XFileCore_DiscOp"
-	MOVVC	r3,r4
-FNdtc(vc, "<<< Image_ReadBytes_Partition")
-	FNreturnAsIs
-
-._sector_out_of_range
+.Err_SectorOutOfRange
 FNdt("<<! Image_ReadBytes_Partition (sector out of range)")
-	FNreturnError("Sector out of range.")
+	ADD	r0,pc,#0
+	B	SetVFlagAndMovPcR14
+	EQUD	0
+	EQUS	"Sector out of range."+CHR$0:FNalign
+
+
+.Image_ReadBytes_Partition64
+FNdt(">>> Image_ReadBytes_Partition64")
+FNdt("  r2 (pointer to buffer) = %2x8")
+FNdt("  r3 (bytes to read) = %3i4")
+FNdt("  r4 (file offset (low))  = %4x8")
+FNdt("  r5 (file offset (high)) = %5x8")
+FNdt("  r6 (MDB) = %6x8")
+;------------------------
+; Read bytes from the given partition, using XFileCore_DiscOp64
+;------------------------
+; On entry:
+;	r2  =	pointer to buffer
+;	r3  =	number of bytes to read
+;	r4  =	partition offset (low)
+;	r5  =	partition offset (high)
+;	r6  =	pointer to mount descriptor block
+; On exit:
+;	r3  =	number of bytes not read
+;------------------------
+	FNfunction("r0-r2,r4-r5,r7-r9")
+	LDR	r7,[r6,#mnt_lbtsectorlen%]
+	LDR	r8,[r6,#mnt_startsector%]	; first sector of partition
+	RSB	r14,r7,#32
+	LDR	r0,[r6,#mnt_endsector%]		; last sector of partition
+	ADD	r0,r0,#1			; first forbidden one
+	MOV	r9,r8,LSR r14			; r9 = high(byte offset of part start)
+	MOV	r1,r0,LSR r14			; r1 = high(byte offset of part limit)
+	MOV	r8,r8,LSL r7			; r8 = low(byte offset of part start)
+	MOV	r0,r0,LSL r7			; r0 = low(byte offset of part limit)
+	; r8/r9 = byte offset of partition start
+	; r0/r1 = byte offset of partition limit (first sector *after*)
+	ADDS	r8,r8,r4			; add partition start and partition
+	ADC	r9,r9,r5			;   offset to create drive offset
+	; r8/r9 = byte offset of desired location into drive
+	; r0/r1 = byte offset of partition limit (first byte *after*)
+	ADDS	r4,r8,r3			; find location of last byte to read
+	ADC	r5,r9,#0			; fix high word
+	; r8/r9 = byte offset of first byte to read
+	; r4/r5 = byte offset of first byte *not* to read
+	; r0/r1 = byte offset of first byte *forbidden* to read
+	; make sure access is completely inside partition
+	CMP	r1,r5				; compare high words
+	CMPEQ	r0,r4				; if equal, compare low words
+	FNcunstack("CC")
+	BCC	Err_SectorOutOfRange
+	LDR	r7,[r6,#mnt_drivenumber%]	; get drive number
+	MOV	r4,r3				; number of bytes to read
+	MOV	r3,r2				; buffer to read data into
+	ADR	r2,_disc_addr_64
+	STMIA	r2,{r7-r9}
+	MOV	r1,#1				; reason code 1 (read sectors)
+	LDR	r5,[r6,#mnt_descriptor%]	; alternate disc record
+	ADD	r8,r6,#mnt_instanceword%	; point at instance word.
+	SWI	X+FileCore_DiscOp64
+	MOVVC	r3,r4
+FNdtc(vc, "<<< Image_ReadBytes_Partition64")
+	FNreturnAsIs
+
+._disc_addr_64
+	DCD	0	; drive number
+	DCD	0	; byte address, low word
+	DCD	0	; byte address, high word
 
 
 .Image_WriteBytes_File

@@ -34,14 +34,17 @@ Files in the "Docs" directory
     PseudoImg
         Information on the pseudo image files used to access HD partitions.
     Support
-        Information on helper programs (GetPartns, lsattr-isc and ReadPart).
+        Information on helper programs (PartTool, lsattr-isc, GetPartns and
+        ReadPart).
 
 
 Supported image types
 ~~~~~~~~~~~~~~~~~~~~~
 Two image types are supported.  The first is a simple image file.  This could be a file on your hard drive which happens to be a linux ext2 disc image (if you set the file type of 'suppimg' to &0b0 and double-click on it, IscaFS will let you read it).  This also works with ext2 floppy discs (ADFS has a highly cunning way of allowing an entire floppy disc to be read as a file - DOSFS uses this too).
 
-The second type is to use a pseudo image file.  This is an image file (created by hand or by using the 'GetPartns' program) which simply serves to tell IscaFS where to find the linux partition by specifying a filing system, disc drive and sector numbers, and then IscaFS uses FileCore calls to read sectors directly off the specified drive.
+The second type is to use a pseudo image file.  This is an image file which simply serves to tell IscaFS where to find the linux partition by specifying a filing system, disc drive and sector numbers, and then IscaFS uses FileCore calls to read sectors directly off the specified drive.
+
+See the file !IscaFS.Docs.Support on how to create these files.
 
 
 Installation
@@ -79,7 +82,6 @@ Phil Norman (original author)
 Web site: http://splodge.fluff.org/~phil/
 Email: mailto:forrey@eh.org
 
-Marco Baye (made releases 0.11 and 0.12)
+Marco Baye (made releases 0.11 through 0.13)
 Web site: http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
 Email: mailto:marco@baye.de
-

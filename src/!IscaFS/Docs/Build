@@ -3,7 +3,7 @@
                                 IscaFS - Build
 
 
-This file describes how to assemble/compile "IscaFS" and "ReadPartns".
+This file describes how to assemble/compile "IscaFS", "PartTool" and "ReadPartns".
 
 
 Assembling IscaFS
@@ -32,6 +32,11 @@ To use IscaFS on a machine without support for dynamic areas, you will have to a
 (MB, 16 Apr 2004: I only tried that once, and IscaFS crashed. It seems that RMA support is somewhat broken.)
 
 
+Compiling PartTool
+~~~~~~~~~~~~~~~~~~
+To compile PartTool, you will need a C compiler and OSLib. I use GCC, but Acorn/Norcroft C should work as well, though you might have to fiddle with the Makefile then.
+
+
 Compiling GetPartns
 ~~~~~~~~~~~~~~~~~~~
-If you have Acorn C, recompiling GetPartns shouldn't be a problem. However, if you are a GCC user like me, you will have to edit the Makefile. I (Marco) haven't recompiled it myself, yet. :)
+If you have Acorn C, recompiling GetPartns shouldn't be a problem. However, if you are a GCC user like me, you will have to edit the Makefile. I (Marco) haven't recompiled it myself, yet. And given the fact that its functionality is superseded by PartTool, I probably won't ever have to do that. :)

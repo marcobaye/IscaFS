@@ -28,3 +28,5 @@ indirected blocks).
 Thanks to Nicholas Clark, who fixed IscaFS so it can now read partitions greater than 4gig in length, and made some StrongARM optimisations too.
 
 MB> Thanks to Frank de Bruijn, who significantly helped in putting together release 0.12plus.
+
+MB> Thanks to Daniel Ellis who found the bug preventing RO5/Iyonix compatibility and helped to fix it.

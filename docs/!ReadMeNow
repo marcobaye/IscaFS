@@ -1,10 +1,10 @@
 
 
-                                IscaFS 0.12plus
-                                18 Apr 2004
+                                IscaFS 0.13
+                                22 Apr 2004
 
 
-This is release 0.12plus of IscaFS. If you did not download this archive from
+This is release 0.13 of IscaFS. If you did not download this archive from
     http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
 or
     http://splodge.fluff.org/~phil/
@@ -22,9 +22,9 @@ What it is:
 Supported OS versions:
     RISC OS < 3.5:
         You will either need a copy of Justin Fletcher's dynamic areas support
-        module or you will have to re-assemble IscaFS after configuring it to
-        use the RMA instead of a dynamic area. See the file !IscaFS.Docs.Build
-        on how to do this.
+        module (called "DDA" or "Dummy" or you will have to re-assemble IscaFS
+        after configuring it to use the RMA instead of a dynamic area. See the
+        file !IscaFS.Docs.Build on how to do this.
     RISC OS 3.5 or higher:
         IscaFS should work without problems.
         It's 32bit-clean, so it should run on Iyonix as well. If not, tell me.
@@ -43,7 +43,15 @@ What this archive contains:
         Needed if you want to assemble/compile IscaFS or its helper programs.
         See the file !IscaFS.Docs.Build on how to do this.
     Support
-        Some small helper programs. See the file !IscaFS.Docs.Support
+        Helper programs. See the file !IscaFS.Docs.Support
+
+
+Changes from release 0.12plus, 18 Apr 2004
+          to release 0.13,     22 Apr 2004:
+
+    Fixed "The Last Bug", which prevented RO5/Iyonix compatibility.
+        Thanks to Daniel Ellis for finding it and helping to fix it.
+    Added "PartTool" program as an alternative to "GetPartns" and "ReadPart".
 
 
 Changes from release 0.12,     16 Apr 2004
@@ -83,5 +91,4 @@ Changes from release 0.11, 16 Mar 2004
 
 I think that's all for now.
 Have fun.
-Marco Baye, 18 Apr 2004
-
+Marco Baye, 22 Apr 2004

@@ -3,9 +3,14 @@
                                 IscaFS - Bugs
 
 
-18 Apr 2004
+22 Apr 2004
 ~~~~~~~~~~~
  * Still no write support ;)
+ * Won't work with drive numbers > 9
+
+
+18 Apr 2004
+~~~~~~~~~~~
  * I (Marco) hate to write documentation and therefore I have been too lazy to
    actually mark which parts of the docs were added/changed by me and which
    parts were copied from Phil's original 0.08 release (most stuff belongs to

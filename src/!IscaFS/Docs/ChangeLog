@@ -9,6 +9,26 @@ To do
  * Add write capability (MB: I think I won't do that)
 
 
+22 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Fixed SWI number of FileCore_DiscOp64 ("The Last Bug"). RO5 compatible!
+ * Wrote "PartTool" to replace the "GetPartns" and "ReadPart" programs.
+ * Released as version 0.13
+
+
+21 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Changed !PCFNLib.BasAsm.ModFuncs so help string gets another TAB when
+   module title is shorter than 8 chars.
+ * Added FNcunstack to !PCFNLib.BasAsm.ARMFuncsMB
+ * Hopefully fixed RO5 incompatibility by using FileCore_DiscOp64.
+
+
+19 Apr 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Changed !Run file to only load IscaFS if not already loaded.
+
+
 18 Apr 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Replaced MAlloc module with 32bit-clean version.

@@ -14,11 +14,13 @@ ptr_blockbuffer	= FNwksp_int:REM renamed from "buffer"
 ptr_inodebuffer	= FNwksp_int:REM renamed from "buffer2"
 sysflags	= FNwksp_int:REM renamed from "debug"
 	REM added flag to keep from deregistering twice
-	sysflag_oldfilecore%	= 1:REM if set, FileCore cannot access > 512MB
-	sysflag_ifs_registered%	= 2:REM if set, de-register IFS on exit
+	sysflag_ifs_registered%	= 1:REM if set, de-register IFS on exit
+	REM removed "sysflag_oldfilecore%" flag
 filetypebuffer	= FNwksp_add(1,12):REM needed for conversions
 len_filetypebuf	= 11:REM maximum length of ".ext" extension
 REM deb2		= FNwksp_int	commented out
+read_part_fn	= FNwksp_int:REM ReadPartition function ptr
+disc_size_limit	= FNwksp_int:REM number of bits (!) - FIXME, rename to log2 or something
 len_workspace%	= FNwksp_length
 IF debug% THEN
 DebugHandle%	= FNwksp_int

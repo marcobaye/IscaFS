@@ -110,12 +110,17 @@ FNdt(">>> Module_Initialise (debugging just started)")
 ;	BLVC	Memory_Claim
 ;	FNreturnOnErr
 ;	STR	r2,[r12,#ptr_inodebuffer]
-	ADR	r1, _newfilecore
+; new way of finding out FileCore limits
+	ADR	r1,_discop64
 	SWI	"XOS_SWINumberFromString"
-	LDR	r0,[r12,#sysflags]
-	BICVC	r0,r0,#sysflag_oldfilecore%	; 0 => new filecore
-	ORRVS	r0,r0,#sysflag_oldfilecore%	; 1 => old filecore
-	STR	r0,[r12,#sysflags]
+	ADRVS	r1,_sectorop
+	SWIVS	"XOS_SWINumberFromString"
+	ADRVS	r1,_default
+	LDMDB	r1,{r2,r3}
+	ADD	r2,r1,r2			; convert relative to absolute address
+	STR	r2,[r12,#read_part_fn]		; store function pointer
+	STR	r3,[r12,#disc_size_limit]	; store max number of address bits
+
 ;------------------------
 ; init filing system and cache
 	bl	FS_Declare
@@ -131,15 +136,29 @@ FNdt(">>> Module_Initialise (debugging just started)")
 FNdt("<<< Module_Initialise")
 	FNreturnClean
 
-._newfilecore
+; deep magic starts here
+	DCD	Image_ReadBytes_Partition29 - _default
+	DCD	29
+._default
+
+	DCD	Image_ReadBytes_Partition38 - _sectorop
+	DCD	38
+._sectorop
 	equs	"FileCore_SectorOp"+CHR$0
-	align
+	FNalign
+
+	DCD	Image_ReadBytes_Partition64 - _discop64
+	DCD	64
+._discop64
+	equs	"FileCore_DiscOp64"+CHR$0
+
 
 #if debug%
 .DebugFilename%
 	equs	config_dbg_file$+CHR$0
-	align
 #endif
+
+	FNalign
 
 
 .Module_Finalise

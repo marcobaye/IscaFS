@@ -1,0 +1,9 @@
+CFLAGS		= -mthrowback -Wall -mlibscl -IOSLib: -O3 -mno-poke-function-name OSLib:OSLib32.o
+LIBS		= OSLib:OSLib32.o
+CC		= gcc
+
+PROGS		= parttool
+
+all: $(PROGS)
+
+parttool: parttool.c

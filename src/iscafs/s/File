@@ -54,7 +54,7 @@ FNdt(">>> File_FiletypeFromLeafname")
 	MOV	r0,#3		; input format = MMM_TYPE_DOT_EXTN
 	ADD	r1,r12,#filetypebuffer	; r1 => terminated extension string
 	MOV	r2,#0		; output format = MMM_TYPE_RISCOS
-	SWI	"XMimeMap_Translate"	; now r3 = filetype
+	SWI	X+MimeMap_Translate	; now r3 = filetype
 	MOV	r1,r4		; restore filename length
 	MOVVC	r0,r3		; if no error, use result
 	FNpcreturn("VC")	; and return
