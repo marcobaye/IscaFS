@@ -1,0 +1,110 @@
+//
+//	String class implementation
+//	By Phil Norman 16th April, 1998
+//
+
+
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "pnstring.h"
+
+// Constructors
+
+pnstring::pnstring()
+{
+	str = 0;
+	len = 0;
+}
+
+pnstring::pnstring(char *c)
+{
+	len = strlen(c);
+	str = strcpy((char *)malloc(len+1), c);
+}
+
+pnstring::pnstring( pnstring &s )
+{
+	len = s.length();
+	str = strcpy((char *)malloc(len+1), s.charptr());
+}
+
+// Class method definitions
+
+void pnstring::operator+=( pnstring a )
+{
+	int		old_len = len;
+
+	len += a.length();
+	str = (char *)realloc(str, len+1);
+	strcpy(str+old_len, a.charptr());
+}
+
+void pnstring::operator+=( char *a )
+{
+	int		old_len = len;
+
+	len += strlen(a);
+	str = (char *)realloc(str, len+1);
+	strcpy(str+old_len, a);
+}
+
+void pnstring::operator+=( char a )
+{
+	str = (char *)realloc(str, len+2);
+	str[len++] = a;
+	str[len] = '\0';
+}
+
+void pnstring::operator+=( int a )
+{
+	int		old_len = len;
+	char	buff[32];
+	char	*type = "%d";
+
+	if ((str[len-1]=='&')||((str[len-2]=='0')&&(str[len-1]=='x')))
+		type = "%x";
+
+	sprintf(buff, type, a);
+	len += strlen(buff);
+	str = (char *)realloc(str, len+1);
+	strcpy(str+old_len, buff);
+}
+
+// Friend function definitions
+
+pnstring operator+( pnstring a, pnstring b )
+{
+	pnstring	RetVal(a);
+
+	RetVal += b;
+
+	return RetVal;
+}
+
+pnstring operator+( pnstring a, char *b )
+{
+	pnstring	RetVal(a);
+
+	RetVal += b;
+
+	return RetVal;
+}
+
+pnstring operator+( pnstring a, char b )
+{
+	pnstring	RetVal(a);
+
+	RetVal += b;
+
+	return RetVal;
+}
+
+pnstring operator+( pnstring a, int b )
+{
+	pnstring	RetVal(a);
+
+	RetVal += b;
+
+	return RetVal;
+}

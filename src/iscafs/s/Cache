@@ -5,8 +5,52 @@
 ; operations.
 
 
+
+.Cache_CreateCache
+FNdt(">>> Cache_CreateCache")
+FNdt("  r0 (number of blocks per cache entry) = %0i4")
+;------------------------
+; Generates a cache tree of the given size.
+;------------------------
+; On entry:
+;	r0  =	number of blocks per cache entry
+; On exit:
+;	r0  =	pointer to cache control block
+;------------------------
+	FNfunction("r1-r6")
+	mov	r6,r0		; For cachectrl_numentries%
+;------------------------
+; Claim memory for the cache control block.
+	FNmovc(3, len_cachectrl% << config_cachehashbits%)
+	bl	Memory_Claim
+	bvs	gerror
+	mov	r0,r2
+;------------------------
+; Claim memory for the cache entries.
+	mov	r4,r6,lsl #shift_cacheent%
+	mov	r3,r4,lsl #config_cachehashbits%
+	bl	Memory_ClaimZero
+	bvs	gerror
+;------------------------
+; Set up and execute loop to fill up cache control blocks.
+	mov	r5,#1 << config_cachehashbits%
+	mov	r1,r0		; Moving pointer within cache control block.
+._lp
+	stmia	r1!,{r2,r6}
+	add	r2,r2,r4	; Increment pointer to the cache entries.
+	subs	r5,r5,#1	; Control blocks counter.
+	bgt	_lp
+FNdt("<<< Cache_CreateCache")
+FNdt("  r0 (pointer to cache control block) = %0x8")
+	FNreturn
+
+.gerror
+	FNgerror
+
+
+
 .Cache_Initialise
-FNdbg_str("Cache_Initialise")
+FNdt(">>> Cache_Initialise")
 ;------------------------
 ; Initialises all the cache information.
 ;------------------------
@@ -17,48 +61,90 @@ FNdbg_str("Cache_Initialise")
 ;------------------------
 	FNfunction("r0-r4")
 ;------------------------
-; claim memory for block caches and tables
-;P Cache-line optimisation for cache1 and cache2, which can use the 1024-byte
-;P optimised memory copy.  Wastes 32 bytes, but saves about the same by
-;P allocating all memory in one chunk (esp nice for RMA-users).
-	FNmovc(3,cache_totallen%+32)
-	BL	Memory_Claim
-	AND	r3,r2,#31
-	RSB	r3,r3,#32
-	ADD	r2,r2,r3
-	STR	r2,[r12,#blockcache1]
-	ADD	r2,r2,#config_cache1size%
-	STR	r2,[r12,#blockcache2]
-	ADD	r2,r2,#config_cache2size%
-	STR	r2,[r12,#blocktable1]
-	ADD	r2,r2,#cache1_blocks%*len_blocktable%
-	STR	r2,[r12,#blocktable2]
+; Set up the A and B cache control blocks.
+	mov	r0,#config_blocksA%
+	bl	Cache_CreateCache
+	bvs	_gerror
+	str	r0,[r12,#blocktableA]
+	mov	r0,#config_blocksB%
+	bl	Cache_CreateCache
+	bvs	_gerror
+	str	r0,[r12,#blocktableB]
+FNdt("<<< Cache_Initialise")
+	FNreturn
+
+._gerror
+	FNgerror
+
+
+
+.Cache_FindBlockInCache
+FNdt(">>> Cache_FindBlockInCache")
+FNdt("  r0 (block number) = %0i4")
+FNdt("  r1 (hash value) = %1x8")
+FNdt("  r2 (cache control blocks ptr) = %2x8")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
-; initialise the cache tables
-	MVN	r1,#0			; block -1 will never be used
-	MOV	r2,#0			; not dirty
-	MOV	r3,#0			; null drive number
-	LDR	r0,[r12,#blocktable1]
-	MOV	r4,#cache1_blocks%	; counter
-._loop
-	STMIA	r0!,{r1-r3}
-	SUBS	r4,r4,#1
-	BGT	_loop
-	LDR	r0,[r12,#blocktable2]
-	MOV	r4,#cache2_blocks%	; counter
-._loop
-	STMIA	r0!,{r1-r3}
-	SUBS	r4,r4,#1
-	BGT	_loop
+; Tries to find the given block in the cache specified.
 ;------------------------
-; initialise the records of the next blocks and nametab places to use
-	STR	r2,[r12,#blocktouse1]	; already zero (from above)
-	STR	r2,[r12,#blocktouse2]
+; Get a numbered block from disc
+; On entry:
+;	r0  =	block number
+;	r1  =	hash value
+;	r2  =	pointer to start of cache control blocks to search
+;	r6  =	pointer to MDB
+; On exit:
+;	r2  =	pointer to cache entry, or zero if block wasn't found
+;------------------------
+	FNfunction("r0,r1,r3-r11")
+	add	r2,r2,r1,lsl #shift_cachectrl%
+	ldr	r3,[r2,#cachectrl_numentries%]
+	ldr	r2,[r2,#cachectrl_pointer%]
+; FNdt("iii Checking in cache control block %2x8")
+._lp
+	ldr	r1,[r2,#cacheent_blocknum%]
+	ldr	r4,[r2,#cacheent_mount%]
+; FNdt("iii Checking entry %1x8, %4x8 (%0x8, %6x8), r3 = %3i4")
+	teq	r0,r1		; Same block number?
+	teqeq	r6,r4		; Same mount descriptor block?
+FNdtc(eq, "<<< Cache_FindBlockInCache (succeeded)")
+FNdtc(eq, "  r2 (cache entry) = %2x8")
+	FNcreturn("EQ")
+	add	r2,r2,#len_cacheent%
+	subs	r3,r3,#1
+	bgt	_lp
+	mov	r2,#0		; No matching block was found.
+FNdt("<<< Cache_FindBlockInCache (failed)")
+FNdt("  r2 (cache entry) = %2x8")
 	FNreturn
 
 
+
+.Cache_CleanBlock
+FNdt(">>> Cache_CleanBlock")
+FNdt("  r0 (block number) = %0i4")
+FNdt("  r4 (block table entry) = %4x8")
+FNdt("  r6 (MDB) = %6x8")
+;------------------------
+; Writes the block's data back into the filesystem from whence it came.
+;------------------------
+; On entry:
+;	r0  =	block number
+;	r4  =	pointer to block table entry
+;	r6  =	pointer to MDB
+; On exit:
+;	All registers preserved.
+;------------------------
+	FNfunction("r2-r11")
+FNdt("<<< Cache_CleanBlock")
+	FNreturn
+
+
+
 .Cache_GetBlock
-FNdbg_func("Cache_GetBlock","r0,r6","r0,r1")
+FNdt(">>> Cache_GetBlock")
+FNdt("  r0 (block number) = %0i4")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Tries to find a block in the cache; if it fails it reads the requested block
 ; into the next available slot.
@@ -73,132 +159,132 @@ FNdbg_func("Cache_GetBlock","r0,r6","r0,r1")
 ;------------------------
 	FNfunction("r2-r11")
 ;------------------------
-; try to find the block in the second level cache
-	LDR	r4,[r12,#blocktable2]
-	MOV	r7,#cache2_blocks%
-._loop
-	SUBS	r7,r7,#1
-	BLT	_fail_cache2
-	LDMIA	r4!,{r1-r3}
-	TEQ	r3,r6			; same mount?
-	TEQEQ	r1,r0			; same block base number?
-	BNE	_loop
+; Generate the hash value for the given block.
+	eor	r1,r0,r0,lsr #13
+	eor	r1,r1,r6,lsr #2
+	and	r1,r1,#cache_hashmask%
 ;------------------------
-; match found - return that one
-	RSB	r7,r7,#cache2_blocks%
-	LDR	r5,[r12,#blockcache2]
-	SUB	r7,r7,#1
-	ADD	r0,r5,r7,LSL #10	; = blockcache + 1024*blocknumber
-	SUB	r1,r4,#len_blocktable%
+; Search for the block in each cache.
+	ldr	r2,[r12,#blocktableB]
+	bl	Cache_FindBlockInCache
+	teq	r2,#0
+	bne	_found_cache_entry
+	ldr	r2,[r12,#blocktableA]
+	bl	Cache_FindBlockInCache
+	teq	r2,#0
+	beq	_cache_miss
+;------------------------
+; Find a block in cache B which we can promote our cache A block into.
+	ldr	r3,[r12,#blocktableB]
+	add	r3,r3,r1,lsl #shift_cachectrl%
+	ldr	r3,[r3,#cachectrl_pointer%]
+	FNrnd(4)
+	and	r4,r4,#config_blocksB%-1
+	add	r3,r3,r4,lsl #shift_cacheent%
+;------------------------
+; Switch the two, demoting the block from B, and promoting that from A.
+	ldmia	r2,{r4,r5,r7,r8}
+	ldmia	r3,{r9,r10,r11,r14}
+	stmia	r3,{r4,r5,r7,r8}
+	stmia	r2,{r9,r10,r11,r14}
+	mov	r2,r3		; The required block has moved to here.
+	b	_found_cache_entry
+
+._found_cache_entry
+;------------------------
+; We've found the entry - its cacheent is in r2.
+	mov	r1,r2
+	ldr	r0,[r2,#cacheent_pointer%]
+FNdt("<<< Cache_GetBlock")
+FNdt("  r0 (block pointer) = %0x8")
+FNdt("  r1 (cache entry) = %1x8")
 	FNreturn
 
-._fail_cache2
-FNdbg_str("_fail_cache2")
+._cache_miss
 ;------------------------
-; try to find the block in the first level cache
-	LDR	r4,[r12,#blocktable1]
-	MOV	r7,#cache1_blocks%
-._loop
-	SUBS	r7,r7,#1
-	BLT	_fail_cache1
-	LDMIA	r4!,{r1-r3}
-	TEQ	r3,r6			; same mount?
-	TEQEQ	r1,r0			; same block base number?
-	BNE	_loop
+; Find a block in cache A we can load the data into.
+	ldr	r3,[r12,#blocktableB]
+	add	r3,r3,r1,lsl #shift_cachectrl%
+	ldr	r3,[r3,#cachectrl_pointer%]
+	FNrnd(4)
+	and	r4,r4,#config_blocksB%-1
+	add	r4,r3,r4,lsl #shift_cacheent%
 ;------------------------
-; match found - return that one
-	RSB	r7,r7,#cache1_blocks%
-	LDR	r5,[r12,#blockcache1]
-	SUB	r7,r7,#1
-	ADD	r0,r5,r7,LSL #10	; = blockcache + 1024*blocknumber
+; If there's no block currently there, claim one.
+	ldr	r2,[r4,#cacheent_pointer%]
+	ldr	r8,[r6,#s_log_block_size%]
+	mov	r3,#1024	; Get block size in bytes.
+	mov	r3,r3,lsl r8
+	teq	r2,#0
+	beq	_claim_target_block
 ;------------------------
-; we have a cache hit!  move this block into the second-level cache
-; Useful regs are:
-;	r0  =	address of block in first-level cache
-;	r1  =	current blocktable entry - block base number
-;	r2  =	current blocktable entry - flags
-;	r4  =	address of blocktable entry after current one
-	LDR	r5,[r12,#blocktable2]
-	LDR	r7,[r12,#blockcache2]
-	LDR	r10,[r6,#s_log_block_size%]
-	LDR	r8,[r12,#blocktouse2]
-	MOVS	r10,r10,LSL #1		; number of blocks to copy
-	MOVEQ	r10,#1
-	ADD	r9,r8,r10		; check if the blocks will fit
-	CMP	r9,#cache2_blocks%
-	MOVGT	r8,#0			; no - force to cache start
-	STRGT	r10,[r12,#blocktouse2]
-	STRLE	r9,[r12,#blocktouse2]
-	ADD	r5,r5,r8,LSL #shift1_blocktable%
-	ADD	r5,r5,r8,LSL #shift2_blocktable%
-#if config_write%
-;	BL	Cache_FlushBlock
-#endif
-	STMIA	r5!,{r1,r2,r6}		; store info for to-be-copied block
-	ADD	r1,r7,r8,LSL #10	; position in 2nd-lev cache for data
-	MOV	r2,r10,LSL #10		; nbytes to copy
-	BL	Memory_QuickCopy	; copy block from 1st to 2nd lev cache
-	MOV	r0,r1			; return block in 2nd-lev cache
-	MVN	r1,#0			; illegal number for trailing blocks
-	MOV	r3,#0			; illegal mount for trailing blocks
-._lp
-	SUBS	r10,r10,#1
-	STMGTIA	r5!,{r1-r3}
-	BGT	_lp
-	SUB	r1,r4,#len_blocktable%
+; If there's an existing block which is the right size, use that.
+	ldr	r1,[r4,#cacheent_flags%]
+	tst	r1,#fcacheent_dirty%
+	blne	Cache_CleanBlock
+	and	r1,r1,#fcacheent_blksize%
+	cmp	r1,r8		; Compare against filesystem's block size.
+	beq	_existing_block_ok
+	bllt	Memory_Free	; Free old block (wrong size).
+	movlt	r2,#0
+._claim_target_block
+	bl	Memory_Resize	; Claim new block (right size!).
+	bvs	_gerror		; !!! Handle this more gracefully.
+	str	r2,[r4,#cacheent_pointer%]
+._existing_block_ok
+;------------------------
+; Store all pertinent information about this block.
+	movs	r7,r0		; Put block number into a stmable register.
+				; set flags here - EQ implies hole
+	stmib	r4,{r6-r8}	; Mount, block num, flags (block size).
+;------------------------
+; Store all pertinent information about this block.
+	mov	r1,r4		; Return value - pointer to cache entry.
+	mov	r0,r2		; Return value - pointer to block data.
+	beq	_read_from_hole
+	add	r8,r8,#10	; Shift for block num -> file offset.
+FNdt("  r7 () = %7x8")
+	mov	r4,r7,lsl r8	; Get file offset (low) from block number.
+	rsb	r14,r8,#32
+	mov	r5,r7,lsr r14	; Get file offset (high) from block number.
+FNdt("  r5 (high) = %5x8")
+FNdt("  r4 (low)  = %4x8")
+	mov	r14,pc
+	ldr	pc,[r6,#mnt_readbytes%]
+FNdt("<<< Cache_GetBlock")
+FNdt("  r0 (block pointer) = %0x8")
+FNdt("  r1 (cache entry) = %1x8")
 	FNreturn
 
-._fail_cache1
-FNdbg_str("_fail_cache1")
+._gerror
+	FNgerror
+
+._read_from_hole
 ;------------------------
-; prepare address to be returned and place in a safe register
-;	r0  =	block number
-	STMFD	r13!,{r4}
-	LDR	r5,[r12,#blocktable1]
-	LDR	r7,[r12,#blockcache1]
-	LDR	r14,[r6,#s_log_block_size%]
-	LDR	r8,[r12,#blocktouse1]
-	MOV	r4,r0,LSL r14		; offset in file in 1024-byte blocks
-	MOVS	r14,r14,LSL #1		; number of blocks to copy
-	MOV	r4,r4,LSL #10		; image-offset to load from
-	MOVEQ	r14,#1
-	ADD	r9,r8,r14
-	CMP	r9,#cache1_blocks%	; check if the blocks will fit
-	MOVGT	r8,#0			; no - force to cache start
-	MOVGT	r9,r14
-	ADD	r5,r5,r8,LSL #shift1_blocktable%
-	STR	r9,[r12,#blocktouse1]
-	ADD	r5,r5,r8,LSL #shift2_blocktable%
-	MOV	r3,#0			; block_flags
-	MVN	r1,#0			; illegal number for trailing blocks
-	MOV	r10,#0			; illegal mount for trailing blocks
-	ADD	r2,r7,r8,LSL #10	; position to load data into
-#if config_write%
-;	BL	Cache_FlushBlock
-#endif
-	STMIA	r5!,{r0,r3,r6}		; blocknum, blockflags, mount
-	MOV	r11,r14
-	ADD	r0,r0,#1
-._lp
-	SUBS	r11,r11,#1
-#if config_write%
-;	BLGT	Cache_FlushBlock
-#endif
-	STMGTIA	r5!,{r1,r3,r10}
-	BGT	_lp
-	MOV	r3,r14,LSL #10		; size of a FS block
-	MOV	r14,pc
-	LDR	pc,[r6,#mnt_readbytes%]
-	MOVVC	r0,r2
-	LDMFD	r13!,{r1}
-	SUBVC	r1,r1,#len_blocktable%
-	FNcreturn("VC")
-	FNpreturn
+; Read bytes from a black hole.
+;------------------------
+; On entry:
+;	r2  =	pointer to buffer
+;	r3  =	number of bytes to read
+;	r4  =	partition offset
+;	r6  =	pointer to mount descriptor block
+; On exit:
+;	r3  =	number of bytes not read
+;------------------------
+	mov	r1,r2
+	mov	r2,r3
+	bl	Memory_ZeroBlock
+FNdt("<<< Cache_GetBlock (hole)")
+FNdt("  r0 (block pointer) = %0x8")
+FNdt("  r1 (cache entry) = %1x8")
+	FNreturn
+
 
 
 .Cache_FindInode
-FNdbg_func("Cache_FindInode","r0,r6","r0,r1")
-FNdbg_indstr(0)
+FNdt(">>> Cache_FindInode")
+FNdt("  r0 (pathname) = %0z")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Returns the inode number of the item described by the given pathname.
 ;------------------------
@@ -210,10 +296,13 @@ FNdbg_indstr(0)
 ;	r1  =	filetype
 ;------------------------
 	FNfunction("r2-r11")
-	MOVS	r5,r0
-	MOV	r0,#2
-	LDRNEB	r1,[r5]
-	TEQNE	r1,#0
+	movs	r5,r0
+	mov	r0,#2
+	ldrneb	r1,[r5]
+	teqne	r1,#0
+FNdtc(eq, "<<< Cache_FindInode (root)")
+FNdtc(eq, "  r0 (inode number) = %0i4")
+FNdtc(eq, "  r1 (filetype) = %1x8")
 	FNcreturn("EQ")
 	MOV	r2,#2			; inode number of root
 ._dir_loop
@@ -230,15 +319,19 @@ FNdbg_indstr(0)
 	MOV	r2,#0			; inode number of found inode
 	ADR	r11,_match_leaf
 	BL	Directory_Scan
+FNdtc(vs, "<<! Cache_FindInode (Directory_Scan failed)")
 	FNpcreturn("VS")
 	MOV	r1,r3			; filetype
 	TEQ	r2,#0
 	BEQ	_not_found
 	ADD	r5,r5,r4		; move to next leafname
-	LDRB	r10,[r5],#1		; directory separator or zero-terminator
+	LDRB	r10,[r5],#1		; directory separator or 0-terminator
 	TEQ	r10,#0			; more subentries?
 	BNE	_dir_loop		; yes
 	MOV	r0,r2			; nope
+FNdt("<<< Cache_FindInode")
+FNdt("  r0 (block pointer) = %0x8")
+FNdt("  r1 (cache entry) = %1x8")
 	FNreturn
 
 ._not_found
@@ -247,7 +340,7 @@ FNdbg_indstr(0)
 	EQUS	"Object not found."+CHR$0:ALIGN
 
 ._match_leaf
-FNdbg_str("_match_leaf")
+FNdt("_match_leaf")
 ;------------------------
 ; Code segment for use with Directory_Scan which checks if the name of the item
 ; given matches the requested name.  Exits immediately if match is found.
@@ -263,8 +356,8 @@ FNdbg_str("_match_leaf")
 ;------------------------
 	FNfunction("r4-r7")
 	LDR	r7,[r0,#dirent_entry_length%]
-	MOV	r7,r7,LSR #16
 	ADD	r6,r0,#dirent_name%
+	MOV	r7,r7,LSR #16
 	SUB	r7,r7,r4
 ._lp
 	LDRB	r3,[r6],#1
@@ -311,8 +404,11 @@ FNdbg_str("_match_leaf")
 	EQUD	0
 
 
+
 .Cache_GetInodePointer
-FNdbg_func("Cache_GetInodePointer","r0,r6","r0")
+FNdt(">>> Cache_GetInodePointer")
+FNdt("  r0 (inode number) = %0i4")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Given the inode number, returns a pointer to the inode desciptor.  Block
 ; locking has been removed, and instead the inode contents will be copied into
@@ -336,9 +432,9 @@ FNdbg_func("Cache_GetInodePointer","r0,r6","r0")
 	LDR	r1,[r0,#bg_inode_table%]
 	ADD	r0,r1,r4		; block number of inode table start
 	LDR	r1,[r6,#s_log_block_size%]
+	MOV	r14, #1			; StrongARM order
 	ADD	r1, r1, #3
 	ADD	r0, r0, r2, LSR r1
-	MOV	r14, #1
 	MOV	r14, r14, LSL r1
 	SUB	r14, r14, #1
 	AND	r2, r2, r14
@@ -346,12 +442,18 @@ FNdbg_func("Cache_GetInodePointer","r0,r6","r0")
 	STRVC	r0,[r6,#mnt_inodeblockaddr%]
 	STRVC	r1,[r6,#mnt_inodetabaddr%]
 	ADDVC	r0,r0,r2,LSL #7		; inode offset in block
+FNdt("<<< Cache_GetInodePointer")
+FNdt("  r0 (inode structure) = %0x8")
 	FNcreturn("VC")
 	FNpreturn
 
 
+
 .Cache_BlockFromInode
-FNdbg_func("Cache_BlockFromInode","r0,r1,r6","r0-r2")
+FNdt(">>> Cache_BlockFromInode")
+FNdt("  r0 (block number) = %0i4")
+FNdt("  r1 (inode definition) = %1x8")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Returns a pointer to the nth block of an inode.
 ;------------------------
@@ -369,17 +471,26 @@ FNdbg_func("Cache_BlockFromInode","r0,r1,r6","r0-r2")
 	MOV	r3,#1024
 	MOV	r3,r3,LSL r2
 	BL	Cache_BlockNumberFromInode
+FNdtc(vs, "<<! Cache_BlockFromInode (Cache_BlockNumberFromInode failed)")
 	FNpcreturn("VS")
 	CMP	r0,#0
+FNdtc(lt, "<<? Cache_BlockFromInode (negative block pointer)")
 	FNcreturn("LT")
 	BL	Cache_GetBlock
 	MOV	r2,r1
 	ADD	r1,r0,r3
+FNdt("<<< Cache_BlockFromInode")
+FNdt("  r0 (pointer to block) = %0x8")
+FNdt("  r1 (pointer to end of block) = %1x8")
+FNdt("  r2 (block table entry) = %2x8")
 	FNreturn
 
 
 .Cache_BlockNumberFromInode
-FNdbg_func("Cache_BlockNumberFromInode","r0,r1,r6","r0")
+FNdt(">>> Cache_BlockNumberFromInode")
+FNdt("  r0 (block number) = %0i4")
+FNdt("  r1 (inode definition ptr) = %1x8")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Gets the block number of an inode's nth block.
 ;------------------------
@@ -391,15 +502,17 @@ FNdbg_func("Cache_BlockNumberFromInode","r0,r1,r6","r0")
 ;	r0  =	block number
 ;------------------------
 	FNfunction("r1-r5,r7,r8")
-	LDR	r2,[r1,#i_blocks%]
-	CMP	r0,r2,LSR #1		; for some b'zarre reason tis 2x too big
-	BGE	_no_such_block
-	LDR	r2,[r6,#s_log_block_size%]
-	ADD	r8, r2, #8		; 8=10-2 (10 add to s_log, 2 for 1word per entry)
-	ADD	r1,r1,#i_block%
-	CMP	r0,#12			; main section?
-	BGE	_sub_block
-	LDR	r0,[r1,r0,LSL #2]	; get block number
+	ldr	r2,[r1,#i_blocks%]
+	cmp	r0,r2,LSR #1	; for some odd reason it's 2x too big
+	bge	_no_such_block
+	ldr	r2,[r6,#s_log_block_size%]
+	add	r1,r1,#i_block%
+	add	r8, r2, #8	; 8=10-2 (10 add to s_log, 2 for 1word/entry)
+	cmp	r0,#12		; main section?
+	bge	_sub_block
+	ldr	r0,[r1,r0,LSL #2]; get block number
+FNdt("<<< Cache_BlockNumberFromInode (primary block)")
+FNdt("  r0 (block number) = %0i4")
 	FNreturn
 
 ._sub_block
@@ -411,6 +524,8 @@ FNdbg_func("Cache_BlockNumberFromInode","r0,r1,r6","r0")
 	LDR	r0,[r1,#12*4]		; get 13th block number
 	BL	Cache_GetBlock
 	LDRVC	r0,[r0,r4,LSL #2]
+FNdt("<<< Cache_BlockNumberFromInode (indirected block)")
+FNdt("  r0 (block number) = %0i4")
 	FNcreturn("VC")
 	FNpreturn
 
@@ -426,6 +541,8 @@ FNdbg_func("Cache_BlockNumberFromInode","r0,r1,r6","r0")
 	BLVC	Cache_GetBlock
 	SUBVC	r4,r4,r7,LSL r8
 	LDRVC	r0,[r0,r4,LSL #2]
+FNdt("<<< Cache_BlockNumberFromInode (doubly indirected block)")
+FNdt("  r0 (block number) = %0i4")
 	FNcreturn("VC")
 	FNpreturn
 
@@ -443,9 +560,13 @@ FNdbg_func("Cache_BlockNumberFromInode","r0,r1,r6","r0")
 	BLVC	Cache_GetBlock
 	SUBVC	r4,r4,r7,LSL r8
 	LDRVC	r0,[r0,r4,LSL #2]
+FNdt("<<< Cache_BlockNumberFromInode (triply indirected block)")
+FNdt("  r0 (block number) = %0i4")
 	FNcreturn("VC")
 	FNpreturn
 
 ._no_such_block
+FNdt("<<? Cache_BlockNumberFromInode (unknown block)")
+FNdt("  r0 (block number) = %0i4 (returning -1)")
 	MVN	r0,#0			; return -1 (no more blocks)
 	FNreturn

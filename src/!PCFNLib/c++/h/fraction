@@ -1,0 +1,75 @@
+//
+//	Fraction class definition
+//	By Phil Norman 23rd September, 1997
+//	For PCFNLib
+//
+
+#ifndef _fraction_h
+#define _fraction_h 1
+
+#include "iostream.h"
+
+
+class fraction
+{
+public:
+		//	Constructors
+	fraction ();
+	fraction ( int, int );
+	fraction ( fraction & );
+
+		//	Access attributes
+	int		numerator() const				{ return num; }
+	int		denominator() const				{ return den; }
+	double	decimal()						{ return (double)num / (double)den; }
+	void	LowerDenominator();
+	void	AddToNumerator( int a )			{ num += a; }
+	void	SetNumerator( int a )			{ num = a; }
+	void	SetDenominator( int a )			{ den = a; }
+
+		//	Friend functions
+	friend	void EqualiseDenominators( fraction& , fraction&  );
+
+		//	Overloaded operators
+	friend	fraction operator+( fraction, fraction );
+	friend	fraction operator-( fraction );
+	friend	fraction operator-( fraction, fraction );
+	friend	fraction operator*( fraction, fraction );
+	friend	fraction operator/( fraction, fraction );
+	friend	int operator==( fraction, fraction );
+	friend	int operator!=( fraction, fraction );
+
+	void	operator+=( fraction );
+	void	operator-=( fraction );
+	void	operator*=( fraction );
+	void	operator/=( fraction );
+
+	friend ostream&	operator<<( ostream& s, const fraction& f );
+
+private:
+	int		num;
+	int		den;
+};
+
+inline ostream& operator<<( ostream &s, const fraction &f )
+{
+	s << f.numerator() << "/" << f.denominator();
+	return s;
+}
+
+inline fraction operator-( fraction a )
+{
+	return fraction( -a.num, a.den );
+}
+
+inline int operator==( fraction a, fraction b )
+{
+	return ( a.decimal() == b.decimal() );
+}
+
+inline int operator!=( fraction a, fraction b )
+{
+	return ( a.decimal() != b.decimal() );
+}
+
+#endif

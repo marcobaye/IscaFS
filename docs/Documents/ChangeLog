@@ -2,7 +2,7 @@
 
 				IscaFS - Changelog
 				~~~~~~~~~~~~~~~~~~
-			  Version 0.06, 28th October, 1998
+			  Version 0.08, 10th April 1999
 
 
 ??th March, 1998 Matthew Wilcox
@@ -74,7 +74,8 @@
  * Altered Cache_Initialise so it uses one large block of memory for all the
    cache blocks and tables.  It also cache-line aligns the cache blocks.
  * Altered Module_Initialise so it dimensions 'buffer' and 'buffer2' together,
-   forcing 'buffer' to be cache-line aligned (for speed when Memory_QC is used).
+   forcing 'buffer' to be cache-line aligned (for speed when Memory_QC is
+   used).
  * Optimised Memory_BlockCopy since I realised it doesn't need to do any stack
    storage, but can simply load the pc from the correct offset on the stack.
  * Fixed FNladr in PCFNLib - it was using an ORR rather than an ADD.  This is
@@ -112,3 +113,17 @@
  * Bug fix in Cache (yes, another one) - bad block numbers were being used in
    files of over 64meg in length.  Thanks to Timothy Baldwin for spotting
    the bug.
+
+
+28th March, 1999 Phil Norman
+
+ * Rewrote the cacheing system.  This should now be a lot faster than the
+   previous one, and now allows IscaFS to be upgraded to read/write without
+   the filesystem corruption the old cache system would have caused.
+
+
+3rd April, 1999 Nicholas Clark (added to source tree 10th April)
+
+ * Fixed the disc access so that partitions of greater than 4gig in size can
+   now be accessed.
+ * Added various StrongARM optimisations.

@@ -3,7 +3,8 @@ LIBRARY "<PCFNLib$Dir>.BasAsm.SWINums"
 LIBRARY "<PCFNLib$Dir>.BasAsm.Workspace"
 LIBRARY "<PCFNLib$Dir>.BasAsm.AsmConsts"
 LIBRARY "<PCFNLib$Dir>.BasAsm.WimpMsgs"
-LIBRARY "<PCFNLib$Dir>.BasAsm.DebugFns"
+REM LIBRARY "<PCFNLib$Dir>.BasAsm.DebugFns"
+LIBRARY "<PCFNLib$Dir>.BasAsm.Debug"
 LIBRARY "<PCFNLib$Dir>.BasAsm.Service"
 LIBRARY "<PCFNLib$Dir>.BasAsm.ModFuncs"
 
@@ -11,6 +12,22 @@ PROCPCFN_init_ARMFuncs
 PROCPCFN_init_AsmConsts
 PROCPCFN_init_SWINums
 PROCPCFN_init_WimpMsgs
-PROCPCFN_init_DebugFns
+REM PROCPCFN_init_DebugFns
 PROCPCFN_init_Service
 PROCPCFN_init_ModFuncs
+
+
+REM We'll also stick some useful functions in here...
+
+IF 0 THEN
+
+DEF FNrnd(reg%)
+[OPT pass%
+ldr reg%,[r12,#random_seed]
+eor reg%,reg%,reg%,ror reg%
+eor reg%,reg%,reg%,lsr #7
+str reg%,[r12,#random_seed]
+]
+=0
+
+ENDIF

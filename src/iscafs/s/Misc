@@ -5,7 +5,9 @@
 
 
 .Divide
-FNdbg_str("Divide")
+FNdt(">>> Divide")
+FNdt("  r2 (numerator) = %2i4")
+FNdt("  r3 (denominator) = %3i4")
 ;------------------------
 ; Phil's Astounding Divider.  Integer division routine, slightly optimised
 ; for StrongARM (but there wasn't much space for optimisation).
@@ -24,6 +26,7 @@ FNdbg_str("Divide")
 	BEQ	_DivisionByZero
 	MOV	r0,#0		; Initialise result
 	CMP	r2,r3		; Is numerator less than denominator?
+FNdtc(lt, "<<? Divide (numerator < denominator)")
 	FNcreturn("LT")
 	MOV	r1,r3		; Initialise accumulator
 	MOV	r14,#1		; Initialise shift counter
@@ -36,12 +39,19 @@ FNdbg_str("Divide")
 	CMP	r1,r2		; Is numerator greater than accumulator?
 	SUBLE	r2,r2,r1	; Take accumulator away from numerator
 	ADDLE	r0,r0,r14	; Add shift counter to result build-up
+FNdtc(eq, "<<< Divide")
+FNdtc(eq, "  r0 (r2 DIV r3) = %0i4")
+FNdtc(eq, "  r2 (r2 MOD r3) = %2i4")
 	FNcreturn("EQ")
 	MOV	r1,r1,LSR #1	; Lower accumulator
 	MOVS	r14,r14,LSR #1	; Lower shift counter
 	BGT	_DownwardLoop	; Go again if there are more positive shifts
+FNdt("<<< Divide")
+FNdt("  r0 (r2 DIV r3) = %0i4")
+FNdt("  r2 (r2 MOD r3) = %2i4")
 	FNreturn
 
 ._DivisionByZero
+FNdt("<<! Divide (division by zero)")
 	MVN	r0,#1<<31
 	FNreturn

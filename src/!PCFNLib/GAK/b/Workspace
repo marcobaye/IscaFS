@@ -1,0 +1,189 @@
+REM >Workspace
+REM Workspace definition file for StarBoard
+
+
+
+REM main workspace
+PROCwksp_init
+REM Note - all kernel functions (prefix KF_) reside at the start of the global
+REM workspace.  They are statically positioned so SEMs know where they'll be.
+KF_Memory_Claim			= FNwksp_int
+KF_Memory_ClaimZero		= FNwksp_int
+KF_Memory_Free			= FNwksp_int
+KF_Memory_Resize		= FNwksp_int
+KF_Memory_GetBlockSize		= FNwksp_int
+KF_Memory_EnumBlocks		= FNwksp_int
+KF_Memory_BlockCopy		= FNwksp_int
+KF_Memory_ShiftBlock		= FNwksp_int
+REM----------------------
+KF_SFPCS_CallNumberedFunction	= FNwksp_int
+KF_SFPCS_CallAFunction		= FNwksp_int
+KF_SFPCS_CreateTable		= FNwksp_int
+REM----------------------
+KF_Service_Send			= FNwksp_int
+REM----------------------
+KF_LList_LinkAfter		= FNwksp_int
+KF_LList_LinkBefore		= FNwksp_int
+KF_LList_Unlink			= FNwksp_int
+KF_LList_UnlinkAndFree		= FNwksp_int
+KF_LList_ForEach		= FNwksp_int
+KF_LList_ForEachMatch		= FNwksp_int
+KF_LList_FindEntry		= FNwksp_int
+REM----------------------
+KF_String_Count			= FNwksp_int
+KF_String_SplitLeaf		= FNwksp_int
+KF_String_Copy			= FNwksp_int
+KF_String_CopyN			= FNwksp_int
+KF_String_Duplicate		= FNwksp_int
+KF_String_Compare		= FNwksp_int
+REM----------------------
+KF_Wimp_CreateWindowFromTemplate= FNwksp_int
+KF_Wimp_OpenWindowAt		= FNwksp_int
+KF_Wimp_RegisterWindowHandler	= FNwksp_int
+KF_Wimp_GetScreenSize		= FNwksp_int
+REM----------------------
+KF_SEMManager_Destroy		= FNwksp_int
+REM----------------------
+KF_Options_ReadFile		= FNwksp_int
+KF_Options_WriteFile		= FNwksp_int
+KF_Options_Parse		= FNwksp_int
+REM----------------------
+KF_Menu_Generate		= FNwksp_int
+KF_Menu_CreateHeader		= FNwksp_int
+KF_Menu_AddItem			= FNwksp_int
+
+REM Now for the rest of the workspace...
+wksp_taskhandle%	= FNwksp_int
+wksp_block%		= FNwksp_int
+wksp_heap%		= FNwksp_int
+wksp_flags%		= FNwksp_int
+wksp_firstsem%		= FNwksp_int
+wksp_firstwinh%		= FNwksp_int
+wksp_servicecalled%	= FNwksp_int
+wksp_zeroindir%		= FNwksp_int
+wksp_currentsem%	= FNwksp_int
+
+wksp_menuptr%		= FNwksp_int
+wksp_menudata%		= FNwksp_int
+wksp_menutop%		= FNwksp_int
+
+
+wksp_menuhandler%	= FNwksp_int
+wksp_menuhandlerwksp%	= FNwksp_int
+wksp_semtodestroy%	= FNwksp_int
+wksp_lastwindow%	= FNwksp_int
+wksp_lastwinblock%	= FNwksp_int
+
+len_wksp%		= FNwksp_length
+
+
+
+REM Menu descriptor block
+PROCwksp_init
+
+menu_id%		= FNwksp_int
+menu_numentries%	= FNwksp_int
+menu_data%		= FNwksp_int
+menu_entries%		= FNwksp_current
+
+len_menu%		= FNwksp_length
+
+
+
+REM Menu entry descriptor
+PROCwksp_init
+
+mentry_childid%		= FNwksp_int
+mentry_childblock%	= FNwksp_int
+
+len_mentry%		= FNwksp_length
+
+
+
+REM SEM destruction block
+PROCwksp_init
+dsem_next%		= FNwksp_int
+dsem_last%		= FNwksp_int
+dsem_chunk%		= FNwksp_int
+
+len_dsem%		= FNwksp_length
+
+
+
+REM SEM descriptor block
+PROCwksp_init
+
+sem_special%		= FNwksp_current
+sem_next%		= FNwksp_int	:REM next/last overwrite special/wksplen
+sem_name%		= FNwksp_current
+sem_last%		= FNwksp_int
+sem_version%		= FNwksp_int
+sem_targetname%		= FNwksp_int
+sem_chunk%		= FNwksp_int
+sem_workspace%		= FNwksp_int
+sem_wksplen%		= FNwksp_int
+sem_nfunctions%		= FNwksp_int
+sem_init%		= FNwksp_int	:REM Keep init, final, service next to
+sem_final%		= FNwksp_int	:REM functions
+sem_service%		= FNwksp_int
+sem_firstfunction%	= FNwksp_add(0,0)
+
+len_sem%		= FNwksp_length
+
+
+
+REM Client descriptor block
+PROCwksp_init
+
+client_swi%		= FNwksp_int
+client_caller%		= FNwksp_int
+client_name%		= FNwksp_int
+client_version%		= FNwksp_int
+client_workspace%	= FNwksp_int
+client_workspacelen%	= FNwksp_int
+client_numfunctions%	= FNwksp_int
+client_init_prewimp%	= FNwksp_int
+client_init_postwimp%	= FNwksp_int
+client_final_prewimp%	= FNwksp_int
+client_final_postwimp%	= FNwksp_int
+client_service%		= FNwksp_int
+client_firstfunction%	= FNwksp_current
+
+len_client%		= FNwksp_length
+
+
+
+REM Window handlers block
+PROCwksp_init
+winh_next%		= FNwksp_int
+winh_last%		= FNwksp_int
+winh_windowhandle%	= FNwksp_int
+winh_firsthandler%	= FNwksp_current
+winh_redrawcode%	= FNwksp_int
+winh_redrawwksp%	= FNwksp_int
+winh_opencode%		= FNwksp_int
+winh_openwksp%		= FNwksp_int
+winh_closecode%		= FNwksp_int
+winh_closewksp%		= FNwksp_int
+winh_ptrleavingcode%	= FNwksp_int
+winh_ptrleavingwksp%	= FNwksp_int
+winh_ptrenteringcode%	= FNwksp_int
+winh_ptrenteringwksp%	= FNwksp_int
+winh_mouseclickcode%	= FNwksp_int
+winh_mouseclickwksp%	= FNwksp_int
+winh_keypressedcode%	= FNwksp_int
+winh_keypressedwksp%	= FNwksp_int
+winh_scrollrequestcode%	= FNwksp_int
+winh_scrollrequestwksp%	= FNwksp_int
+winh_losecaretcode%	= FNwksp_int
+winh_losecaretwksp%	= FNwksp_int
+winh_gaincaretcode%	= FNwksp_int
+winh_gaincaretwksp%	= FNwksp_int
+
+len_winh%		= FNwksp_length
+
+
+
+REM Variables for use by the LList file
+next%			= 0
+last%			= 4

@@ -5,8 +5,8 @@
 
 
 .File_FiletypeFromLeafname
-FNdbg_func("File_FiletypeFromLeafname","r1","r1")
-FNdbg_indstr(1)
+FNdt(">>> File_FiletypeFromLeafname")
+FNdt("  r1 (leafname) = %1z")
 ;------------------------
 ; Work out the filetype of a file from its leafname
 ;------------------------
@@ -30,14 +30,21 @@ FNdbg_indstr(1)
 	FNmovc(2,&fff)
 	SWI	"XOS_ReadUnsigned"
 	MOVVC	r1,r2			; value
+FNdtc(vc, "<<< File_FiletypeFromLeafname")
+FNdtc(vc, "  r1 (filetype) = %1x8")
 	FNcreturn("VC")
 ._return_default
 	FNmovc(1,&fff)
+FNdt("<<< File_FiletypeFromLeafname (default)")
+FNdt("  r1 (filetype) = %1x8")
 	FNreturn
 
 
 .File_CatalogueInfoFromInode
-FNdbg_func("File_CatalogueInfoFromInode","r0,r1,r6","r0,r2-r5")
+FNdt(">>> File_CatalogueInfoFromInode")
+FNdt("  r0 (inode block ptr) = %0x8")
+FNdt("  r1 (filetype) = %1x8")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Read file catalogue information from the given inode number.
 ;------------------------
@@ -95,12 +102,24 @@ FNdbg_func("File_CatalogueInfoFromInode","r0,r1,r6","r0,r2-r5")
 	ORR	r14,r14,r9,LSL #8	; add filetype
 	ADD	r2,r14,r2,LSR #8	; load address is now complete
 	LDR	r4,[r1,#i_size%]	; file length
+FNdt("<<< File_CatalogueInfoFromInode")
+FNdt("  r0 (object type) = %0i4")
+FNdt("  r2 (load address) = %2x8")
+FNdt("  r3 (exec address) = %3x8")
+FNdt("  r4 (length) = %4i4")
+FNdt("  r5 (attributes) = %5x8")
 	FNreturn
 #if config_write%
 ._use_load_and_exec
 	LDR	r2,[r1,#i_loadaddr%]
 	LDR	r3,[r1,#i_execaddr%]
 	LDR	r4,[r1,#i_size%]	; file length
+FNdt("<<< File_CatalogueInfoFromInode (naughty hack version)")
+FNdt("  r0 (object type) = %0i4")
+FNdt("  r2 (load address) = %2x8")
+FNdt("  r3 (exec address) = %3x8")
+FNdt("  r4 (length) = %4i4")
+FNdt("  r5 (attributes) = %5x8")
 	FNreturn
 #endif
 ._load_base
@@ -114,7 +133,13 @@ FNdbg_func("File_CatalogueInfoFromInode","r0,r1,r6","r0,r2-r5")
 #if config_write%
 
 .File_WriteCatalogueInfo
-FNdbg_func("File_WriteCatalogueInfo","r1-r4","")
+FNdt(">>> File_WriteCatalogueInfo")
+FNdt("  r1 (pathname) = %1z")
+FNdt("  r2 (load address) = %2x8")
+FNdt("  r3 (exec address) = %3x8")
+FNdt("  r4 (length) = %4i4")
+FNdt("  r5 (attributes) = %5x8")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Write file catalogue information the the given pathname.
 ;------------------------
@@ -139,14 +164,17 @@ FNdbg_func("File_WriteCatalogueInfo","r1-r4","")
 	STRVC	r3,[r0,#i_execaddr%]
 ;------------------------
 	BLVC	Cache_InodeModified
+FNdtc(vc, "<<< File_WriteCatalogueInfo")
 	FNcreturn("VC")
+FNdt("<<! File_WriteCatalogueInfo (Cache_InodeModified returned V set)")
 	FNgerror
 #endif
 
 
 .File_ReadCatalogueInfo
-FNdbg_func("File_ReadCatalogueInfo","r1","r0,r2-r6")
-FNdbg_indstr(1)
+FNdt(">>> File_ReadCatalogueInfo")
+FNdt("  r1 (pathname) = %1z")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Read file catalogue information from the given pathname.
 ;------------------------
@@ -165,13 +193,22 @@ FNdbg_indstr(1)
 	BL	Cache_FindInode
 	BLVC	Cache_GetInodePointer
 	BLVC	File_CatalogueInfoFromInode
+FNdt("<<< File_ReadCatalogueInfo")
+FNdt("  r0 (object type) = %0i4")
+FNdt("  r2 (load address) = %2x8")
+FNdt("  r3 (exec address) = %3x8")
+FNdt("  r4 (length) = %4i4")
+FNdt("  r5 (attributes) = %5x8")
 	FNcreturn("VC")
+FNdt("<<! File_ReadCatalogueInfo (something returned an error)")
 	FNgerror
 
 
 .File_Open
-FNdbg_func("File_Open","r1,r3,r6","r0-r4")
-FNdbg_indstr(1)
+FNdt(">>> File_Open")
+FNdt("  r1 (filename) = %1z")
+FNdt("  r3 (fileswitch handle) = %3x8")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Open file.
 ;------------------------
@@ -227,21 +264,27 @@ FNdbg_indstr(1)
 	LDR	r14,[r6,#s_log_block_size%]
 	ADD	r14, r14, #9		; i_blocks% is number of blocks *2
 	MOV	r4, r4, LSL r14
+FNdt("<<< File_Open")
+FNdt("  r0 (image file info word) = %0x8")
+FNdt("  r1 (my file handle) = %1x8")
+FNdt("  r2 (buffer size for fileswitch) = %2i4")
+FNdt("  r3 (file extent) = %3i4")
+FNdt("  r4 (space allocated to file) = %4i4")
 	FNreturn
 
 ._not_found
-FNdbg_str("_not_found")
+FNdt("<<< File_Open (file not found)")
 	MOV	r0,#0
 	FNreturn
 
 ._symbolic_link
-FNdbg_str("_symbolic_link")
+FNdt("<<< File_Open (symbolic link)")
 	FNrerror
 	EQUD	0
 	EQUS	"Symbolic links are not yet supported."+CHR$0:ALIGN
 
 ._abnormal_file
-FNdbg_str("_abnormal_file")
+FNdt("<<< File_Open (abnormal file)")
 	FNrerror
 	EQUD	0
 	EQUS	"This is not a normal file."+CHR$0:ALIGN
@@ -249,7 +292,10 @@ FNdbg_str("_abnormal_file")
 
 
 .File_Close
-FNdbg_func("File_Close","r1-r3","")
+FNdt(">>> File_Close")
+FNdt("  r1 (file handle) = %1x8")
+FNdt("  r2 (new load addr) = %2x8")
+FNdt("  r3 (new exec addr) = %3x8")
 ;------------------------
 ; Close an open file.
 ;------------------------
@@ -268,12 +314,17 @@ FNdbg_func("File_Close","r1-r3","")
 	STRNE	r0,[r14,#file_last%]
 	MOV	r2,r1
 	BL	Memory_Free
+FNdt("<<< File_Close")
 	FNreturn
 
 
 
 .File_GetBytes
-FNdbg_func("File_GetBytes","r1-r4","")
+FNdt(">>> File_GetBytes")
+FNdt("  r1 (file handle) = %1x8")
+FNdt("  r2 (buffer ptr) = %2x8")
+FNdt("  r3 (bytes to read) = %3x8")
+FNdt("  r4 (file offset) = %4i4")
 ;------------------------
 ; Get bytes from an open file.
 ;------------------------
@@ -323,7 +374,9 @@ FNdbg_func("File_GetBytes","r1-r4","")
 	SUBS	r3,r3,r2		; and alter my pointer and bytes-to-get
 	ADD	r8,r8,r2
 	BGT	_loop			; loop back if I want more bytes
+FNdt("<<< File_GetBytes")
 	FNreturn
 
 ._return_error
+FNdt("<<! File_GetBytes (error)")
 	FNgerror

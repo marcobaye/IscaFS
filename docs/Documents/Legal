@@ -2,7 +2,7 @@
 
 				IscaFS - Legal
 				~~~~~~~~~~~~~~
-			Version 0.06, 28th October, 1998
+			Version 0.08, 10th April 1999
 
 
 Application
@@ -12,6 +12,7 @@ This licence applies to the IscaFS package, which consists of the entire content
 1:	Matthew Godbolt's MemoryAllocator module (which is © Matthew Godbolt).
 2:	Matthew Wilcox's debugging code (which is © Matthew Wilcox).
 3:	Phil Norman's !PCFNLib and !PNAsm (which are © Phil Norman).
+4:	Dickon Hood's debugging functions (which can be found in !PCFNLib).
 
 The copyright also applies to any IscaFS modules compiled using the IscaFS source code.
 

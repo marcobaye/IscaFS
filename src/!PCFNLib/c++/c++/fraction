@@ -1,0 +1,119 @@
+//
+//	Fraction class implementation
+//	By Phil Norman 23rd September, 1997
+//
+
+#include "fraction.h"
+
+// Constructors
+
+fraction::fraction()
+{
+	num = 0;
+	den = 0;
+}
+
+fraction::fraction( int n, int d )
+{
+	num = n;
+	den = d;
+}
+
+fraction::fraction( fraction &f )
+{
+	num = f.numerator();
+	den = f.denominator();
+}
+
+// Class method definitions
+
+void fraction::LowerDenominator()
+{
+	int			DivCounter = den;
+
+	for (  ; DivCounter ; DivCounter-- ) {
+		if ( (den%DivCounter==0) && (num%DivCounter==0) ) {
+			den /= DivCounter;
+			num /= DivCounter;
+		}
+	}
+}
+
+void fraction::operator+=( fraction a )
+{
+	fraction	temp(a);
+	EqualiseDenominators( a, *this );
+	num += temp.numerator();
+	this->LowerDenominator();
+}
+
+void fraction::operator-=( fraction a )
+{
+	fraction	temp(a);
+	EqualiseDenominators( a, *this );
+	num -= temp.numerator();
+	this->LowerDenominator();
+}
+
+fraction operator*( fraction a, fraction b )
+{
+	fraction	temp( a.num*b.num, a.den*b.den );
+	temp.LowerDenominator();
+	return temp;
+}
+
+fraction operator/( fraction a, fraction b )
+{
+	fraction	temp( a.num*b.den, a.den*b.num );
+	temp.LowerDenominator();
+	return temp;
+}
+
+void fraction::operator*=( fraction a )
+{
+	num = num * a.numerator();
+	den = den * a.denominator();
+	this->LowerDenominator();
+}
+
+void fraction::operator/=( fraction a )
+{
+	num = num * a.denominator();
+	den = den * a.numerator();
+	this->LowerDenominator();
+}
+
+// Friend function definitions
+
+fraction operator+( fraction a, fraction b )
+{
+	fraction	RetVal(a);
+	fraction	temp(b);
+	EqualiseDenominators( RetVal, temp );
+	RetVal.AddToNumerator( temp.numerator() );
+	RetVal.LowerDenominator();
+	return RetVal;
+}
+
+fraction operator-( fraction a, fraction b )
+{
+	fraction	RetVal(a);
+	fraction	temp(b);
+	EqualiseDenominators( RetVal, temp );
+	RetVal.AddToNumerator( -temp.numerator() );
+	RetVal.LowerDenominator();
+	return RetVal;
+}
+
+void EqualiseDenominators( fraction& a, fraction& b )
+{
+	int			CommonDen = a.denominator() * b.denominator();
+	int			numa = a.numerator();
+	int			numb = b.numerator();
+	if ( a.denominator() == b.denominator() )
+		return;
+	a.SetNumerator( numa * b.denominator() );
+	b.SetNumerator( numb * a.denominator() );
+	a.SetDenominator( CommonDen );
+	b.SetDenominator( CommonDen );
+}

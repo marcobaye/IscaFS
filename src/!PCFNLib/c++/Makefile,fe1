@@ -1,0 +1,38 @@
+# Project:   PCFNLib
+
+
+# Toolflags:
+CCflags = -c -depend !Depend -IC: -throwback
+C++flags = -c -depend !Depend -IC: -throwback
+Linkflags = -aof -c++ -o $@ 
+f2cflags = 
+ObjAsmflags = -throwback -NoCache -depend !Depend
+CMHGflags = 
+LibFileflags = -c -o $@
+Squeezeflags = -o $@
+JFPatchflags = -depend !Depend -throwback -nobanner
+
+
+# Final targets:
+@.@.o.pcfnlib:   @.o.fraction @.o.pnstring 
+        Link $(Linkflags) @.o.fraction @.o.pnstring 
+
+
+# User-editable dependencies:
+
+# Static dependencies:
+@.o.fraction:   @.c++.fraction
+        c++ $(c++flags) -o @.o.fraction @.c++.fraction 
+@.o.pnstring:   @.c++.pnstring
+        c++ $(c++flags) -o @.o.pnstring @.c++.pnstring 
+
+
+# Dynamic dependencies:
+o.fraction:	c++.fraction
+o.fraction:	h.fraction
+o.fraction:	C:h.iostream
+o.fraction:	C:h.memory
+o.pnstring:	c++.pnstring
+o.pnstring:	h.pnstring
+o.pnstring:	C:h.iostream
+o.pnstring:	C:h.memory

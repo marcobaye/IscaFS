@@ -1,0 +1,74 @@
+//
+//	String class definition
+//	By Phil Norman 16th April, 1998
+//	For PCFNLib
+//
+
+#ifndef _pnstring_h
+#define _pnstring_h
+
+
+#include <string.h>
+#include "iostream.h"
+
+
+class pnstring
+{
+public:
+		//	Constructors
+	pnstring();
+	pnstring(char *);
+	pnstring(pnstring &);
+
+		//	Access attributes
+	int		length()		{return len;}
+	char	*charptr()		{return str;}
+
+		//	Friend functions
+	friend ostream&	operator<<( ostream& s, const pnstring& s );
+
+		//	Overloaded operators
+	friend	pnstring operator+( pnstring, pnstring );
+	friend	pnstring operator+( pnstring, char * );
+	friend	pnstring operator+( pnstring, char );
+	friend	pnstring operator+( pnstring, int );
+	friend	int operator==( pnstring, pnstring );
+	friend	int operator!=( pnstring, pnstring );
+
+	void	operator+=( pnstring );
+	void	operator+=( char * );
+	void	operator+=( char );
+	void	operator+=( int );
+
+protected:
+	char	*str;	// friend functions need to see these
+	int		len;
+};
+
+
+
+// Short, inlined functions...
+
+inline ostream& operator<<( ostream &s, const pnstring &f )
+{
+	s << f.str;
+	return s;
+}
+
+inline int operator==( pnstring a, pnstring b )
+{
+	if (a.len==b.len)
+		return !( strcmp(a.str, b.str) );
+	else
+		return 0;
+}
+
+inline int operator!=( pnstring a, pnstring b )
+{
+	if (a.len==b.len)
+		return ( strcmp(a.str, b.str) );
+	else
+		return 1;
+}
+
+#endif

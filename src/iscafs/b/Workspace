@@ -5,12 +5,9 @@ REM File containing internal workspace definitions
 REM Main workspace - zeroed at module initialisation
 PROCwksp_init
 heap		= FNwksp_int
-blocktable1	= FNwksp_int
-blockcache1	= FNwksp_int
-blocktouse1	= FNwksp_int
-blocktable2	= FNwksp_int
-blockcache2	= FNwksp_int
-blocktouse2	= FNwksp_int
+blocktableA	= FNwksp_int
+blocktableB	= FNwksp_int
+random_seed	= FNwksp_int
 firstmount	= FNwksp_int
 firstfile	= FNwksp_int
 buffer		= FNwksp_int
@@ -19,9 +16,9 @@ debug		= FNwksp_int
 deb2		= FNwksp_int
 len_workspace%	= FNwksp_length
 IF debug% THEN
-dbg_handle	= FNwksp_int
-dbg_currsize	= FNwksp_int
-dbg_memory	= FNwksp_int
+DebugHandle%	= FNwksp_int
+DebugIndent%	= FNwksp_int
+DebugFlags%	= FNwksp_int
 len_workspace%	= FNwksp_length
 ENDIF
 
@@ -44,21 +41,32 @@ len_buffer2%	= 128		:REM size of an inode
 
 
 
-REM Block table entry
+REM Cache control block
 PROCwksp_init
-block_basenumber%	= FNwksp_int
-block_flags%		= FNwksp_int
-block_mount%		= FNwksp_int
+cachectrl_pointer%	= FNwksp_int
+cachectrl_numentries%	= FNwksp_int
 
-IF len_blocktable%<>FNwksp_length THEN PRINT"WARNING: len_blocktable% incorrect in Config"
-len_blocktable%		= FNwksp_length
-shift1_blocktable%	= 3
-shift2_blocktable%	= 2
+len_cachectrl%		= FNwksp_length
+shift_cachectrl%	= 3
 
 
 
-REM Flags for block_flags% in block table entry
-bflag_dirty%		= 1
+REM Cache entry block
+PROCwksp_init
+cacheent_pointer%	= FNwksp_int	:REM 0 if no block claimed for it.
+cacheent_mount%		= FNwksp_int	:REM 0 if the cache entry is invalid.
+cacheent_blocknum%	= FNwksp_int
+cacheent_flags%		= FNwksp_int
+
+len_cacheent%		= FNwksp_length
+shift_cacheent%		= 4
+
+
+
+REM Flags for cacheent_flags% in cache entry for a single block
+fcacheent_blksize%	= 3		:REM log-2 block size in kilobytes.
+fcacheent_dirty%	= 4
+
 
 
 REM Mount descriptor structure

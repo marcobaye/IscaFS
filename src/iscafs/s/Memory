@@ -15,47 +15,89 @@ IF config_dynamicareas% THEN
 ;------------------------
 ; Initialises the memory manager.
 .Memory_Initialise
-FNdbg_str("Memory_Initialise")
+FNdt(">>> Memory_Initialise")
 	FNfunction("r1-r4")
 	ADR	r0,_name
 	MOV	r1,#0			; malloc flags
 	MOV	r3,#4096		; initial size of heap
 	SWI	X+MAlloc_Initialise
 	STRVC	r0,[r12,#heap]
+FNdtc(vc, "<<< Memory_Initialise")
 	FNcreturn("VC")
+FNdt("<<! Memory_Initialise (error)")
 	FNpreturn
 ._name
 	EQUS	"IscaFS cache"+CHR$0:ALIGN
 
 .Memory_Finalise
-FNdbg_str("Memory_Finalise")
+FNdt(">>> Memory_Finalise")
 	FNfunction("r0-r4")
 	LDR	r1,[r12,#heap]
 	SWI	X+MAlloc_Finalise
+FNdt("<<< Memory_Finalise")
 	FNreturn
 
 .Memory_Claim
-FNdbg_str("Memory_Claim")
+	;; Note - MAlloc_Claim returns V set if it can't claim.
+FNdt(">>> Memory_Claim")
+FNdt("  r3 (size) = %3i4")
 	FNfunction("r0,r1")
 	LDR	r1,[r12,#heap]
 	MOV	r14,pc
 	LDR	pc,[r12,#malloc_claim%]
+FNdt("<<< Memory_Claim")
+FNdt("  r2 (block) = %2x8")
+	FNreturn
+	
+.Memory_Resize
+FNdt(">>> Memory_Resize")
+FNdt("  r2 (block) = %2x8")
+FNdt("  r3 (new size) = %3i4")
+	FNfunction("r0,r1")
+	ldr	r1,[r12,#heap]
+	mov	r14,pc
+	ldr	pc,[r12,#malloc_resize%]
+FNdt("<<< Memory_Resize")
+FNdt("  r2 (block) = %2x8")
+	FNreturn
+
+.Memory_ClaimZero
+FNdt(">>> Memory_ClaimZero")
+FNdt("  r3 (size) = %3i4")
+	FNfunction("r0,r1,r3")
+	add	r3,r3,#3	; This is an absolute requirement for zeroing.
+	bic	r3,r3,#3
+	LDR	r1,[r12,#heap]
+	MOV	r14,pc
+	LDR	pc,[r12,#malloc_claim%]
+FNdtc(vs, "<<! Memory_Claim (error)")
+	FNcreturn("VS")
+	mov	r0,#0
+._lp
+	subs	r3,r3,#4
+	str	r0,[r2,r3]
+	bgt	_lp
+FNdt("<<< Memory_Claim")
+FNdt("  r2 (block) = %2x8")
 	FNreturn
 
 .Memory_Free
-FNdbg_str("Memory_Free")
+FNdt(">>> Memory_Free")
+FNdt("  r2 (block) = %2x8")
 	FNfunction("r0-r2")
 	TEQ	r2,#0
 	LDRNE	r1,[r12,#heap]
 	MOVNE	r14,pc
 	LDRNE	pc,[r12,#malloc_free%]
+FNdt("<<< Memory_Free")
 	FNreturn
 
 .Memory_Shrink
-FNdbg_str("Memory_Shrink")
+FNdt(">>> Memory_Shrink")
 	FNfunction("r0,r1")
 	LDR	r1,[r12,#heap]
 	SWI	X+MAlloc_Shrink
+FNdt("<<< Memory_Shrink")
 	FNreturn
 
 
@@ -68,7 +110,7 @@ ELSE
 ;=====================================================
 
 .Memory_Initialise
-FNdbg_str("Memory_Initialise")
+FNdt("Memory_Initialise")
 	FNfunction("r0-r3")
 	MOV	R0,#6
 	MOV	R3,#4096
@@ -83,7 +125,7 @@ FNdbg_str("Memory_Initialise")
 
 
 .Memory_Finalise
-FNdbg_str("Memory_Finalise")
+FNdt("Memory_Finalise")
 	FNfunction("r0-r3,r10")
 	LDR	R2,[R12,#heap]
 	MOV	R0,#7
@@ -96,7 +138,7 @@ FNdbg_str("Memory_Finalise")
 
 
 .Memory_Claim
-FNdbg_str("Memory_Claim")
+FNdt("Memory_Claim")
 	FNfunction("r0,r1,r3-r11")
 	MOV	R0,#1
 	LDR	R1,[R12,#heap]
@@ -131,10 +173,37 @@ FNdbg_str("Memory_Claim")
 	MOV	R0,#2
 	SWI	"OS_Heap"
 	FNreturn
+	
 
+
+.Memory_ClaimZero
+FNdt("Memory_ClaimZero")
+	FNfunction("r0,r1,r3")
+	add	r3,r3,#3	; This is an absolute requirement for zeroing.
+	bic	r3,r3,#3
+	bl	Memory_Claim
+	FNcreturn("VS")
+	mov	r0,#0
+._lp
+	subs	r3,r3,#4
+	str	r0,[r2,r3]
+	bgt	_lp
+	FNreturn
+
+	
+
+.Memory_Resize
+FNdt("Memory_Resize")
+	FNfunction("r0,r1")
+	teq	r2,#0
+	blne	Memory_Free
+	bl	Memory_Claim
+	FNreturn
+
+	
 
 .Memory_Free
-FNdbg_str("Memory_Free")
+FNdt("Memory_Free")
 	FNfunction("r0-r3,r10")
 	LDR	R1,[R12,#heap]
 	MOV	R0,#3
@@ -150,7 +219,7 @@ FNdbg_str("Memory_Free")
 
 
 .Memory_Shrink
-FNdbg_str("Memory_Shrink")
+FNdt("Memory_Shrink")
 	MOVS	pc,r14
 ]
 ENDIF
@@ -158,12 +227,15 @@ ENDIF
 
 
 .Memory_BlockCopy
-FNdbg_func("Memory_BlockCopy","r0-r2","")
+FNdt("=== Memory_BlockCopy")
 	LDR	pc,[r12,#malloc_blockcopy%]
 
 
 .Memory_QuickCopy
-FNdbg_func("Memory_QuickCopy","r0-r2","")
+FNdt(">>> Memory_QuickCopy")
+FNdt("  r0 (source) = %0x8")
+FNdt("  r1 (dest) = %1x8")
+FNdt("  r2 (length) = %2x8")
 ;------------------------
 ; Copies memory REALLY QUICKLY using the MEMC cache-line storing optimisation.
 ; If an entire cache-line is STMed at once, no memory needs to be loaded into
@@ -189,11 +261,14 @@ FNdbg_func("Memory_QuickCopy","r0-r2","")
 	SUBS	r2,r2,#128
 	STMIA	r1!,{r3-r9,r14}
 	BGT	_lp
+FNdt("<<< Memory_QuickCopy")
 	FNreturn
 
 
 .Memory_ZeroBlock
-FNdbg_func("Memory_ZeroBlock","r1,r2","")
+FNdt(">>> Memory_ZeroBlock")
+FNdt("  r1 (block) = %1x8")
+FNdt("  r2 (length) = %2i4")
 ;------------------------
 ; Zeroes the given block REALLY QUICKLY using the MEMC cache-line storing
 ; optimisation.
@@ -228,6 +303,7 @@ FNdbg_func("Memory_ZeroBlock","r1,r2","")
 	STMNEIA	r1!,{r3,r4}
 	TST	r2,#4
 	STRNE	r3,[r1]
+FNdt("<<< Memory_ZeroBlock")
 	FNreturn
 
 ._zeroes

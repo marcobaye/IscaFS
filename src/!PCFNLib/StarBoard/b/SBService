@@ -1,0 +1,11 @@
+REM >SBService
+REM StarBoard internal service call definitions
+
+
+SBService_Claimed		= 0
+SBService_Relink		= 1
+SBService_ModeChanged		= 2
+SBService_MenusDeleted		= 3
+SBService_WimpMessage		= 17
+SBService_WimpMessageRec	= 18
+SBService_WimpMessageAck	= 19

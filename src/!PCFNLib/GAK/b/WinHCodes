@@ -1,0 +1,14 @@
+REM >WinHCodes
+REM StarBoard window handler registration codes
+
+
+WinHCode_Redraw		= 0
+WinHCode_Open		= 1
+WinHCode_Close		= 2
+WinHCode_PtrLeaving	= 3
+WinHCode_PtrEntering	= 4
+WinHCode_MouseClick	= 5
+WinHCode_KeyPressed	= 6
+WinHCode_ScrollRequest	= 7
+WinHCode_LoseCaret	= 8
+WinHCode_GainCaret	= 9

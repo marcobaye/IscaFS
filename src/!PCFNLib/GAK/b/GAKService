@@ -1,0 +1,12 @@
+REM >GAKService
+REM GAK internal service call definitions
+
+
+GAKService_Claimed		= 0
+GAKService_Relink		= 1
+GAKService_ModeChanged		= 2
+GAKService_MenuDeleted		= 3
+GAKService_MenuSelection	= 4
+GAKService_WimpMessage		= 17
+GAKService_WimpMessageRec	= 18
+GAKService_WimpMessageAck	= 19

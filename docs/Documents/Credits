@@ -2,7 +2,7 @@
 
 				IscaFS - Credits
 				~~~~~~~~~~~~~~~~
-			Version 0.06, 28th October 1998
+			Version 0.08, 10th April 1999
 
 
 Introduction
@@ -28,3 +28,6 @@ which is now implemented in the form of LinuFS.
 Thanks to Timothy Baldwin who pointed out a horrible bug which caused bad
 block numbers to be used in files over 64meg in length (ie the triply
 indirected blocks).
+
+Thanks to Nicholas Clark, who fixed IscaFS so it can now read partitions greater than 4gig in length, and made some StrongARM optimisations too.
+

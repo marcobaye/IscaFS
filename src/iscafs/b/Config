@@ -11,13 +11,21 @@ REM	1	= dynamic areas on
 config_dynamicareas%	= 0
 
 
-REM Define amount of memory used for block cacheing (in bytes).  Should be a
-REM multiple of 1024 bytes.
-config_cache1size%	= 1024 * 256
-config_cache2size%	= 1024 * 64
-REM config_cache1size%	= 1024 * 1024
-REM config_cache2size%	= 1024 * 256
+REM Define the number of bits used in the hashing for the two caches.
+config_cachehashbits%	= 3
 
+REM Define the number of caches per level.  This, multiplied by
+REM (1 << config_cachehashbits%) will be the number of blocks cached per
+REM level.  Cache A is the lower level (ie the level blocks are first
+REM loaded into - if they're used again they are promoted to B), so it's
+REM likely to be a good idea to make sure cache A is larger than B.
+REM It's probably a good idea to keep these at or above 8 or 16, since
+REM otherwise you may experience some inefficiency.  If you wish to
+REM reduce the size of the cache, reduce the number of hash bits rather
+REM than reducing the number of caches rather than the number of blocks
+REM in each cache.  These values must ALWAYS be a power of two.
+config_blocksA%		= 32
+config_blocksB%		= 16
 
 
 
@@ -30,8 +38,8 @@ REM 0 - none
 REM 1 - to file
 REM 2 - to screen
 REM 3 - to throwback module (unimplemented)
-debug_type% 		= 0
-config_dbg_file$	= "ADFS::4.$.logfile"
+config_debug%		= 0
+config_dbg_file$	= "<IscaFS$Dir>.logfile"
 
 REM Leave this =0; changing it to 1 results in certain death!
 dbg_config_func%	= 0
@@ -45,14 +53,10 @@ REM =========================================================
 REM Automatically calculated values - DO NOT CHANGE!!!
 REM =========================================================
 
-cache_blocksize%	= 1024
+cache_hashmask%		= (1 << config_cachehashbits%) - 1
 
-REM Block cacheing
-cache1_blocks% = config_cache1size%/cache_blocksize%
-cache2_blocks% = config_cache2size%/cache_blocksize%
 
-REM Total cache size
-len_blocktable%=12
-cache_totallen%	= config_cache1size%+config_cache2size%
-cache_totallen%+= cache1_blocks%*len_blocktable%
-cache_totallen%+= cache2_blocks%*len_blocktable%
+REM Configuration for Dickon Hood's debugging library.
+IF config_debug% THEN debug%=TRUE ELSE debug%=FALSE
+debug_flush%		= 0
+DebugIndentLevel%	= 1

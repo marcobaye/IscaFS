@@ -2,28 +2,17 @@
 
 				IscaFS - ReadMe
 				~~~~~~~~~~~~~~~
-			Version 0.06, 28th October, 1998
+			Version 0.08, 10th April 1999
 
 
-PLEASE read ALL of this file.  It won't take you long, and it'll be worth it
-(probably).
+PLEASE read ALL of this file.  It won't take you long, and it'll be worth it (probably).
 
-Only one thing has changed since 0.05, a fix in s.Cache where the block-from-
-inode function was grabbing bad blocks from files of over 64meg in length
-(the triply-indirected blocks).  Thanks to Timothy Baldwin for pointing this
-one out.
+The major changes since 0.06 are the new cache system (warning: dodgy, not well-tested code, please report any bugs to forrey@eh.org), and Nicholas Clark's patch which allows partitions over 4gig to be accessed.
 
-I no longer think I'll be implementing any of the plans I had for IscaFS,
-since I've decided to steer away from developing for RiscOS in favour of
-unix-based systems.  I will probably still do small bug fixes to IscaFS, but
-I'm now intending to dedicate my spare time to learning perl and
-investigating compression techniques.
+I don't think I'll be implementing a write capability in IscaFS, since the amount of time required to do this almost certainly outweighs the use it'd be.  Instead, I'll be hacking away at my own filing system, OhFFS, which is much more fun (ie horrendously complicated - I don't yet have nightmares about implementing write capability, but I'm sure I will).
 
-If anyone else should wish to develop IscaFS further, please talk to me
-first.  This is STUPENDOUSLY important if you intend to implement any write
-operations, since using the current cacheing system with write operations
-will break.
+Although I'm not going to be actively developing IscaFS, I'll still be available for fixing bugs.
+
+If anyone has a burning desire to take over development of IscaFS, they're welcome.  Please contact me for your Free Development Pack (TM)!
 
 Phil
-
-P.S. As usual, any bug reports or comments are appreciated.

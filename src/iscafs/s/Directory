@@ -5,7 +5,15 @@
 
 
 .Directory_Scan
-FNdbg_func("Directory_Scan","r0-r6,r11","r1-r5")
+FNdt(">>> Directory_Scan")
+FNdt("  r0 (inode number) = %0i4")
+FNdt("  r1 (start offset) = %1i4")
+FNdt("  r2 (user) = %2x8")
+FNdt("  r3 (user) = %3x8")
+FNdt("  r4 (user) = %4x8")
+FNdt("  r5 (user) = %5x8")
+FNdt("  r6 (MDB) = %6x8")
+FNdt("  r11 (subroutine) = %11x8")
 ;------------------------
 ; Read entries from the given inode and call a function for each of them.
 ;------------------------
@@ -42,7 +50,6 @@ FNdbg_func("Directory_Scan","r0-r6,r11","r1-r5")
 ;	Subroutines are not allowed to use buffer or buffer2.
 ;------------------------
 	FNfunction("r0-r2,r6-r11")	; BE CAREFUL - FNreturn not always used
-FNdbg_mult
 	MOV	r9,r2			; store user reg in safe place
 	MOV	r10,r1			; start offset
 	BL	Cache_GetInodePointer	; r0 = inode pointer
@@ -99,19 +106,19 @@ FNdbg_mult
 	B	_loop
 
 ._not_a_directory
-FNdbg_str("_not_a_directory")
+FNdt("_not_a_directory")
 	FNrerror
 	EQUD	0
 	EQUS	"Not a directory."+CHR$0:ALIGN
 
 ._last_item_read
-FNdbg_str("_last_item_read")
+FNdt("_last_item_read")
 	LDMFD	r13!,{r0-r2}
 	MVN	r1,#0
 	LDMFD	r13!,{r6-r11,pc}^
 
 ._subroutine_failed
-FNdbg_str("_subroutine_failed")
+FNdt("_subroutine_failed")
 	LDMFD	r13!,{r0-r2}
 	SUB	r1,r1,r10		; calculate new start offset
 	SUB	r1,r1,#1
@@ -138,7 +145,14 @@ FNdbg_str("_subroutine_failed")
 
 
 .Directory_ReadEntries
-FNdbg_func("Directory_ReadEntries","r0-r6","r3,r4")
+FNdt(">>> Directory_ReadEntries")
+FNdt("  r0 (8=just names 7=full info) = %0i4")
+FNdt("  r1 (directory name) = %1z")
+FNdt("  r2 (buffer to put data in) = %2x8")
+FNdt("  r3 (number to read) = %3i4")
+FNdt("  r4 (first item to read) = %4i4")
+FNdt("  r5 (length of buffer) = %5i4")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Read entries from the given directory into a given block of memory.
 ;------------------------
@@ -169,13 +183,21 @@ FNdbg_func("Directory_ReadEntries","r0-r6","r3,r4")
 	MOVVC	r3,#0			; init items counter
 	BLVC	Directory_Scan
 	MOVVC	r4,r1			; new start offset or -1
+FNdt("<<< Directory_ReadEntries")
+FNdt("  r3 (number read) = %3i4")
+FNdt("  r4 (new offset) = %4i4")
 	FNcreturn("VC")
-FNdbg_mult
+FNdt("  V was set - something went wrong.")
 	FNpreturn
 
 
 .Directory_ReadNames
-FNdbg_str("Directory_ReadNames")
+FNdt(">>> Directory_ReadNames")
+FNdt("  r0 (dirent ptr) = %0x8")
+FNdt("  r2 (buffer to put data in) = %2x8")
+FNdt("  r3 (items read so far) = %3i4")
+FNdt("  r4 (number to read) = %4i4")
+FNdt("  r5 (bytes left in buffer) = %5i4")
 ;------------------------
 ; Read the full info for the given file into the buffer
 ;------------------------
@@ -192,11 +214,11 @@ FNdbg_str("Directory_ReadNames")
 ;	r5  =	updated number of bytes left in buffer
 ;------------------------
 	FNfunction("r1,r4,r6")
-FNdbg_reg(5)
 ;------------------------
 ; check for max items reached
 	CMP	r3,r4
 	MVNGE	r0,#0			; max items read
+FNdtc(ge, "<<< Directory_ReadNames (max items read)")
 	FNcreturn("GE")
 ;------------------------
 ; check for buffer filledness
@@ -205,6 +227,7 @@ FNdbg_reg(5)
 	ADD	r14,r1,#1
 	CMP	r14,r5
 	MVNGT	r0,#0			; no more space in buffer
+FNdtc(gt, "<<< Directory_ReadNames (no space in buffer)")
 	FNcreturn("GT")
 	SUB	r5,r5,r14
 ;------------------------
@@ -225,12 +248,19 @@ FNdbg_reg(5)
 	STRB	r14,[r2],#1
 ; REASON-DEPENDANT CODE ENDS HERE
 	ADD	r3,r3,#1
+FNdt("<<< Directory_ReadNames")
 	FNreturn
 
 
 
 .Directory_ReadFullInfo
-FNdbg_str("Directory_ReadFullInfo")
+FNdt(">>> Directory_ReadFullInfo")
+FNdt("  r0 (dirent pointer) = %0x8")
+FNdt("  r2 (buffer to put data in) = %2x8")
+FNdt("  r3 (number read so far) = %3i4")
+FNdt("  r4 (number to read) = %4i4")
+FNdt("  r5 (bytes left in buffer) = %5i4")
+FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Read the given name into the buffer
 ;------------------------
@@ -248,11 +278,11 @@ FNdbg_str("Directory_ReadFullInfo")
 ;	r5  =	updated number of bytes left in buffer
 ;------------------------
 	FNfunction("r1,r4,r7,r8")
-FNdbg_reg(5)
 ;------------------------
 ; check for max items reached
 	CMP	r3,r4
 	MVNGE	r0,#0			; max items read
+FNdtc(ge, "<<< Directory_ReadFullInfo (max items read)")
 	FNcreturn("GE")
 ;------------------------
 ; check for buffer filledness
@@ -262,6 +292,7 @@ FNdbg_reg(5)
 	BIC	r14,r14,#3
 	CMP	r14,r5
 	MVNGT	r0,#0			; no more space in buffer
+FNdtc(gt, "<<< Directory_ReadFullInfo (no space in buffer)")
 	FNcreturn("GT")
 	SUB	r5,r5,r14
 ;------------------------
@@ -301,4 +332,5 @@ FNdbg_reg(5)
 	BIC	r2,r2,#3
 ; REASON-DEPENDANT CODE ENDS HERE
 	ADD	r3,r3,#1
+FNdt("<<< Directory_ReadFullInfo")
 	FNreturn

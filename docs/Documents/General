@@ -2,7 +2,7 @@
 
 				IscaFS - General
 				~~~~~~~~~~~~~~~~
-			Version 0.06, 28th October, 1998
+			Version 0.08, 10th April 1999
 
 
 Introduction
@@ -47,6 +47,6 @@ PNAsm was named using the Justin Fletcher convention for naming programs (ie nam
 
 
 
-Contacting us
-~~~~~~~~~~~~~
-Please contact us if you find any bugs (especially if you can provide useful information on what causes the bug), or wish to make a donation to a good cause (lessening our overdrafts ;-).  The names and contact details for the members of the IscaFS development team can be found in the 'DevTeam' file.
+Contacting the authors
+~~~~~~~~~~~~~~~~~~~~~~
+Well, currently there are four people who've contributed code to IscaFS (Matthew Wilcox, Dickon Hood, Nicholas Clark and Phil Norman), but I (Phil Norman) tend to handle releases, integrating source and the like.  If you want to contact me for any reason, I can be emailed at forrey@eh.org.

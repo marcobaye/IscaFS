@@ -2,14 +2,13 @@
 
 				IscaFS - Changes
 				~~~~~~~~~~~~~~~~
-			Version 0.06, 28th October, 1998
+			Version 0.08, 10th April 1999
 
 
 This file is a brief description of the main changes that have taken place
 between this version and the last release version.  For a full list of
 changes see the 'ChangeLog' file.
 
-The only change in this version is the fixing of a bug pointed out by Timothy
-Baldwin (thanks) which caused the later blocks in files of over 64meg (in 1k
-block filesystems) to completely screw up.  Basically, the wrong block number
-was being found in part of the block getting process.
+WARNING!  IscaFS has a new cache system, which was added in 0.07, and isn't particularly well tested.  Please send any bug reports to me (forrey@eh.org) and I'll try to fix them.  It should be a lot faster than the old cache system, but Chris Rutter's been mentioning that it's actually slower - I think I have a bug :-(.
+
+The other recent addition is far more reliable.  Nicholas Clark's modified IscaFS so it can now read partitions of over 4gig in size, and also made some StrongARM optimisations while he was there.

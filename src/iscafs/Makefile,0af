@@ -14,8 +14,8 @@
 / and now start the list of source files
 
 #BeginSources
-Libraries
 Config
+Libraries
 Vars
 Workspace
 
@@ -33,7 +33,5 @@ Memory
 Misc
 (Footer)
 #ExitCode
-
-Debug
 
 #EndSources

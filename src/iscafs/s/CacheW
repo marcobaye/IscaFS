@@ -7,7 +7,9 @@
 
 
 .Cache_FlushBlock
-FNdbg_func("Cache_FlushBlock","r0","")
+FNdt(">>> Cache_FlushBlock")
+FNdt("  r0 (block ptr) = %0x8")
+FNdt("  r5 (cache entry ptr) = %5x8")
 ;------------------------
 ; Forces a block to be flushed to the filesystem.
 ;------------------------
@@ -32,11 +34,11 @@ FNdbg_func("Cache_FlushBlock","r0","")
 	MOV	r3,r3,LSL r1
 	MOV	r4,r4,LSL r1
 	BL	Image_WriteBytes_File
+FNdt("<<< Cache_FlushBlock")
 	FNreturn
 
 
 .Cache_ClaimBlocks
-FNdbg_func("Cache_ClaimBlocks","r0-r2,r6","r0")
 ;------------------------
 ; Claims n blocks, trying to claim them from the same group as the given
 ; block number.
@@ -175,7 +177,6 @@ FNdbg_func("Cache_ClaimBlocks","r0-r2,r6","r0")
 
 
 .Cache_FreeBlocks
-FNdbg_func("Cache_FreeBlocks","r1,r2,r6","")
 ;------------------------
 ; Free n blocks whose block numbers reside in the given block.
 ;------------------------
@@ -191,7 +192,6 @@ FNdbg_func("Cache_FreeBlocks","r1,r2,r6","")
 
 
 .Cache_InodeModified
-FNdbg_func("Cache_InodeModified","r6","")
 ;------------------------
 ; Does the necessary thing after the last-read inode has been altered.
 ;------------------------
@@ -222,7 +222,6 @@ FNdbg_func("Cache_InodeModified","r6","")
 
 
 .Cache_CreateInode
-FNdbg_func("Cache_CreateInode","r2,r6","r0,r2")
 ;------------------------
 ; Creates an inode with some blocks, trying to allocate the inode near to the
 ; target block number given.
@@ -300,7 +299,6 @@ FNdbg_func("Cache_CreateInode","r2,r6","r0,r2")
 
 
 .Cache_DeleteInode
-FNdbg_func("Cache_DeleteInode","r0,r6","")
 ;------------------------
 ; Deletes an inode and all its blocks.
 ;------------------------
@@ -348,7 +346,6 @@ FNdbg_func("Cache_DeleteInode","r0,r6","")
 
 
 .Cache_EnsureInodeSize
-FNdbg_func("Cache_EnsureInodeSize","r0,r2,r6","r2")
 ;------------------------
 ; Ensures an inode has a certain number of bytes allocated in its blocks.
 ;------------------------
@@ -432,7 +429,6 @@ FNdbg_func("Cache_EnsureInodeSize","r0,r2,r6","r2")
 
 
 .Cache_BlockToInode
-FNdbg_func("Cache_BlockToInode","r0-r4,r6","")
 ;------------------------
 ; Puts a block of data into a certain position on the given block in an inode.
 ;------------------------
@@ -471,7 +467,6 @@ FNdbg_func("Cache_BlockToInode","r0-r4,r6","")
 	FNreturn
 
 ._fail_cache2
-FNdbg_str("_fail_cache2")
 ;------------------------
 ; try to find the block in the first level cache
 	LDR	r4,[r12,#blocktable1]
@@ -495,7 +490,6 @@ FNdbg_str("_fail_cache2")
 	FNreturn
 
 ._fail_cache1
-FNdbg_str("_fail_cache1")
 ;------------------------
 ; prepare address to be returned and place in a safe register
 ;	r0  =	block number

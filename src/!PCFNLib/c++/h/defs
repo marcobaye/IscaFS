@@ -1,0 +1,18 @@
+//
+//	Various useful definitions
+//	By Phil Norman 27th September, 1997
+//	For PCFNLib
+//
+
+#ifndef bool
+#define bool int
+#endif
+#ifndef true
+#define true 1
+#endif
+#ifndef false
+#define false 0
+#endif
+#ifndef UNUSED(a)
+#define UNUSED(a) (a)=(a)
+#endif
