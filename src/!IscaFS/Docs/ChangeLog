@@ -10,6 +10,13 @@ To do
  * Add write capability (MB> I think I won't do that)
 
 
+11 May 2004, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Added directory background to file type sprite.
+ * Added small versions of sprites.
+ * Sprites now have palettes.
+
+
 07 May 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Fixed bug in cache usage (cache A wasn't used at all).
