@@ -1,0 +1,7 @@
+REM Code segment for #entercode
+DIM code% &10000
+aa_errorhandler_file$="entercode"
+FOR Mpass%=4 TO 6 STEP 2
+P%=\startaddress\:O%=code%
+pass%=Mpass%
+[OPT pass%

@@ -1,0 +1,1038 @@
+REM >Debug Library
+REM (c) Matthew Wilcox
+REM Lots of useful debugging routines.
+
+REM 26th March, 1998 - FNdbg_func added by Phil Norman
+REM   Note - use FNdbg_func sparingly - it takes about 320 bytes (depending
+REM   on function name length)
+
+REM in order to use this collection of debugging tools:
+REM (1) define debug% and debug_type% (see below)
+REM (2) call PROCinit_dbg before assembly starts
+REM (3) In your program's initialisation code, set up r12 and ensure that
+REM     dbg_handle and dbg_currsize are defined
+REM (4) Then you can call FNdbg_init
+REM (5) call FNdbg_* as you feel necessary.
+REM (6) call FNdbg_final in your finalisation code, before you destroy your r12
+REM     block
+
+REM there are two types of debugging currently available:
+REM Type 0 is no debug
+REM Type 1 allows for blocked output to a file.
+REM Type 2 allows for output to screen.
+REM Type 3 allows for output to an opened file.
+REM I want to be able to send throwback messages at some stage.
+
+REM You can send many types of debug data to this output:
+REM These routines preserve all registers *and* flags.  They require r13 to be 
+REM valid and may require r12 to be valid, depending on debug type selected.
+REM FNdbg_reg(reg%) - the contents of the register `reg%'
+REM FNdbg_mult - contents of all registers
+REM FNdbg_indstr(reg%) - string pointed at by reg%
+REM FNdbg_str(str$) - inline string
+REM FNdbg_blk(reg1%, reg2%) - block of memory pointed at by reg1 of length reg2
+REM   (umm, this appears to have been lost.  Oops)
+REM FNdbg_raw(reg1%, reg2%) - same thing, only don't translate to readable hex
+REM FNdbg_rawc(reg%, off%) - same again, except the length is a constant
+REM FNdbg_dyn(reg%) - register points to the anchor of a dynamite block to dump
+REM FNdbg_imm(str$) - sends string to OS_WriteS
+REM FNdbg_chr(c$) - sends character to OS_WriteI
+
+REM FNdbg_func(name$,rin$,rout$) - does entry/exit conditions of functions
+REM   (added 26th March, 1998 Phil Norman)
+
+REM also for your delight and delectation, we have some memory checking
+REM routines
+REM FNmem_new(start%,finish%) registers your ownership of a block of memory
+REM FNmem_rma(addr%) registers an OS_Heap block
+REM FNmem_del(start%,finish%) unregisters your ownership
+REM FNmem_chkc(addr%, offc%) checks that the address addr%+offc% is owned
+REM FNmem_chkr(addr%, offr%) does the same, except that offr% is a register.
+
+DEFPROCinit_dbg
+debug% = (debug_type% > 0)
+CASE debug_type% OF
+WHEN 0
+  PRINT "Debug off"
+WHEN 1
+  PRINT "Debug on: type file"
+  debug_bufsize	= 64*1024	:REM this makes a good immediate const.
+  debug_memsize	= 21*8		:REM 20 memory blocks
+  debug_file$	= config_dbg_file$
+  debug_type% = debug_type% OR 1<<31
+WHEN 2
+  PRINT "Debug on: type screen"
+  screen_mode	    = 12
+  debug_type% = debug_type% OR 1<<31
+ENDCASE
+ENDPROC
+:
+REM note that this, unlike the other dbg routines, corrupts the flags
+DEFFNdbg_init
+CASE (debug_type% AND &FFFF) OF
+WHEN 1
+[ OPT pass%
+  STMFD	  r13!, {r0, r2-r3, r14}
+  MOV	  r0, #6			; claim
+  MOV	  r3, #debug_bufsize		; memory for buffering data
+  SWI	  "XOS_Module"
+  STR	  r2, [r12, #dbg_handle]	; remember address for later use
+  MOV	  r2, #0			; 0 bytes in buffer
+  STR	  r2, [r12, #dbg_currsize]	; remind myself
+  MOV	  r3, #debug_memsize		; memory for tracking memory allocations
+  SWI     "XOS_Module"
+  STR	  r2, [r12, #dbg_memory]	; store the address away
+  MVN	  r0, #0			; -1 is end-of-block marker
+  SUB	  r3, r3, #4			; point at the `last' location
+  STR	  r0, [r2, r3]!			; put -1 in it, and point r2 at it
+  SUB	  r3, r2, r3			; point r3 at the beginning of the block
+  STR	  r0, [r2, #-4]!		; put another -1, and decrement
+  MOV	  r0, #0			; zero this allocated block
+.dbg_loop
+  STR	  r0, [r2, #-4]!
+  STR	  r0, [r2, #-4]!
+  CMP	  r2, r3			; are we done yet?
+  BGT	  dbg_loop
+  LDMFD	  r13!, {r0, r2-r3, r14}
+]
+WHEN 2
+[ OPT pass%
+  STMFD	  r13!, {r14}			;
+  SWI	  256+22			; change screen mode
+  SWI	  256+screen_mode		;
+  SWI	  256+14			; set paged mode on
+  LDMFD	  r13!, {r14}			;
+]
+ENDCASE
+=0
+:
+REM ensure all data sent to debug stream - wherever that is!
+DEFFNdbg_flush
+CASE (debug_type% AND &FFFF) OF
+WHEN 1
+[ OPT pass%
+  STMFD	  r13!, {r14}			; preserve r14 across calls
+  BL	  dbg_flush			; do the flush
+  LDMFD	  r13!, {r14}			; and restore r14
+]
+ENDCASE
+=0
+:
+DEFFNdbg_final
+CASE (debug_type% AND &FFF) OF
+WHEN 1
+[ OPT pass%
+  STMFD	  r13!, {r0, r2, r14}		; stash
+  BL	  dbg_flush			; get rid of all data
+  MOV	  r0, #7			; free
+  LDR	  r2, [r12, #dbg_handle]	;
+  SWI	  "XOS_Module"			;
+  LDMFD	  r13!, {r0, r2, r14}		;
+]
+ENDCASE
+=0
+:
+REM this is the 'core' of the debug routines - must be included somewhere in
+REM in the file - preferably at the end.
+DEFFNdbg_core
+IF debug% THEN
+[ OPT pass%
+  EQUS "And.. anything below here is probably debug code!"+CHR$0
+]
+CASE (debug_type% AND &FFFF) OF
+WHEN 0
+WHEN 1
+IF debug_file$="" THEN debug_file$="ADFS::4.$.logfile"
+[ OPT pass%
+.dbg_filename
+  EQUS	  debug_file$
+  EQUB	  0
+.dbg_eol
+  EQUB	  10
+  ALIGN
+
+.dbg_newline				;
+  STMFD	  r13!, {r0-r4, r14}		;
+  ADR	  r0, dbg_eol			;
+  ADD	  r1, r0, #1			;
+  B	  dbg_newline_cheat		;
+.dbg_send
+; r0 - pointer to start of data
+; r1 - pointer to end of data
+  STMFD	  r13!, {r0-r4, r14}		; preserve
+.dbg_newline_cheat			;
+  LDR	  r2, [r12, #dbg_handle]	; r2 - pointer to dbg buffer
+  LDR	  r3, [r12, #dbg_currsize]	; r3 - current length of buffer
+  SUB	  r4, r1, r0			; gives length of data.
+  ADD	  r4, r4, r3			; current + extra
+  CMP	  r4, #debug_bufsize		; will we exceed the buffer?
+  BLGT	  dbg_sendflush			; flush buffer if we will
+  SUB	  r4, r1, r0			; length of data again
+  CMP	  r4, #debug_bufsize		; is it too big for the buffer?
+  BGT	  dbg_toobig			; save it straight away if it is
+  ADD	  r3, r2, r3			; where we can put data
+.dbg_send_lp1				; we must now add to the buffer.
+  LDRB	  r4, [r0], #1			; get the byte
+  STRB	  r4, [r3], #1			; put the byte
+  TEQ	  r0, r1			; have we finished?
+  BNE	  dbg_send_lp1			; try again
+  SUB	  r3, r3, r2			; get the current length of data
+  STR	  r3, [r12, #dbg_currsize]	; new length of buffer
+  LDMFD	  r13!, {r0-r4, pc}^		; return.
+
+.dbg_toobig
+  MOV	  r2, r0			; keep copy of ptr to block
+  SUB	  r3, r1, r0			; length of block
+  BL	  dbg_sendflush			; send it to file
+  MOV	  r3, #0			; number of bytes left to flush
+  STR	  r3, [r12, #dbg_currsize]	; mark for next dbg call
+  LDMFD	  r13!, {r0-r4, pc}^		; return
+
+.dbg_flush
+  STMFD	  r13!, {r2-r3, r14}		; stash
+  LDR	  r2, [r12, #dbg_handle]	; r2 - pointer to dbg buffer
+  LDR	  r3, [r12, #dbg_currsize]	; r3 - current length of buffer
+  TEQ	  r3, #0
+  BLNE	  dbg_sendflush			; actually do the flush
+  STR	  r3, [r12, #dbg_currsize]	; store the actual length back again
+  LDMFD	  r13!, {r2-r3, pc}^		; return
+
+.dbg_sendflush
+; r2, r3 already contain buff addr & length.  Don't corrupt any
+; registers.
+  STMFD	  r13!, {r0-r2, r4, r14}	;
+  MOV	  r4, r2			;
+  MOV	  r0, #&C7			; openup file reason code
+  ADR	  r1, dbg_filename		; point at filename
+  SWI	  "XOS_Find"			; open the debug file
+  BVS     dbg_sendflush_failed
+  MOVS	  r1, r0			;
+  MOVEQ   r3, #0
+  LDMEQFD r13!, {r0-r2, r4, pc}^	; return if the handle is zero - invalid
+  MOV	  r0, #2			;
+  SWI	  "XOS_Args"			; whats the size of the file?
+  EORVC	  r2, r2, r4			; swap
+  EORVC	  r4, r2, r4			; r2 and r4
+  EORVC	  r2, r2, r4			; using no extra registers.
+  MOVVC	  r0, #1			; write bytes to a
+  SWIVC	  "XOS_GBPB"			; given offset in r4.
+  MOVVC	  r0, #0			; close file
+  SWIVC	  "XOS_Find"			;
+.dbg_sendflush_failed
+  LDMFD	  r13!, {r0-r2, r4, pc}^	; return
+
+]
+WHEN 2
+[ OPT pass%
+.dbg_newline				;
+  STMFD	  r13!, {r14}			;
+  SWI	  "XOS_NewLine"			;
+  LDMFD	  r13!, {pc}^			;
+.dbg_send
+; r0 - pointer to start of data
+; r1 - pointer to end of data
+  STMFD	  r13!, {r1, r14}		;
+  SUB	  r1, r1, r0			;
+  SWI	  "XOS_WriteN"			;
+  LDMFD	  r13!, {r1, pc}^		;
+]
+OTHERWISE
+ERROR 0,"No such debug type!"
+ENDCASE
+[ OPT pass%
+.dbg_indstr
+  STMFD	  r13!, {r1-r2, r14}		; stash regs
+  MOV	  r1, r0			; take copy of r0
+.dbg_indstr_lp1				;
+  LDRB	  r2, [r1, #1]!			; are we nearly there yet?
+  TEQ	  r2, #0			; are we, are we?
+  BNE	  dbg_indstr_lp1		; no.  shut up.
+  BL	  dbg_send			; copy dat string man.
+  BL	  dbg_newline			; ensure an appropriate newline
+  LDMFD	  r13!, {r1-r2, pc}^		; return preserving flags
+
+.dbg_str
+  STMFD	  r13!, {r0-r1, r14}		; stash sufficient registers
+  MOV	  r1, r0			; r1 = len of string
+  BIC	  r0, r14, #&FC000003		; r0 = ptr to string
+  ADD	  r1, r1, r0			; r1 is ptr to end now
+  BL	  dbg_send			;
+  LDMFD	  r13!, {r0-r1, r14}		; don't return just yet
+  ADD	  r0, r0, #3			; word align
+  BIC	  r0, r0, #3			;
+  ADDS	  pc, r14, r0			; and return after the string.
+
+.dbg_reg_txt
+  EQUS	  "Value in register r"
+.dbg_reg_reg
+  EQUS	  "? is : "
+.dbg_reg_cntts
+  EQUS	  "000000000"
+.dbg_reg_end
+  ALIGN
+.dbg_reg
+  STMFD	  r13!, {r14}			;
+  ADR	  r1, dbg_reg_reg		; register number
+  STRB	  r5, [r1]			; store it in the block
+  ADR	  r1, dbg_reg_cntts		; point at buff
+  MOV	  r2, #9			; length
+  SWI	  "XOS_ConvertHex8"		; convert to 8 bytes wide hex
+  ADR	  r0, dbg_reg_txt		; point at the start of the buffer
+  BL	  dbg_send			; debug this!
+  BL	  dbg_newline
+  LDMFD	  r13!, {pc}^			;
+
+;P Added 26th March, 1998 PCFN
+.dbg_func
+; On entry, stack contains 'pc' with processor bits intact, all other registers
+; as they should be for calling the function.
+; Offsets from <pc> are:
+;    dbg_func_rin             bitmap of input registers
+;    dbg_func_rout            bitmap of output registers
+;    dbg_func_sp              word to store stack pointer value
+;    dbg_func_nlen            length of dbg_func_name
+;    dbg_func_special         special word for function position identification
+;    dbg_func_name            stringA - function name
+;    dbg_func_function        function code
+  STMFD   r13!,{r0-r12,r14}
+  LDR     r14,[r13,#4*14]     ; load pc from where it's stored in stack
+  BIC     r10,r14,#&fc000003
+  STR     r10,[r13,#4*14]     ; store back just address, removing status bits
+  AND     r11,r14,#&fc000003
+  ADR     r0,dbg_func_in
+  ADD     r1,r0,#2
+  BL      dbg_send
+;------------------------
+; output > function name
+  LDR     r1,[r10,#12]        ; function name length
+  ADD     r0,r10,#20          ; position of function name
+  ADD     r1,r0,r1
+  ADD     r9,r1,#3            ; get address of function
+  BIC     r9,r9,#3
+  ORR     r8,r9,r11           ; and processor flags
+  STR     r8,dbg_func_addr    ; this won't be killed by reentrancy
+  BL      dbg_send            ; send function name
+  LDR     r9,[r13,#4*13]
+  BIC     r9,r9,#&fc000003
+; r9  = address of parent (caller)
+; r10 = base address of function debugging data
+; r11 = processor bits when function was called
+  MOV     r8,#0               ; offset from parent calling place
+  LDR     r1,dbg_func_specialword
+.lp
+  ADD     r8,r8,#4
+  LDR     r0,[r9,-r8]
+  TEQ     r0,r1
+  BEQ     dbg_func_found_specword
+  CMP     r8,#512             ; max distance to search (backwards)
+  BLT     lp
+;------------------------
+; special word not found in parent - just output the address of caller
+  MOV     r0,r9
+  FNladr(1,dbg_func_hex_parent)
+  MOV     r2,#9
+  SWI     "XOS_ConvertHex8"
+  BVS     dbg_func_done_address
+  MOV     r0,#ASC")"
+  STRB    r0,[r1]
+  ADR     r0,dbg_func_from
+  ADD     r1,r0,#dbg_func_endfrom - dbg_func_from
+  BL      dbg_send
+  B       dbg_func_done_address
+.dbg_func_found_specword
+  ADR     r0,dbg_func_calledby
+  ADR     r1,dbg_func_atoffset
+  BL      dbg_send
+  SUB     r8,r9,r8
+  LDR     r7,[r8,#-4]         ; function name length
+  ADD     r0,r8,#4            ; function name base
+  ADD     r1,r0,r7
+  ADD     r8,r1,#3
+  BL      dbg_send
+  BIC     r8,r8,#3+8          ; return address is 4 bytes after call
+  SUB     r0,r9,r8            ; offset of call from start of func
+  FNladr(1,dbg_func_offset)
+  MOV     r2,#9
+  SWI     "XOS_ConvertHex8"
+  BVS     dbg_func_done_address
+  MOV     r0,#ASC")"
+  STRB    r0,[r1]
+  ADR     r0,dbg_func_atoffset
+  ADR     r1,dbg_func_endcalledby
+  BL      dbg_send
+.dbg_func_done_address
+;------------------------
+; output registers sent to function
+; r10 = base address of function debugging data
+  LDR     r3,[r10]               ; dbg_func_rin
+  MOV     r6,#0                  ; register number
+  MOV     r4,#1                  ; bit to test
+.lp
+  TST     r3,r4
+  BEQ     dbg_func_exit1
+  LDR     r0,[r13,r6,LSL #2]
+  CMP     r6,#10
+  ADDLT   r5,r6,#ASC"0"
+  ADDGE   r5,r6,#(ASC"A")-10
+  BL      dbg_reg
+.dbg_func_exit1
+  MOV     r4,r4,LSL #1
+  ADD     r6,r6,#1
+  CMP     r6,#12
+  BLE     lp
+  ADR     r0,dbg_func_separator
+  ADR     r1,dbg_func_endseparator
+  BL      dbg_send
+  STR     r13,[r10,#8]            ; dbg_func_sp in wrapper data (reentrancy)
+  LDMFD   r13!,{r0-r12}           ; r14, pc(nobits) are still on stack
+  MOV     r14,#8
+  ADD     r14,r14,pc              ; pc is here to keep PSR
+  STR     r14,dbg_func_tempr14    ; call the function, assuring the status
+  ADR     r14,dbg_func_tempr14    ;  bits are the same as when the debug wrapper
+  LDMIA   r14,{r14,pc}^           ;  was called
+;------------------------
+; function has been called and now returns to here, so output the fact that it
+; has returned, and the registers it returned
+  STMFD   r13!,{r0-r12,r14,pc}
+; on stack - r0-r12,r14,pc,r14,pc
+  LDR     r10,[r13,#4*16]         ; base of wrapper
+  LDR     r9,[r10,#8]             ; dbg_func_sp
+  SUB     r9,r9,#8                ; extra 2 regs stored in r13 now
+  TEQ     r9,r13
+  BEQ     dbg_func_sp_ok
+  ADR     r0,dbg_func_sp_buggered
+  ADR     r1,dbg_func_endsp_buggered
+  BL      dbg_send
+.dbg_func_sp_ok
+;------------------------
+; output < function name
+  ADR     r0,dbg_func_out
+  ADR     r1,dbg_func_nl
+  BL      dbg_send
+  LDR     r1,[r10,#12]        ; function name length
+  ADD     r0,r10,#20          ; position of function name
+  ADD     r1,r0,r1
+  BL      dbg_send
+  ADR     r0,dbg_func_nl
+  ADD     r1,r0,#1
+  BL      dbg_send
+;------------------------
+; output registers returned by function
+; r10 = base address of function debugging data
+  LDR     r3,[r10,#4]            ; dbg_func_rout
+  MOV     r6,#0                  ; register number
+  MOV     r4,#1                  ; bit to test
+.lp
+  TST     r3,r4
+  BEQ     dbg_func_exit2
+  LDR     r0,[r13,r6,LSL #2]
+  CMP     r6,#10
+  ADDLT   r5,r6,#ASC"0"
+  ADDGE   r5,r6,#(ASC"A")-10
+  BL      dbg_reg
+.dbg_func_exit2
+  MOV     r4,r4,LSL #1
+  ADD     r6,r6,#1
+  CMP     r6,#12
+  BLE     lp
+  ADR     r0,dbg_func_separator
+  ADR     r1,dbg_func_endseparator
+  BL      dbg_send
+;------------------------
+; return to parent function
+; on stack - r0-r12,r14,pc,r14,pc
+; to return:
+;     pc(2) is address of wrapper and can be ignored
+;     return to address in r14(2) with PSR from pc(1)
+;     return with r14 = r14(1)
+  LDR     r0,[r13,#4*13]         ; r14(1)
+  STR     r0,dbg_func_tempr14
+  LDR     r0,[r13,#4*14]         ; pc(1) - for PSR
+  LDR     r1,[r13,#4*15]         ; r14(2) - for return address
+  AND     r0,r0,#&fc000003
+  BIC     r1,r1,#&fc000003
+  ORR     r0,r0,r1
+  STR     r0,dbg_func_addr
+  LDMFD   r13!,{r0-r12}
+  ADR     r14,dbg_func_tempr14
+  ADD     r13,r13,#4*4           ; stomp the r14s and pcs on the stack
+  LDMIA   r14,{r14,pc}^          ; return
+
+.dbg_func_tempr14
+  EQUD    0
+.dbg_func_addr
+  EQUD    0
+.dbg_func_in
+  EQUS    "> "
+  ALIGN
+.dbg_func_from
+  EQUS    " (from &"
+.dbg_func_hex_parent
+  EQUS    "XXXXXXXX)"+CHR$10
+.dbg_func_endfrom
+  ALIGN
+.dbg_func_calledby
+  EQUS    " (called by "
+.dbg_func_atoffset
+  EQUS    ", offset &"
+.dbg_func_offset
+  EQUS    "XXXXXXXX)"+CHR$10
+.dbg_func_endcalledby
+.dbg_func_sp_buggered
+  EQUS    "ERROR: Stack pointer corrupt!!!"+CHR$10
+.dbg_func_endsp_buggered
+.dbg_func_out
+  EQUS    "< "
+.dbg_func_nl
+  EQUB    10
+  ALIGN
+.dbg_func_separator
+  EQUS    "---"+CHR$10
+.dbg_func_endseparator
+  ALIGN
+.dbg_func_specialword
+  EQUS    "Ttam"
+
+  ALIGN
+;P End of added by PCFN bit
+
+.dbg_eol
+  EQUB	  10
+  ALIGN
+.dbg_raw
+  CMP	  r1, #1024*1024		; 1 Mb
+  MOVHIS  pc, r14			; return if higher
+  STMFD	  r13!, {r14}			;
+  ADD	  r1, r0, r1			; need end, not len
+  BL	  dbg_send			; we just need to send it
+  BL	  dbg_newline			;
+  LDMFD	  r13!, {pc}^			;
+
+.dbg_dyn
+; entered with r0 pointing to anchor.
+  STMFD	  r13!, {r1-3, r14}
+FNdbg_str("Dynamite block :")
+  SWI	  &6A3C3			; find out how long block is
+  MOVVC	  r0, r1			; address of block
+  MOVVC	  r1, r2			; length of block
+  BLVC	  dbg_raw			; send it
+  LDMFD	  r13!, {r1-3, pc}^
+
+.dbg_mult
+  STMFD	  r13!, {r0-3, r14}
+
+FNdbg_str("Full register dump:")
+; BL	  dbg_newline
+  MOV	  r3, #ASC(",")			; a comma.
+  ADR	  r1, dbg_mult_txt1		;
+  ADD	  r1, r1, #6
+
+  MOV	  r2, #9			;
+  LDR	  r0, [r13, #0]			; convert r0
+  SWI	  "XOS_ConvertHex8"		; convert to 8 bytes wide hex
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  LDR	  r0, [r13, #4]			; convert r1
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  LDR	  r0, [r13, #8]			; convert r2
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  LDR	  r0, [r13, #12]		; convert r3
+  SWI	  "XOS_ConvertHex8"
+  ADR	  r0, dbg_mult_txt1
+  ADD	  r1, r0, #dbg_mult_txt2 - dbg_mult_txt1 - 1
+  BL	  dbg_send
+  BL	  dbg_newline
+  ADD	  r1, r1, #7
+
+  MOV	  r2, #9
+  MOV	  r0, r4			; convert r4
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  MOV	  r0, r5			; convert r5
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  MOV	  r0, r6			; convert r6
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  MOV	  r0, r7			; convert r7
+  SWI	  "XOS_ConvertHex8"
+  ADR	  r0, dbg_mult_txt2
+  ADD	  r1, r0, #dbg_mult_txt3 - dbg_mult_txt2 - 1
+  BL	  dbg_send
+  BL	  dbg_newline
+  ADD	  r1, r1, #7
+
+  MOV	  r2, #9
+  MOV	  r0, r8			; convert r8
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  MOV	  r0, r9			; convert r9
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  MOV	  r0, r10			; convert r10
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  MOV	  r0, r11			; convert r11
+  SWI	  "XOS_ConvertHex8"
+  ADR	  r0, dbg_mult_txt3
+  ADD	  r1, r0, #dbg_mult_txt4 - dbg_mult_txt3 - 1
+  BL	  dbg_send
+  BL	  dbg_newline
+  ADD	  r1, r1, #7
+
+  MOV	  r2, #9
+  MOV	  r0, r12			; convert r12
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  ADD	  r0, r13, #20			; r13 before this was called
+  SWI	  "XOS_ConvertHex8"
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  LDR	  r0, [r13, #20]		; this r14 was pushed before
+  SWI	  "XOS_ConvertHex8"		; the routine was called.
+  STRB	  r3, [r1], #8
+
+  MOV	  r2, #9
+  LDR	  r0, [r13, #16]		; this is PC at point-of-departure
+  SWI	  "XOS_ConvertHex8"
+  ADR	  r0, dbg_mult_txt4
+  ADD	  r1, r0, #dbg_mult_txt5 - dbg_mult_txt4 - 1
+  BL	  dbg_send			; save this data
+  BL	  dbg_newline			; and put a new line in
+
+  LDMFD	  r13!, {r0-r3, pc}^
+
+.dbg_mult_txt1
+  EQUS	"r0  = XXXXXXXX, r1  = XXXXXXXX, r2  = XXXXXXXX, r3  = XXXXXXXX "
+.dbg_mult_txt2
+  EQUS	"r4  = XXXXXXXX, r5  = XXXXXXXX, r6  = XXXXXXXX, r7  = XXXXXXXX "
+.dbg_mult_txt3
+  EQUS	"r8  = XXXXXXXX, r9  = XXXXXXXX, r10 = XXXXXXXX, r11 = XXXXXXXX "
+.dbg_mult_txt4
+  EQUS	"r12 = XXXXXXXX, r13 = XXXXXXXX, r14 = XXXXXXXX, r15 = XXXXXXXX "
+.dbg_mult_txt5
+  ALIGN
+
+; now the memory debugging code.
+
+.mem_new
+  STMFD	  r13!, {r2-4, r14}
+  LDR	  r2, [r12, #dbg_memory]
+.mem_new_loop
+  LDMIA	  r2!, {r3-4}
+  TEQ	  r3, #0
+  TEQEQ	  r4, #0
+  BEQ	  mem_new_over
+  CMN	  r3, #1
+  BNE	  mem_new_loop
+  B	  mem_error
+.mem_new_over
+  STMDB	  r2, {r0-1}
+FNdbg_str("*** MemCheck: New block added, range")
+FNdbg_reg(0)
+FNdbg_reg(1)
+  LDMFD	  r13!, {r2-4, pc}^
+
+.mem_del
+  STMFD	  r13!, {r2-4, r14}
+  LDR	  r2, [r12, #dbg_memory]
+.mem_del_loop
+  LDMIA	  r2!, {r3-4}
+  TEQ	  r3, r0
+  BEQ	  mem_del_over
+  CMN	  r3, #1
+  BNE	  mem_del_loop
+  B	  mem_error
+.mem_del_over
+FNdbg_str("*** MemCheck: Block deleted, range")
+FNdbg_reg(3)
+FNdbg_reg(4)
+  MOV	  r3, #0
+  MOV	  r4, #0
+  STMDB	  r2, {r3-4}
+  LDMFD	  r13!, {r2-4, pc}^
+
+.mem_chk
+  STMFD	  r13!, {r2-4, r14}
+  TEQ	  r0, #0
+  BEQ	  mem_error
+  LDR	  r2, [r12, #dbg_memory]
+.mem_chk_loop
+  LDMIA	  r2!, {r3-4}
+  CMP	  r0, r3
+  CMPGE	  r4, r0
+  BGE	  mem_chk_over
+  CMN	  r3, #1
+  BNE	  mem_chk_loop
+  B	  mem_error
+.mem_chk_over
+  LDMFD	  r13!, {r2-4, pc}^
+
+.blankspace
+  EQUD	  0
+  EQUD	  0
+  EQUD	  0
+
+.mem_error
+FNdbg_str("Memory access check failed, pc was at")
+;  MOV	  r4, r1			; preserve r1.
+  LDR	  r0, [r13, #12]		; load pc off stack
+  BIC	  r0, r0, #&FC000003		; clear off PSR bits
+  ADD	  r0, r0, #4			; point at the actual instruction
+FNdbg_reg(0)
+;  ADR	  r1, blankspace		; point at space
+;  MOV	  r2, #12			; length of space
+;  SWI	  "OS_ConvertHex8"		; convert it to a printable form
+;  SWI	  "OS_Write0"			; print out string
+;  SWI	  "OS_NewLine"			; better be pretty.
+;  MOV	  r1, r4			; restore r1
+  LDMFD	  r13!, {r2-4, r14}		; restore all registers
+  LDR	  r0, [r13]			; load the r0 that was stashed
+  STR	  r0, [r13, #-4]		; and put it back on the stack 1 up.
+  LDR	  r0, [r13, #8]			; load the stashed lr-at-departure
+  STR	  r0, [r13, #4]			; and shunt it up one
+  ADD	  r14, r14, #8			; skip the register pull & duff STR
+  STR	  r14, [r13, #8]		; and stack it.
+  LDMFD	  r13!, {r0, r14, pc}^		; now return.  Phew!
+]
+ENDIF
+=0
+:
+DEFFNundef
+[ OPT pass%
+  EQUD	  &E6000010			; undefined
+]
+=0
+:
+DEFFNdbg_reg(reg%)
+IF debug% THEN
+IF reg% = 13 THEN
+[ OPT pass%
+  STMFD	  r13!, {r0-5, r14}
+  ADD	  r0, r13, #7*4             ; This was a SUB - wake up Matthew!!!
+  MOV	  r5, #ASC("D")
+  BL	  dbg_reg
+  LDMFD	  r13!, {r0-5, r14}
+]
+ELSE
+[ OPT pass%
+  STMFD	  r13!, {r0-5, r14}
+  MOV	  r0, reg%
+  MOV	  r5, #ASC(STR$~(reg%))
+  BL	  dbg_reg
+  LDMFD	  r13!, {r0-5, r14}
+]
+ENDIF
+ENDIF
+=0
+:
+REM Stuff added by PCFN 26th March, 1998
+REM --------
+REM This function outputs the function name, its arguments, its return values
+REM and also outputs an error if the stack pointer is corrupted within the
+REM function.  ALL registers and processor bits are returned just as if the
+REM function had been called without the debug wrapper.
+REM --------
+DEFFNdbg_func(name$,rin$,rout$)
+LOCAL dbg_pass%,dbg_tempP%,dbg_tempO%
+IF debug% THEN
+ IF dbg_config_func% THEN
+  dbg_pass%=pass%
+  dbg_tempP%=P%:dbg_tempO%=O%
+  FOR pass%=(dbg_pass% AND NOT 2) TO dbg_pass% STEP 2
+  P%=dbg_tempP%:O%=dbg_tempO%
+  [OPT pass%
+    STMFD   r13!,{pc}           ; yes, this does store processor bits too.
+    B       dbg_func
+  .dbg_func_rin
+    EQUD    FNPCFN_bits(rin$)
+  .dbg_func_rout
+    EQUD    FNPCFN_bits(rout$)
+  .dbg_func_sp
+    EQUD    0
+  .dbg_func_nlen
+    EQUD    LEN(name$)
+  .dbg_func_special
+    EQUS    "Ttam"
+  .dbg_func_name
+    EQUS    name$:ALIGN
+  .dbg_func_function
+  ]
+  NEXT
+  pass%=dbg_pass%
+ ELSE
+  IFFNdbg_str(name$)
+ ENDIF
+ENDIF
+=0
+REM End of stuff added by PCFN
+:
+DEFFNdbg_mult
+IF debug% THEN
+[ OPT pass%
+  STMFD	  r13!, {r14}
+  BL	  dbg_mult
+  LDMFD	  r13!, {r14}
+]
+ENDIF
+=0
+:
+DEFFNdbg_indstr(reg%)
+IF debug% THEN
+[ OPT pass%
+  STMFD	  r13!, {r0, r14}
+  MOV	  r0, reg%
+  BL	  dbg_indstr
+  LDMFD	  r13!, {r0, r14}
+]
+ENDIF
+=0
+:
+DEFFNdbg_str(str$)
+CASE (debug_type% AND &FFFF) OF
+WHEN 1
+[ OPT pass%
+  STMFD	  r13!, {r0, r14}
+  MOV	  r0, #LEN(str$)+1
+  BL	  dbg_str
+  EQUS	  str$
+  EQUB	  10
+  ALIGN
+  LDMFD	  r13!, {r0, r14}
+]
+WHEN 2
+[ OPT pass%
+  STMFD	  r13!, {r0, r14}
+  MOV	  r0, #LEN(str$)+2
+  BL	  dbg_str
+  EQUS	  str$
+  EQUB	  10 : EQUB 13
+  ALIGN
+  LDMFD	  r13!, {r0, r14}
+]
+ENDCASE
+=0
+:
+DEFFNdbg_blk(reg1%,reg2%)
+LOCAL null%
+REM reg1% will contain the address of the block
+REM and reg2% will contain the length of the block
+REM reg1% *MUST* be word aligned
+IF debug% THEN
+null% = FNdbg_str("Contents of memory block pointed at by r"+STR$(reg1%))
+[ OPT pass%
+  STMFD	  r13!, {r5-r6, r14}
+]
+IF reg2%=6 THEN
+  IF reg1%=5 THEN
+    REM worst-case scenario; they're the wrong way round.
+[ OPT pass%
+  EOR	  r6, r6, r5
+  EOR	  r5, r6, r5
+  EOR	  r6, r6, r5
+]
+  ELSE
+    REM we just have to be sure not to corrupt r6..
+[ OPT pass%
+  MOV	  r5, r6
+  MOV	  r6, reg1%
+]
+  ENDIF
+ELSE
+  REM no need to be careful, even if reg1%=5 as this will work.
+[ OPT pass%
+  MOV	  r6, reg1%
+  MOV	  r5, reg2%
+]
+ENDIF
+[ OPT pass%
+  BL	  dbg_blk
+  LDMFD	  r13!, {r5-r6, r14}
+]
+ENDIF
+=0
+:
+DEFFNdbg_rawc(reg%,off%)
+LOCAL null%
+REM reg% will contain the address of the block
+REM and off% will contain the length of the block
+REM reg% *MUST* be word aligned
+IF debug% THEN
+null% = FNdbg_str("Contents of memory block pointed at by r"+STR$(reg%))
+[ OPT pass%
+  STMFD	  r13!, {r0-1, r14}
+  MOV	  r0, reg%
+  MOV	  r1, #off%
+  BL	  dbg_raw
+  LDMFD	  r13!, {r0-1, r14}
+]
+ENDIF
+=0
+:
+DEFFNdbg_rawr(reg1%,reg2%)
+LOCAL null%
+REM reg1% will contain the address of the block
+REM and reg2% will contain the length of the block
+IF debug% THEN
+null% = FNdbg_str("Raw memory block pointed at by r"+STR$(reg1%))
+[ OPT pass%
+  STMFD	  r13!, {r0-r1, r14}
+]
+IF reg2%=0 THEN
+  IF reg1%=1 THEN
+[ OPT pass%
+  EOR	  r0, r1, r0
+  EOR	  r1, r1, r0
+  EOR	  r0, r1, r0
+]
+  ELSE
+[ OPT pass%
+  MOV	  r1, r0
+  MOV	  r0, reg1%
+]
+  ENDIF
+ELSE
+[ OPT pass%
+  MOV	  r0, reg1%
+  MOV	  r1, reg2%
+]
+ENDIF
+[ OPT pass%
+  BL	  dbg_raw			  ; jump to the subroutine
+  LDMFD	  r13!, {r0-r1, r14}		  ; restore registers
+]
+ENDIF
+=0
+
+DEFFNdbg_imm(str$)
+REM writes an immediate string to stdout
+IF debug% THEN
+[ OPT pass%
+  SWI	  "XOS_WriteS"
+  EQUZ	  str$
+  ALIGN
+]
+ENDIF
+=0
+
+DEFFNdbg_dyn(reg%)
+REM dumps a dynamite block to debug.  reg% points at the anchor.
+IF debug% THEN
+[ OPT pass%
+  STMFD	  r13!, {r0, r14}
+  MOV	  r0, reg%
+  BL	  dbg_dyn
+  LDMFD	  r13!, {r0, r14}
+]
+ENDIF
+=0
+
+DEFFNdbg_chr(c$)
+REM writes an immediate character to stdout
+IF debug% THEN
+[ OPT pass%
+  SWI	  256+ASC(c$)
+]
+ENDIF
+=0
+:
+DEFFNdot(str$)
+x%=EVAL("FNnastyhack("+str$+")")
+=FNdbg_str(str$)
+:
+DEFFNnastyhack(RETURN a)
+a=P%
+=0
+:
+REM now the memory analysis routines
+
+:
+DEFFNmem_rma(start%)
+IF (debug_type% AND 1<<31) THEN
+[ OPT pass%
+  STMFD	  r13!, {r0-1, r14}
+  MOV	  r0, start%
+  LDR	  r1, [r0, #-4]
+  ADD	  r1, r0, r1
+  BL	  mem_new
+  LDMFD	  r13!, {r0-1, r14}
+]
+ENDIF
+=0
+
+DEFFNmem_new(start%,len%)
+IF (debug_type% AND 1<<31) THEN
+IF len%=0 THEN ERROR 0, "r0 may not be the length of the block"
+[ OPT pass%
+  STMFD	  r13!, {r0-1, r14}
+  MOV	  r0, start%
+  ADD	  r1, r0, len%
+  BL	  mem_new
+  LDMFD	  r13!, {r0-1, r14}
+]
+ENDIF
+=0
+:
+DEFFNmem_del(start%)
+IF (debug_type% AND 1<<31) THEN
+[ OPT pass%
+  STMFD	  r13!, {r0, r14}
+  MOV	  r0, start%
+  BL	  mem_del
+  LDMFD	  r13!, {r0, r14}
+]
+ENDIF
+=0
+:
+DEFFNmem_chkc(addr%,off%)
+IF (debug_type% AND 1<<31) THEN
+IF off%>=0 THEN
+[ OPT pass%
+  STMFD	  r13!, {r0, r14}
+  ADD	  r0, addr%, #off%
+  BL	  mem_chk
+  LDMFD	  r13!, {r0, r14}
+]
+ELSE
+[ OPT pass%
+  STMFD	  r13!, {r0, r14}
+  SUB	  r0, addr%, #-off%
+  BL	  mem_chk
+  LDMFD	  r13!, {r0, r14}
+]
+ENDIF
+ENDIF
+=0
+:
+DEFFNmem_chkr(addr%, offr%)
+IF (debug_type% AND 1<<31) THEN
+[ OPT pass%
+  STMFD	r13!, {r0, r14}
+  ADD	r0, addr%, offr%
+  BL	mem_chk
+  LDMFD	r13!, {r0, r14}
+]
+ENDIF
+=0

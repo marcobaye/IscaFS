@@ -1,0 +1,30 @@
+
+
+				IscaFS - Credits
+				~~~~~~~~~~~~~~~~
+			Version 0.06, 28th October 1998
+
+
+Introduction
+~~~~~~~~~~~~
+This program would not have been possible without the help of quite a few
+people.  Thankyou to everyone who helped in any way.
+
+Special thanks to Matthew Wilcox for the enormous amount of time he's spent
+helping me with ext2fs and other linuxy things.  I really appreciate it;
+IscaFS certainly wouldn't be around if it weren't for him.
+
+Thanks to Chris Rutter, who told me to write it.
+
+Thanks also to Matthew Godbolt for his marvellous MemoryAllocator module
+(used for the dynamic area memory allocation in IscaFS).
+
+Thanks also to Russell King for not only pointing out some nasty bugs, but
+also for porting the OS itself :-).
+
+Thanks to Dickon Hood who came up with a cunning hacky filing system idea
+which is now implemented in the form of LinuFS.
+
+Thanks to Timothy Baldwin who pointed out a horrible bug which caused bad
+block numbers to be used in files over 64meg in length (ie the triply
+indirected blocks).

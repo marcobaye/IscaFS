@@ -1,0 +1,2 @@
+Set PCFNLib$Dir <Obey$Dir>
+Set PCFNLib$Path <Obey$Dir>.c++.,<Obey$Dir>.BasAsm.,<Obey$Dir>.ObjAsm.

@@ -1,0 +1,4 @@
+| !Boot for !IscaFS
+Set IscaFS$Dir <Obey$Dir>
+Iconsprites <Obey$Dir>.!Sprites
+Set File$Type_0B0 "ext2fs"

@@ -1,0 +1,102 @@
+/* Main for 'GetPartns'
+ * 07th January, 1998
+ * © Phil Norman
+ * Reads the linux partition on a given disc and creates IscaFS pseudo-image
+ * files for each ext2 partition found.
+ *
+ * Note - I have made no attempt to write this program nicely.  If you don't
+ * like the sheer ugliness of this source code, tough ;-).
+ *
+ * Further note - GetPartns will automatically detect whether you have an old
+ * or new FileCore.
+ */
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+
+
+int get_module_pw( char *modname );
+void describe_disc( char *discname, char *block, int *pw );
+int read_sectors( int dnum, char *desc, int firstsec, char *mem, int len,
+					int *pw );
+int read_sectors_by_address( int dnum, char *desc, int firstsec, char *mem,
+					int len, int *pw );
+int find_swi( char *swiname );
+void file_save(char *fname, int *blk, int nbytes );
+
+
+int main( int argc, char *argv[] )
+{
+	int		pw;
+	int		newfc;
+	int		drive;
+	char	dname[16];
+	char	buff[1024] = "FileCore%";
+	char	desc[128];
+	int		part_sector;
+	int		p_sec_len;
+	int		p_secs_per_cyl;
+	int		*p;
+	int		*file;
+	int		flen;
+	int		name=0;
+
+	if ( argc!=3 ) {
+		printf( "Wrong number of parameters to GetPartns.\n" );
+		exit(1);
+	}
+	sscanf( argv[2], "%d", &drive );
+
+	strcat( buff, argv[1] );
+	pw = get_module_pw( buff );
+	if ( !pw ) {
+		printf( "Given filing system does not exist or is not a FileCore filing system.\n" );
+		exit(1);
+	}
+
+	flen = 25+strlen(argv[1]);
+	file = (int *)malloc(flen);
+	strcpy( (char *)(&file[6]), argv[1] );
+
+	newfc = find_swi( "FileCore_SectorOp" );
+	sprintf( dname, ":%d", drive );
+	describe_disc( dname, desc, &pw );
+	((int *)desc)[4] = 1024*1024*1024;	//disc size
+	p_sec_len = 1<<(desc[0]);
+	p_secs_per_cyl = desc[1]*desc[2];
+
+	read_sectors_by_address( drive, desc, 0xc00, buff, 0x400, &pw );
+	if ( buff[0x1fc] != 9 ) {
+		printf( "Second partition is not a linux partition table.\n" );
+		exit(1);
+	}
+	part_sector = ((buff[0x1fd])+((buff[0x1fe])<<8))*p_secs_per_cyl;
+
+	if ( newfc )
+		read_sectors( drive, desc, part_sector, buff, 1024, &pw );
+	else
+		read_sectors_by_address( drive, desc, part_sector*p_sec_len,
+						buff, 1024, &pw );
+
+	file[0] = 0x4cee68fe;
+	file[1] = 0x32747865;
+	file[4] = desc[0];
+	file[5] = drive;
+
+	for ( p=(int *)buff ;  ; p+=3 ) {
+		if ( *p==0xdeafa1de ) {
+			file[2] = part_sector + p[1];
+			file[3] = file[2] + p[2] -1;
+			sprintf( dname, "%d", name++ );
+			file_save( dname, file, flen );
+		}
+		if ( *p==0 )
+			break;
+	}
+
+	exit(0);
+	return 1;
+}

@@ -1,0 +1,241 @@
+REM File containing internal workspace definitions
+
+
+
+REM Main workspace - zeroed at module initialisation
+PROCwksp_init
+heap		= FNwksp_int
+blocktable1	= FNwksp_int
+blockcache1	= FNwksp_int
+blocktouse1	= FNwksp_int
+blocktable2	= FNwksp_int
+blockcache2	= FNwksp_int
+blocktouse2	= FNwksp_int
+firstmount	= FNwksp_int
+firstfile	= FNwksp_int
+buffer		= FNwksp_int
+buffer2		= FNwksp_int
+debug		= FNwksp_int
+deb2		= FNwksp_int
+len_workspace%	= FNwksp_length
+IF debug% THEN
+dbg_handle	= FNwksp_int
+dbg_currsize	= FNwksp_int
+dbg_memory	= FNwksp_int
+len_workspace%	= FNwksp_length
+ENDIF
+
+REM The MAlloc vectors are added after the main workspace is stored, so
+REM len_workspace% is NOT the real length which will be allocated to the
+REM workspace.
+malloc_tabbase%		= FNwksp_length
+malloc_claim%		= FNwksp_int
+malloc_free%		= FNwksp_int
+malloc_resize%		= FNwksp_int
+malloc_getblocksize%	= FNwksp_int
+malloc_enumerateblocks%	= FNwksp_int
+malloc_blockcopy%	= FNwksp_int
+malloc_shiftblock%	= FNwksp_int
+
+
+
+len_buffer%	= 4096
+len_buffer2%	= 128		:REM size of an inode
+
+
+
+REM Block table entry
+PROCwksp_init
+block_basenumber%	= FNwksp_int
+block_flags%		= FNwksp_int
+block_mount%		= FNwksp_int
+
+IF len_blocktable%<>FNwksp_length THEN PRINT"WARNING: len_blocktable% incorrect in Config"
+len_blocktable%		= FNwksp_length
+shift1_blocktable%	= 3
+shift2_blocktable%	= 2
+
+
+
+REM Flags for block_flags% in block table entry
+bflag_dirty%		= 1
+
+
+REM Mount descriptor structure
+PROCwksp_init
+next%			= FNwksp_int
+last%			= FNwksp_int
+mnt_flags%		= FNwksp_int
+mnt_filehandle%		= FNwksp_int
+mnt_startsector%	= FNwksp_int
+mnt_endsector%		= FNwksp_int
+mnt_lbtsectorlen%	= FNwksp_int	:REM log to the base 2 of sector length
+mnt_drivenumber%	= FNwksp_int
+mnt_instanceword%	= FNwksp_int
+mnt_descriptor%		= FNwksp_int
+mnt_readbytes%		= FNwksp_int	:REM read/write function vectors
+mnt_writebytes%		= FNwksp_int
+mnt_inodeblockaddr%	= FNwksp_int
+mnt_inodetabaddr%	= FNwksp_int
+mnt_numgroups%		= FNwksp_int
+mnt_groupdescs%		= FNwksp_int
+
+REM superblock structure (inside image descriptor structure)
+superblock%		= FNwksp_length
+s_inodes_count%		= FNwksp_int
+s_blocks_count%		= FNwksp_int
+s_r_blocks_count%	= FNwksp_int
+s_free_blocks_count%	= FNwksp_int
+s_free_inodes_count%	= FNwksp_int
+s_first_data_block%	= FNwksp_int
+s_log_block_size%	= FNwksp_int
+s_log_frag_size%	= FNwksp_int
+s_blocks_per_group%	= FNwksp_int
+s_frags_per_group%	= FNwksp_int
+s_inodes_per_group%	= FNwksp_int
+s_mtime%		= FNwksp_int
+s_wtime%		= FNwksp_int
+s_mnt_count%		= FNwksp_short
+s_max_mnt_count%	= FNwksp_short
+s_magic%		= FNwksp_short
+s_state%		= FNwksp_short 
+s_errors%		= FNwksp_short 
+s_minor_rev_level%	= FNwksp_short
+s_lastcheck%		= FNwksp_int
+s_checkinterval%	= FNwksp_int
+s_creator_os%		= FNwksp_int
+s_rev_level%		= FNwksp_int
+
+s_def_resuid%		= FNwksp_short
+s_def_resgid%		= FNwksp_short
+s_first_ino%		= FNwksp_int
+s_inode_size%		= FNwksp_short
+s_block_group_nr%	= FNwksp_short
+s_feature_compat%	= FNwksp_int
+s_feature_incompat%	= FNwksp_int
+s_feature_ro_compat%	= FNwksp_int
+s_uuid%			= FNwksp_add(4,4)
+s_volume_name%		= FNwksp_add(1,16)
+s_last_mounted%		= FNwksp_int
+REM end of superblock structure
+REM Note: len_superblock% is not the actual length of a superblock, but the
+REM length of it that should be read into the block.
+len_superblock%		= FNwksp_length - superblock%
+len_mount%		= FNwksp_length
+
+
+
+REM FileCore descriptor block
+PROCwksp_init
+desc_log2secsize%	= FNwksp_byte
+desc_secspertrack%	= FNwksp_byte
+desc_heads%		= FNwksp_byte
+desc_density%		= FNwksp_byte
+desc_idlen%		= FNwksp_byte
+desc_log2bpmp%		= FNwksp_byte
+desc_skew%		= FNwksp_byte
+desc_bootoption%	= FNwksp_byte
+desc_lowsector%		= FNwksp_byte
+desc_nzones%		= FNwksp_byte
+desc_zone_spare%	= FNwksp_add(1,4)	:REM unaligned int
+desc_root%		= FNwksp_short
+desc_disc_size%		= FNwksp_int
+desc_disc_id%		= FNwksp_short
+desc_disc_name%		= FNwksp_add(1,10)
+desc_disctype%		= FNwksp_int
+REM following fields are used in RiscOS 3.6 and later
+desc_disc_size2%	= FNwksp_int
+desc_share_size%	= FNwksp_byte
+desc_big_flag%		= FNwksp_byte
+desc_reserved%		= FNwksp_current
+
+len_desc%		= 64
+
+
+REM image flags
+mntflag_partition%	= 1
+mntflag_writeable%	= 1<<1
+mntflag_synchronous%	= 1<<2		:REM synchronous writes are wanted
+
+
+REM directory entry structure
+PROCwksp_init
+dirent_inode%		= FNwksp_int
+dirent_entry_length%	= FNwksp_short
+dirent_name_length%	= FNwksp_short
+dirent_name%		= FNwksp_current
+
+len_dirent%		= FNwksp_length	:REM Note - only base length
+
+
+
+n_dir_blocks%		= 12
+
+REM inode structure
+PROCwksp_init
+i_mode%			= FNwksp_short
+i_uid%			= FNwksp_short
+i_size%			= FNwksp_int
+i_atime%		= FNwksp_int
+i_ctime%		= FNwksp_int
+i_mtime%		= FNwksp_int
+i_dtime%		= FNwksp_int 
+i_gid%			= FNwksp_short  
+i_links_count%		= FNwksp_short  
+i_blocks%		= FNwksp_int
+i_flags%		= FNwksp_int 
+i_reserved1%		= FNwksp_int 
+i_block%		= FNwksp_add(4,15):REM Pointers to blocks
+i_version%		= FNwksp_int
+i_file_acl%		= FNwksp_int
+i_dir_acl%		= FNwksp_int
+i_faddr%		= FNwksp_int
+i_frag%			= FNwksp_byte
+i_fsize%		= FNwksp_byte
+i_loadexecflag%		= FNwksp_current
+i_pad1%			= FNwksp_short
+i_loadaddr%		= FNwksp_current
+i_reserved2_1%		= FNwksp_int
+i_execaddr%		= FNwksp_current
+i_reserved2_2%		= FNwksp_int
+
+len_inode%		= FNwksp_length
+
+REM Open file descriptor block
+REM Note - everything before file_next% is the inode block.  Inode number
+REM (file_inode%) is kept for future write-ability to enable inode information
+REM to be written back to the filesystem.
+file_next%		= FNwksp_int
+file_last%		= FNwksp_int
+file_inode%		= FNwksp_int
+file_type%		= FNwksp_int
+file_mount%		= FNwksp_int
+
+len_file%		= FNwksp_length
+
+
+
+REM flags used in i_mode%
+i_flag_directory%	= &4000
+i_flags_link%		= &a000		:REM &a = %1010
+i_flags_erk%		= &c000		:REM &c = %1100
+i_flags_linkerk%	= &e000		:REM &e = %1110
+i_flags_lerkbit%	= %1000 << 12
+i_flags_linkbit%	= %0010 << 12
+i_flags_erkbit%		= %0100 << 12
+
+
+REM group descriptor structure
+PROCwksp_init
+bg_block_bitmap%	= FNwksp_int
+bg_inode_bitmap%	= FNwksp_int
+bg_inode_table%		= FNwksp_int
+bg_free_blocks_count%	= FNwksp_int
+bg_free_inodes_count%	= FNwksp_int
+bg_used_dirs_count%	= FNwksp_int
+bg_pad%			= FNwksp_int
+bg_reserved%		= FNwksp_int
+
+REM Make length =32 so a simple shift can be used for converting name to offset
+len_groupdesc%		= 32
+shift_groupdesc%	= 5

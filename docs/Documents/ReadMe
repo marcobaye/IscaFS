@@ -1,0 +1,29 @@
+
+
+				IscaFS - ReadMe
+				~~~~~~~~~~~~~~~
+			Version 0.06, 28th October, 1998
+
+
+PLEASE read ALL of this file.  It won't take you long, and it'll be worth it
+(probably).
+
+Only one thing has changed since 0.05, a fix in s.Cache where the block-from-
+inode function was grabbing bad blocks from files of over 64meg in length
+(the triply-indirected blocks).  Thanks to Timothy Baldwin for pointing this
+one out.
+
+I no longer think I'll be implementing any of the plans I had for IscaFS,
+since I've decided to steer away from developing for RiscOS in favour of
+unix-based systems.  I will probably still do small bug fixes to IscaFS, but
+I'm now intending to dedicate my spare time to learning perl and
+investigating compression techniques.
+
+If anyone else should wish to develop IscaFS further, please talk to me
+first.  This is STUPENDOUSLY important if you intend to implement any write
+operations, since using the current cacheing system with write operations
+will break.
+
+Phil
+
+P.S. As usual, any bug reports or comments are appreciated.

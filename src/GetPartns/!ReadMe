@@ -1,0 +1,26 @@
+
+
+				IscaFS - GetPartns
+				~~~~~~~~~~~~~~~~~~
+			Version 0.01, 07th January, 1998
+
+
+Introduction
+~~~~~~~~~~~~
+This program is designed to read the linux partition table on the given disc and create pseudo image files for each linux ext2 partition found.
+
+
+
+Usage
+~~~~~
+Set the directory in which the GetPartns program lives as the current directory.  Ensure it is on a read-write filing system, since GetPartns will save the image files into the current directory.  Now type...
+
+getpartns <filing system> <drive number>
+
+... where <filing system> is the RiscOS filing system on which the partitions reside, and <drive number> is the drive on which the partitions reside.  For example...
+
+getpartns adfs 4
+
+... would read my hda drive, finding the only partition on there (hda3) and creating a pseudo image from that.  The filing system name doesn't need to be in any specific case.
+
+When you've created your pseudo images, simply double-click on them (ensuring IscaFS is loaded first) and you should then be able to access the relevant partition.

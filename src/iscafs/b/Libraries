@@ -1,0 +1,16 @@
+LIBRARY "<PCFNLib$Dir>.BasAsm.ARMFuncs"
+LIBRARY "<PCFNLib$Dir>.BasAsm.SWINums"
+LIBRARY "<PCFNLib$Dir>.BasAsm.Workspace"
+LIBRARY "<PCFNLib$Dir>.BasAsm.AsmConsts"
+LIBRARY "<PCFNLib$Dir>.BasAsm.WimpMsgs"
+LIBRARY "<PCFNLib$Dir>.BasAsm.DebugFns"
+LIBRARY "<PCFNLib$Dir>.BasAsm.Service"
+LIBRARY "<PCFNLib$Dir>.BasAsm.ModFuncs"
+
+PROCPCFN_init_ARMFuncs
+PROCPCFN_init_AsmConsts
+PROCPCFN_init_SWINums
+PROCPCFN_init_WimpMsgs
+PROCPCFN_init_DebugFns
+PROCPCFN_init_Service
+PROCPCFN_init_ModFuncs

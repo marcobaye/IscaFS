@@ -1,0 +1,27 @@
+REM >Vars
+REM for IscaFS, © Phil Norman 28th May, 1998
+
+
+mod_title$	= "IscaFS"
+mod_author$	= "Phil Norman and Matthew Wilcox"
+mod_version%	= 6
+mod_year$	= "1997-1998"
+
+
+REM This is the filetype of ImageFS files I handle...
+filetype%	= &0b0
+REM and the filetype untyped files assume
+filetype_default%	= &fff
+
+
+REM OS_FSControl reasons
+FSC_DeclareImageFS		= 35
+FSC_RemoveImageFS		= 36
+
+
+REM Strings
+format_name$	= "ext2fs 1.44M"
+
+
+REM Initialise debugger
+PROCinit_dbg

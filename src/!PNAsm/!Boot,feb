@@ -1,0 +1,6 @@
+| !Boot file for PNAsm
+
+IconSprites <Obey$Dir>.!Sprites
+Set PNAsm$Dir <Obey$Dir>
+if "<File$Type_0AF>" = "" then Set File$Type_0AF "PNAsMake"
+Set Alias$@RunType_0AF TaskWindow -quit "<PNAsm$Dir>.PNAsm %%*0" -name "Assembling..."

@@ -1,0 +1,47 @@
+#multipass on
+; Misc
+; ~~~~
+; Miscellanious utility functions.
+
+
+.Divide
+FNdbg_str("Divide")
+;------------------------
+; Phil's Astounding Divider.  Integer division routine, slightly optimised
+; for StrongARM (but there wasn't much space for optimisation).
+; If you wish this routine to return the remainder too, just don't bother to
+; preserve r2 on the stack - it will return as the remainder.
+;------------------------
+; On entry:
+;	r2  =	Numerator
+;	r3  =	Denominator
+; On exit:
+;	r0  =	r2 DIV r3
+;	r2  =	r2 MOD r3
+;------------------------
+	FNfunction("r1")
+	CMP	r3,#0
+	BEQ	_DivisionByZero
+	MOV	r0,#0		; Initialise result
+	CMP	r2,r3		; Is numerator less than denominator?
+	FNcreturn("LT")
+	MOV	r1,r3		; Initialise accumulator
+	MOV	r14,#1		; Initialise shift counter
+._UpwardLoop
+	CMP	r2,r1,LSL #1	; Check accumulator*2 against numerator
+	MOV	r14,r14,LSL #1	; Shift shift counter
+	MOV	r1,r1,LSL #1	; Shift accumulator up
+	BGT	_UpwardLoop	; Branch back
+._DownwardLoop
+	CMP	r1,r2		; Is numerator greater than accumulator?
+	SUBLE	r2,r2,r1	; Take accumulator away from numerator
+	ADDLE	r0,r0,r14	; Add shift counter to result build-up
+	FNcreturn("EQ")
+	MOV	r1,r1,LSR #1	; Lower accumulator
+	MOVS	r14,r14,LSR #1	; Lower shift counter
+	BGT	_DownwardLoop	; Go again if there are more positive shifts
+	FNreturn
+
+._DivisionByZero
+	MVN	r0,#1<<31
+	FNreturn

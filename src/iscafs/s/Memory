@@ -1,0 +1,241 @@
+#multipass on
+; Memory
+; ~~~~~~
+; Memory management code for dynamic areas or RMA.
+
+
+]
+IF config_dynamicareas% THEN
+[OPT pass%
+
+;=====================================================
+; MEMORY MANAGEMENT CODE FOR USING MRG'S MEMORYALLOCATOR MODULE
+;=====================================================
+
+;------------------------
+; Initialises the memory manager.
+.Memory_Initialise
+FNdbg_str("Memory_Initialise")
+	FNfunction("r1-r4")
+	ADR	r0,_name
+	MOV	r1,#0			; malloc flags
+	MOV	r3,#4096		; initial size of heap
+	SWI	X+MAlloc_Initialise
+	STRVC	r0,[r12,#heap]
+	FNcreturn("VC")
+	FNpreturn
+._name
+	EQUS	"IscaFS cache"+CHR$0:ALIGN
+
+.Memory_Finalise
+FNdbg_str("Memory_Finalise")
+	FNfunction("r0-r4")
+	LDR	r1,[r12,#heap]
+	SWI	X+MAlloc_Finalise
+	FNreturn
+
+.Memory_Claim
+FNdbg_str("Memory_Claim")
+	FNfunction("r0,r1")
+	LDR	r1,[r12,#heap]
+	MOV	r14,pc
+	LDR	pc,[r12,#malloc_claim%]
+	FNreturn
+
+.Memory_Free
+FNdbg_str("Memory_Free")
+	FNfunction("r0-r2")
+	TEQ	r2,#0
+	LDRNE	r1,[r12,#heap]
+	MOVNE	r14,pc
+	LDRNE	pc,[r12,#malloc_free%]
+	FNreturn
+
+.Memory_Shrink
+FNdbg_str("Memory_Shrink")
+	FNfunction("r0,r1")
+	LDR	r1,[r12,#heap]
+	SWI	X+MAlloc_Shrink
+	FNreturn
+
+
+
+]
+ELSE
+[OPT pass%
+;=====================================================
+; MEMORY MANAGEMENT CODE FOR USING SMELLY RISCOS OS_HEAP MANAGER
+;=====================================================
+
+.Memory_Initialise
+FNdbg_str("Memory_Initialise")
+	FNfunction("r0-r3")
+	MOV	R0,#6
+	MOV	R3,#4096
+	SWI	"OS_Module"
+	MOV	R0,#0
+	STR	R0,[R2]
+	STR	R2,[R12,#heap]
+	ADD	R1,R2,#4
+	SUB	R3,R3,#8
+	SWI	"OS_Heap"
+	FNreturn
+
+
+.Memory_Finalise
+FNdbg_str("Memory_Finalise")
+	FNfunction("r0-r3,r10")
+	LDR	R2,[R12,#heap]
+	MOV	R0,#7
+._memory_destroy_loop
+	LDR	R10,[R2]
+	SWI	"OS_Module"
+	MOVS	R2,R10
+	BNE	_memory_destroy_loop
+	FNreturn
+
+
+.Memory_Claim
+FNdbg_str("Memory_Claim")
+	FNfunction("r0,r1,r3-r11")
+	MOV	R0,#1
+	LDR	R1,[R12,#heap]
+	MOV	R8,R3
+._memory_claim_loop
+	LDR	R10,[R1],#4
+	SWI	"OS_Heap"
+	CMP	R2,R8
+	BGT	_memory_claim_exit
+	CMP	R10,#0
+	MOVNE	R1,R10
+	BNE	_memory_claim_loop
+	MOV	R9,#4096-128
+	MOV	R7,#1
+._memory_claim_loop_to_get_size
+	CMP	R9,R8
+	ADDLT	R9,R9,#4096
+	ADDLT	R7,R7,#1
+	BLT	_memory_claim_loop_to_get_size
+	MOV	R3,R7,LSL #12		;size of memory for heap
+	SUB	R11,R1,#4
+	MOV	R0,#6
+	SWI	"OS_Module"
+	STR	R2,[R11]
+	MOV	R0,#0
+	STR	R0,[R2],#4
+	SUB	R3,R3,#4
+	MOV	R1,R2
+	SWI	"OS_Heap"
+._memory_claim_exit
+	MOV	R3,R8
+	MOV	R0,#2
+	SWI	"OS_Heap"
+	FNreturn
+
+
+.Memory_Free
+FNdbg_str("Memory_Free")
+	FNfunction("r0-r3,r10")
+	LDR	R1,[R12,#heap]
+	MOV	R0,#3
+._memory_free_loop
+	LDRB	R10,[R1],#4
+	SWI	"XOS_Heap"
+	BVC	_memory_free_exit
+	MOVS	R1,R10
+	BNE	_memory_free_loop
+
+._memory_free_exit
+	FNreturn
+
+
+.Memory_Shrink
+FNdbg_str("Memory_Shrink")
+	MOVS	pc,r14
+]
+ENDIF
+[OPT pass%
+
+
+.Memory_BlockCopy
+FNdbg_func("Memory_BlockCopy","r0-r2","")
+	LDR	pc,[r12,#malloc_blockcopy%]
+
+
+.Memory_QuickCopy
+FNdbg_func("Memory_QuickCopy","r0-r2","")
+;------------------------
+; Copies memory REALLY QUICKLY using the MEMC cache-line storing optimisation.
+; If an entire cache-line is STMed at once, no memory needs to be loaded into
+; the cache from main memory before the STM takes place.  This is therefore
+; a little faster.
+;------------------------
+; On entry:
+;	r0  =	source block (MUST be word-aligned)
+;	r1  =	dest block (should be 8-word aligned, MUST be word-aligned)
+;	r2  =	length of block in bytes (assumed to be a multiple of 128 bytes)
+; On exit:
+;	ARP
+;------------------------
+	FNfunction("r0-r9")
+._lp
+	LDMIA	r0!,{r3-r9,r14}		; 32
+	STMIA	r1!,{r3-r9,r14}
+	LDMIA	r0!,{r3-r9,r14}		; 64
+	STMIA	r1!,{r3-r9,r14}
+	LDMIA	r0!,{r3-r9,r14}		; 96
+	STMIA	r1!,{r3-r9,r14}
+	LDMIA	r0!,{r3-r9,r14}		; 128
+	SUBS	r2,r2,#128
+	STMIA	r1!,{r3-r9,r14}
+	BGT	_lp
+	FNreturn
+
+
+.Memory_ZeroBlock
+FNdbg_func("Memory_ZeroBlock","r1,r2","")
+;------------------------
+; Zeroes the given block REALLY QUICKLY using the MEMC cache-line storing
+; optimisation.
+;------------------------
+; On entry:
+;	r1  =	dest block (should be 8-words aligned, MUST be word-aligned)
+;	r2  =	length of block in bytes (assumed to be a multiple of 4 bytes)
+; On exit:
+;	ARP
+;------------------------
+	FNfunction("r1-r9")
+	ADR	r14,_zeroes
+	LDMIA	r14,{r3-r9,r14}
+	SUBS	r2,r2,#128
+	BLT	_not_large
+._lp
+	STMIA	r1!,{r3-r9,r14}
+	STMIA	r1!,{r3-r9,r14}
+	SUBS	r2,r2,#128
+	STMIA	r1!,{r3-r9,r14}
+	STMIA	r1!,{r3-r9,r14}
+	BGE	_lp
+._not_large
+	TST	r2,#64
+	STMNEIA	r1!,{r3-r9,r14}
+	STMNEIA	r1!,{r3-r9,r14}
+	TST	r2,#32
+	STMNEIA	r1!,{r3-r9,r14}
+	TST	r2,#16
+	STMNEIA	r1!,{r3-r6}
+	TST	r2,#8
+	STMNEIA	r1!,{r3,r4}
+	TST	r2,#4
+	STRNE	r3,[r1]
+	FNreturn
+
+._zeroes
+	EQUD	0
+	EQUD	0
+	EQUD	0
+	EQUD	0
+	EQUD	0
+	EQUD	0
+	EQUD	0
+	EQUD	0

@@ -1,0 +1,58 @@
+REM Config file for IscaFS
+
+
+REM =========================================================
+REM User-definable values.
+REM =========================================================
+
+REM Define whether IscaFSs memory manager should use dynamic areas or RMA.
+REM	0	= dynamic areas off (use RMA instead)
+REM	1	= dynamic areas on
+config_dynamicareas%	= 0
+
+
+REM Define amount of memory used for block cacheing (in bytes).  Should be a
+REM multiple of 1024 bytes.
+config_cache1size%	= 1024 * 256
+config_cache2size%	= 1024 * 64
+REM config_cache1size%	= 1024 * 1024
+REM config_cache2size%	= 1024 * 256
+
+
+
+
+REM =========================================================
+REM Developer-definable values.
+REM =========================================================
+
+REM Type of debugging required
+REM 0 - none
+REM 1 - to file
+REM 2 - to screen
+REM 3 - to throwback module (unimplemented)
+debug_type% 		= 0
+config_dbg_file$	= "ADFS::4.$.logfile"
+
+REM Leave this =0; changing it to 1 results in certain death!
+dbg_config_func%	= 0
+
+REM Leave this =0 unless you're actively working on writeability
+config_write%		= 0
+
+
+
+REM =========================================================
+REM Automatically calculated values - DO NOT CHANGE!!!
+REM =========================================================
+
+cache_blocksize%	= 1024
+
+REM Block cacheing
+cache1_blocks% = config_cache1size%/cache_blocksize%
+cache2_blocks% = config_cache2size%/cache_blocksize%
+
+REM Total cache size
+len_blocktable%=12
+cache_totallen%	= config_cache1size%+config_cache2size%
+cache_totallen%+= cache1_blocks%*len_blocktable%
+cache_totallen%+= cache2_blocks%*len_blocktable%

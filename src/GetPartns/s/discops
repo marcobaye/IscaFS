@@ -1,0 +1,111 @@
+	AREA	|asm$$code|, CODE, READONLY
+
+	EXPORT	get_module_pw
+	EXPORT	describe_disc
+	EXPORT	read_sectors
+	EXPORT	read_sectors_by_address
+	EXPORT	find_swi
+	EXPORT	file_save
+
+
+
+find_swi		ROUT
+	MOV	r1,r0
+	SWI	&20039;XOS_SWINumberFromString
+	MOVVS	r0,#0
+	MOVVC	r0,#1
+	MOVS	pc,r14
+
+
+;=====================================================
+; Returns the module's private word contents
+;------------------------
+; r0 -> module name (ie FileCore%ADFS)
+;------------------------
+; r0 <- private word contents (=0 if module not found)
+get_module_pw		ROUT
+	STMFD	r13!,{r4,r5,r14}
+	MOV	r1,r0
+	MOV	r0,#18
+	SWI	&2001e;XOS_Module
+	MOVVS	r0,#0
+	MOVVC	r0,r4
+	LDMFD	r13!,{r4,r5,pc}^
+
+
+;=====================================================
+; Interface to FileCore_DescribeDisc
+;------------------------
+; r0 -> disc name
+; r1 -> data block
+; r2 -> pointer to FileCore instance private word
+describe_disc		ROUT
+	STMFD	r13!,{r8,r14}
+	MOV	r8,r2
+	SWI	&40545;FileCore_DescribeDisc
+	LDMFD	r13!,{r8,pc}^
+
+
+
+;=====================================================
+; Read sectors off a disc (use with new FileCore only!!!)
+;------------------------
+; r0 -> drive number
+; r1 -> descriptor block
+; r2 -> number of first sector to read
+; r3 -> memory to dump sectors into
+; s0 -> number of bytes to read
+; s1 -> pointer to FileCore instance private word
+;------------------------
+; r0 <- number of bytes not read
+read_sectors		ROUT
+	STMFD	r13!,{r4-r8,r14}
+	MOV	r1,r1,LSL #6
+	ADD	r1,r1,#1
+	ADD	r2,r2,r0,LSL #29
+	LDR	r4,[r13,#6*4]
+	LDR	r8,[r13,#6*4+4]
+	SWI	&4054a;FileCore_SectorOp
+	MOV	r0,r4
+	LDMFD	r13!,{r4-r8,pc}^
+
+
+;=====================================================
+; Read sectors of a disc using the disc-address (for use with old FileCore)
+;------------------------
+; r0 -> drive number
+; r1 -> descriptor block
+; r2 -> disc-address of first sector to read
+; r3 -> memory to dump sectors into
+; s0 -> number of bytes to read
+; s1 -> pointer to FileCore instance private word
+;------------------------
+; r0 <- number of bytes not read
+read_sectors_by_address	ROUT
+	STMFD	r13!,{r4-r8,r14}
+	MOV	r1,r1,LSL #6
+	ADD	r1,r1,#1
+	ADD	r2,r2,r0,LSL #29
+	LDR	r4,[r13,#6*4]
+	LDR	r8,[r13,#6*4+4]
+	SWI	&40540;FileCore_DiscOp
+	MOV	r0,r4
+	LDMFD	r13!,{r4-r8,pc}^
+
+
+
+; r0 =	filename
+; r1 =	block
+; r2 =	length
+file_save		ROUT
+	STMFD	r13!,{r4-r7,r14}
+	ADD	r5,r1,r2
+	MOV	r4,r1
+	MOV	r1,r0
+	MOV	r0,#10
+	MOV	r2,#&0b0
+	SWI	8;OS_File
+	LDMFD	r13!,{r4-r7,pc}^
+
+
+	END

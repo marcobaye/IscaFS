@@ -1,0 +1,62 @@
+
+
+				IscaFS - Glossary
+				~~~~~~~~~~~~~~~~~
+			Version 0.06, 28th October, 1998
+
+
+Introduction
+~~~~~~~~~~~~
+This file is here in order to explain any commonly used terms in linux which relate to ext2, and also the many terms which I use in my source code and my descriptions of data structures.
+
+
+
+Personal terms
+~~~~~~~~~~~~~~
+ARP
+---
+All Registers Preserved.  Used to show a function will preserve all registers when it returns.
+
+AORP
+----
+All Other Registers Preserved.  Used to show a function will preserve all registers except those which are explicitly returned when it returns.
+
+ZTS
+---
+Zero-Terminated String.  Used in structure definitions in documentation files.
+
+
+
+Linux terms
+~~~~~~~~~~~
+Inode
+-----
+These are the basic definitions for files, directories etc on the disc.  EVERY object on an ext2 filesystem has an inode and there are a fixed number of them available on the disc.  Each inode is 128 bytes long.
+
+Block
+-----
+A block is the smallest unit of storage in any ext2 device.  It can take the values 1024, 2048 or 4096 (bytes), and there can be no variation in block size throughout the device.  The default size is 1024.
+
+Superblock
+----------
+This is the disc descriptor.  It can be found at 1k from the start of an ext2 partition, and it describes the ext2 format completely, including how many inodes there are, how much disc space is free etc.  Its given size is 1k, although not much of that is used at this time.
+
+Group
+-----
+A group is a collection of blocks.  In the discs I have seen, a group is defined as being 8192 block big (8 megabytes).  Group size is constant throughout the disc.  The first group begins at the start of the device, and each group contains a copy of the superblock at 1k from its start, and its block descriptor at 2k from its start.  Each group has its own set of inodes, and another number of blocks for storing data.  It also has bitmaps of used inodes and used blocks.  The positions of these are given in the group descriptor.
+
+Group descriptor
+----------------
+The group descriptor contains information about where to find the various structures in the group.  All block offsets are given as offsets from the start of the group.
+
+Files
+-----
+Inodes contain a list of 15 block numbers.  These block numbers describe the blocks in which the file information is stored.  The first blocks given in the inode hold the first 12 blocks' worth of file data.  Blocks are filled from the start onwards, each block being completely filled before the next one is used - therefore only the last block can be partially filled.  Block number 13 (in the inode definition) is a block containing other block numbers, each of which hold file data.  Block 14 is a block containing other block numbers, each of which hold other block numbers which hold file information.  Block 15 is triply indirected (block 14 is doubly-indirected).  For some bizarre reason, the i_blocks (the record in the inode of the number of blocks used) seems to be double the number of blocks used.  I don't know the reason for this.
+
+Directories
+-----------
+A directory's blocks are organised in exactly the same way as a file's.  The blocks are filled with directory entry definitions instead of file data.
+
+Symbolic links
+--------------
+The pathname of the target of the link is actually written over where the block numbers are in the inode definition.  For pathnames longer than 60 bytes, the pathname is stored in a block instead.

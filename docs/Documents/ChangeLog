@@ -1,0 +1,114 @@
+
+
+				IscaFS - Changelog
+				~~~~~~~~~~~~~~~~~~
+			  Version 0.06, 28th October, 1998
+
+
+??th March, 1998 Matthew Wilcox
+
+ * Documented pcfnlib
+ * Changed a lot of routines to conditionally execute on VC
+   rather than exit on a VS
+ * Moved a LDMIA in the Cache file so less useless work done
+ * Commented out some `beeping' SWIs - you do know that calling a SWI
+   causes the V bit to be cleared?
+ * changed service call entry to be more cunning
+ * Test for new filecore in init code.  Use bit 31 of (previously unused)
+   debug word
+ * improved efficiency of args_readallocatedsize
+ * removed unused instruction from args_readdatestamp.  size now 4556
+   (new)
+ * removed & reordered in Memory unit.  size now 4552 (new)
+ * Remove instruction from DivisionByZero.  4548 bytes (new)
+ * Do runtime filecore version checking instead of compiletime.  4692
+   (combined) bytes (bah ;-)
+ * Unbuggered last change.  4708 ;-(
+ * Inserted a return-on-error in Image unit after an XOS_GBPB
+ * played with mnt_flags% - 4676 bytes
+ * Changed ImageEntry_Func to use a jumptable - 4608 bytes
+ * Added my debuglib calls.  Unchanged (except when debug is on!)
+ * Found a bug - r0 was being pulled off the stack and overwriting the
+   error pointer.  New function introduced - FNr0preturn.  4612 bytes
+ * Found another place to use FNr0preturn.
+ * Changed some more mnt_flags% stuff - 4600 bytes
+ * I'm very proud of the new _check_image code - 4588 bytes
+ * `Filing systems do not need to preserve any registers other than R13':
+   PRM 2-529.  4564 bytes.  Removed all uses of FNr0preturn.  Ahem.  *bop*.
+ * Read Linux source.  Discover that mnt_flags% is useless since
+   s_log_block_bits already contains 0, 1 or 2.  Global S&R.  4516 bytes.
+   *bop* *bop* *bop*
+ * Altered newfilecore detection routine to work.  4540 bytes
+--- handover ---
+ * Replaced 2 MLAs by a constant in File_CatalogueInfoFromInode with optimal
+   sequence of shifts and adds.  And you were bitching about shifting by a
+   register.. ;-) 4560 bytes
+ * Rename Module_IdentifyDisc to Identify_Disc, move it to Image, put the
+   improved &ef53 code in, sanitise register usage and put an identifying
+   string ("ext2") in the address pointed to by r2 on entry if r3 is large
+   enough.  4568 bytes
+
+
+====  Lost loads of changelog info cos of PN's stupidity.  MW> If you have a
+====  copy of what was done here please email it to me.
+
+
+28th March, 1998 Phil Norman
+
+ * Renamed 'IdentifyDisc' to 'Image_IdentifyDisc' so it blends in with the
+   current naming convention.
+ * Image_IdentifyDisc no longer assumes the buffer supplied for the format name
+   is word-aligned.
+ * Image_IdentifyDisc now preserves all the registers it should do (MW had
+   forgotten it was a service call rather than an FS entry point and had
+   removed the register preservation).
+ * Optimised and fixed parts of File_CatalogueInfoFromInode.
+ * Added a new debugging function - FNdbg_func(name$,rin$,rout$) which
+   currently doesn't work properly (it does very odd things which cause
+   Directory_Scan to notice '.' and '..' (which is should ignore).  The use
+   of dbg_func can be toggled between full use and just use of FNdbg_str with
+   the dbg_config_func% variable in 'Config'.
+ * Added Memory_QuickCopy which copies large blocks of data (multiples of 128
+   bytes in size).  This function stores whole cache-lines at a time, so all
+   target pointers should ideally be cache-line aligned.
+ * Altered Cache_Initialise so it uses one large block of memory for all the
+   cache blocks and tables.  It also cache-line aligns the cache blocks.
+ * Altered Module_Initialise so it dimensions 'buffer' and 'buffer2' together,
+   forcing 'buffer' to be cache-line aligned (for speed when Memory_QC is used).
+ * Optimised Memory_BlockCopy since I realised it doesn't need to do any stack
+   storage, but can simply load the pc from the correct offset on the stack.
+ * Fixed FNladr in PCFNLib - it was using an ORR rather than an ADD.  This is
+   a Bad Thing (TM) since an ADR adds things onto the pc, and the required bits
+   which are ORRed may already be set on the currently-assembled address.
+ * Changed 'debug_bufsize' to 64k since it was being flushed too often when
+   FNdbg_func was being used.
+ * Fixed a bug in FNdbg_reg where, if reg%=13 the amount of stuff on the stack
+   was being SUBbed rather than ADDed.
+ * Fixed Directory_Scan so it notices if a directory has no blocks allocated
+   to it.  Previously (including the notable case of /dev/aztcd) it was trying
+   to read the contents of the address -1 if the first block wasn't there.
+
+
+
+28th May, 1998 Matthew Wilcox
+
+ * Added some GNU ext2 extensions for filesystem naming and other funky stuff.
+
+
+28th May, 1998 Phil Norman
+
+ * Bug fix in Cache - would have broken during 1/2 to 3/4 of reads on large-
+   block filesystems (2k or 4k block).
+ * Bug fix - last sector in partitions was erroneously triggering an error.
+ * Split Cache into Cache and CacheW, CacheW containing all the new write cache
+   code (all write code is currently commented out).
+ * Modified the 'b.Workspace' file to use the new Workspace library in PCFNLib.
+ * Mounting code now loads all the group descriptors and keeps them in memory,
+   resulting in a 5% (approx.) speed benefit.
+
+
+28th October, 1998 Phil Norman
+
+ * Bug fix in Cache (yes, another one) - bad block numbers were being used in
+   files of over 64meg in length.  Thanks to Timothy Baldwin for spotting
+   the bug.

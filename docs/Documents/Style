@@ -1,0 +1,155 @@
+
+
+			   IscaFS - Coding style
+			   ~~~~~~~~~~~~~~~~~~~~~
+			Version 0.06, 28th October, 1998
+
+
+Introduction
+~~~~~~~~~~~~
+I am writing this document with the intention of laying down a few rules of programming style to be used in the IscaFS source.  The purpose of this is not to force others to adopt my own style, but to keep the general style fairly same-ish, so that people don't have to do major brain-contortions while looking from one part of the code to another.
+
+To this end, this document outlines some general programming rules and gives guidelines on how much leeway is given.
+
+
+
+The Rules
+~~~~~~~~~
+This are very definate rules which should NEVER be broken.
+
+1:	Only one instruction per line!
+
+2:	Local labels (._label rather than .label) should always be used within
+	functions.
+
+3:	Function names are defined as .Aaa_Bbb where Aaa is the name of the file
+	in which they occur, and Bbb is a short description of what the function
+	does.  Multiple words in the Bbb are not separated by an underscore, but
+	each word starts with a capital letter (ie Cache_GetBlock).
+
+4:	FNfunction, FNreturn etc must be used (except where they cannot be used)
+	for function entry/exit points.
+
+5:	The PCFNLib Workspace library functions must be used for workspace and
+	structure definitions.
+
+6:	The 'Commenting' section (below) must be conformed to.
+
+7:	An instruction must never appear on the same line as a label.
+
+8:	Extensions of BASIC that are not implicitly supported by Acorn's BASIC
+	module, PNAsm or PCFNLib must NEVER be used, since these three are the
+	only things all users compiling their own IscaFS modules are guaranteed
+	to have.
+
+9:	All instructions must conform to the 'Instructions' section (below).
+
+10:	All label definitions must appear at the start of an otherwise blank
+	line.
+
+
+
+Commenting
+~~~~~~~~~~
+Every s. file contains a simple header.  This contains the following lines:
+---
+#multipass on
+; SrcFile
+; ~~~~~~~
+; Brief description of what the source file does.
+
+---
+The '#multipass on' is a preassembler directive to PNAsm to tell it to use local labels within the source file.
+
+Every function has a header in the following format:
+---
+.SrcFile_FunctionName
+;------------------------
+; Brief description of what the function does.
+;------------------------
+; On entry:
+;	r2  =	pointer to buffer
+;	r3  =	length of buffer
+; On exit:
+;	r2  =	updated
+;------------------------
+	FNfunction(register_list$)
+...
+---
+If present, a debugging function to output data when a function is entered should be put in just after the function's label.
+
+Within a function, lines of code may have small comments to make their operation mode obvious, such as:
+---
+	MOV	r3, r3, LSL #16		; drop last 2 characters
+---
+Such comments should be kept to a minimum, and the source written so as to make its operation obvious.  The comments should be as concise as possible, and should appear at the same column position (that given in the example) if possible.
+
+Main comments should be used to separate large chunks within a function which perform a subset of the function's tasks.  They must take the following form:
+---
+;------------------------
+; write format name into supplied buffer
+---
+Some leeway is allowed in the choice of whether to use a full stop, and whether the first letter should be lower or upper case.  However, the first letter must always be one space from the semicolon.
+
+
+
+Instructions
+~~~~~~~~~~~~
+All instructions must conform to their applicable example in the following list:
+---
+	MOVS	pc,r14
+	LDMEQIA	r2!,{r0,r1,r3-r5}
+	SWINE	"XOS_Module"		; call a SWI, any SWI
+	EOR	r0,r0,r2,LSL #4
+---
+All instructions must be on their own line (except for comments, as shown) and their mnemonic must be in capitals (including extra bits (eg S) and condition codes) and must be preceded by a TAB character (note - NOT SPACES!!!).
+
+A single TAB must exist between the mnemonic and its arguments (eg the SWI name/number of register list).
+
+Barrel-shifter operations (LSL, LSR, RRX etc) must be in capitals.
+
+Capital versions of register numbers are allowed (both r2 and R2 are ok).  Spaces are allowed between registers; an example of this is:
+---
+	MOV	r2, r2, LSL #16
+	EOR	r2, r2, #&ef000000
+	TEQ	r2, #&00530000
+---
+...(a piece of code I rather like).
+
+
+
+Basic Variables
+~~~~~~~~~~~~~~~
+Current use of basic variables is that everything which is an integer should be typed as an integer (ie 'variable%' rather than 'variable').  The one exception to this is those variables used in the definition of the main module workspace.
+
+Labels must never have the % (ie Image_IdentifyDisc, NOT Image_IdentifyDisc%).
+
+
+
+Currently Used Styles
+~~~~~~~~~~~~~~~~~~~~~
+Currently there are only two programming styles in the code.  These are almost exactly the same; the only way they differ is that my (PN's) code is written:
+---
+EOR	r2,r1,r2
+---
+...where MW's code is written:
+---
+EOR 	r2, r1, r2
+---
+
+
+Special Comments
+~~~~~~~~~~~~~~~~
+There may be some very odd comments dotted around the place.  Something such as:
+---
+;XXXXXXXXXXXXXX
+---
+...is a marker.  It's usually used to mark an important piece of code which is undergoing development.  Usually this is because it's the last place that was being worked on so it can be found quickly (by starting an interactive search and holding down the 'x' key).
+
+
+
+Further Notes
+~~~~~~~~~~~~~
+The whole point of writing IscaFS in assembly language is that it'll be small and fast.  With this in mind, all sections of code should be written in the most optimal manner possible.
+
+Parts of the code may be written in a suboptimal manner originally, simply to get it working before the optimisation is done.  The optimisation seems to be mostly done by MW, who's quite good at such things (spot the understatement).

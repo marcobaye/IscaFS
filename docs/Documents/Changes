@@ -1,0 +1,15 @@
+
+
+				IscaFS - Changes
+				~~~~~~~~~~~~~~~~
+			Version 0.06, 28th October, 1998
+
+
+This file is a brief description of the main changes that have taken place
+between this version and the last release version.  For a full list of
+changes see the 'ChangeLog' file.
+
+The only change in this version is the fixing of a bug pointed out by Timothy
+Baldwin (thanks) which caused the later blocks in files of over 64meg (in 1k
+block filesystems) to completely screw up.  Basically, the wrong block number
+was being found in part of the block getting process.

@@ -1,0 +1,6 @@
+]
+aa_errorhandler_startline%+=5
+multipass_P%=P%:multipass_O%=O%
+FOR pass%=4 TO Mpass% STEP 2
+P%=multipass_P%:O%=multipass_O%
+[OPT pass%

@@ -1,0 +1,544 @@
+#multipass on
+; CacheW (Crache and burn!)
+; ~~~~~~
+; Cache control code and general high-level filesystem interface for write
+; operations.
+#if config_write%
+
+
+.Cache_FlushBlock
+FNdbg_func("Cache_FlushBlock","r0","")
+;------------------------
+; Forces a block to be flushed to the filesystem.
+;------------------------
+; On entry:
+;	r0  =	pointer to block
+;	r5  =	pointer to block table entry
+; On exit:
+;	ARP
+;------------------------
+	FNfunction("r0-r6")
+	LDR	r14,[r5,#block_flags%]
+	TST	r14,#bflag_dirty%
+	FNcreturn("EQ")
+	LDR	r6,[r5,#block_mount%]
+	CMP	r6,#0
+	FNcreturn("LE")
+	LDR	r1,[r6,#s_log_block_size%]
+	LDR	r4,[r5,#block_basenumber%]
+	ADD	r1,r1,#10
+	MOV	r3,#1
+	MOV	r2,r0
+	MOV	r3,r3,LSL r1
+	MOV	r4,r4,LSL r1
+	BL	Image_WriteBytes_File
+	FNreturn
+
+
+.Cache_ClaimBlocks
+FNdbg_func("Cache_ClaimBlocks","r0-r2,r6","r0")
+;------------------------
+; Claims n blocks, trying to claim them from the same group as the given
+; block number.
+;------------------------
+; On entry:
+;	r0  =	target block number
+;	r1  =	pointer to block to contain block numbers of new blocks
+;	r2  =	number of blocks to claim
+;	r6  =	pointer to MDB
+; On exit:
+;	r0  =	number of new block to be targetted
+;	r1  =	pointer to after last block number written
+;	r2  =	number of blocks not claimed
+;------------------------
+	FNfunction("r3-r5,r7-r11")
+	MOV	r8,r1
+	MOV	r9,r2
+	LDR	r14,[r6,#s_free_blocks_count%]
+	MOV	r10,#0			; no. blocks claimed so far
+	CMP	r14,r2
+	BLT	_error_not_enough_blocks
+;------------------------
+; get the group number the target block is in
+	LDR	r3,[r6,#s_blocks_per_group%]
+	MOV	r2,r0			; turn target block -> target group
+	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
+	LDR	r3,[r6,#mnt_groupdescs%]
+	LDR	r2,[r6,#s_blocks_per_group%]
+	ADD	r3,r3,r0,LSL #shift_groupdesc%
+	LDR	r14,[r3,#bg_block_bitmap%]
+	MUL	r4,r5,r0		; first block of desired group
+	LDR	r5,[r6,#s_log_block_size%]
+	ADD	r0,r14,r4		; block number of block bitmap block
+	MOV	r11,#1<<10
+	STR	r4,_block_in_this_group
+	MOV	r11,r14,LSL r5		; number of bytes in a block
+	BL	Cache_GetBlock
+	STR	r0,_block_bitmap_addr
+;------------------------
+; Registers currently set up:
+;	r0  =	pointer to start of block bitmap
+;	r1  =	pointer to block bitmap's cache entry
+;	r3  =	pointer to group descriptor in workspace
+;	r4  =	block number of base of group
+;	r6  =	pointer to MDB
+;	r8  =	pointer to memory to write block numbers to
+;	r9  =	number of blocks to claim
+;	r10 =	counter of number of blocks claimed so far
+;	r11 =	number of bytes in a block
+	ADD	r11,r0,r11		; pointer to end of block
+	B	_skip_modification
+._lp
+	ADD	r0,r0,#1
+	TEQ	r0,r11
+	BEQ	_return_blocks
+	ADD	r4,r4,#8
+._skip_modification
+	LDRB	r2,[r0]
+	TEQ	r2,#&ff
+	BEQ	_lp
+;------------------------
+; found one or more free blocks - test each bit
+	TST	r2,#1
+	ORREQ	r2,r2,#1
+	BLEQ	_store_block
+	ADD	r4,r4,#1
+	TST	r2,#2
+	ORREQ	r2,r2,#2
+	BLEQ	_store_block
+	ADD	r4,r4,#1
+	TST	r2,#4
+	ORREQ	r2,r2,#4
+	BLEQ	_store_block
+	ADD	r4,r4,#1
+	TST	r2,#8
+	ORREQ	r2,r2,#8
+	BLEQ	_store_block
+	ADD	r4,r4,#1
+	TST	r2,#16
+	ORREQ	r2,r2,#16
+	BLEQ	_store_block
+	ADD	r4,r4,#1
+	TST	r2,#32
+	ORREQ	r2,r2,#32
+	BLEQ	_store_block
+	ADD	r4,r4,#1
+	TST	r2,#64
+	ORREQ	r2,r2,#64
+	BLEQ	_store_block
+	ADD	r4,r4,#1
+	TST	r2,#128
+	ORREQ	r2,r2,#128
+	BLEQ	_store_block
+	ADD	r4,r4,#1
+	STRB	r2,[r0]
+	B	_lp
+
+._store_block
+	STR	r4,[r8],#1
+	ADD	r10,r10,#1
+	SUBS	r9,r9,#1
+	MOVNES	pc,r14
+	B	_return_blocks_dirty
+
+._return_blocks_dirty
+	STRB	r2,[r0]			; write out dirtied bitmap byte
+._return_blocks
+	LDR	r11,[r1,#block_flags%]	; replace with proper 'dirty' call
+	LDR	r14,[r6,#s_free_blocks_count%]
+	ORR	r11,r11,#bflag_dirty%
+	STR	r11,[r1,#block_flags%]
+	MOV	r1,r8
+	MOVS	r2,r9
+	SUB	r14,r14,r10
+	STR	r14,[r6,#s_free_blocks_count%]
+	FNcreturn("EQ")
+;------------------------
+; couldn't get enough blocks from this group - tell caller to try the next one
+	LDR	r14,[r6,#s_blocks_per_group%]
+	LDR	r10,_block_in_this_group
+	LDR	r11,[r6,#s_blocks_count%]
+	ADD	r0,r14,r10		; make new target block
+	CMP	r0,r11
+	MOVGE	r0,#0
+	FNreturn
+
+._block_in_this_group
+	EQUD	0
+._block_bitmap_addr
+	EQUD	0
+
+._error_not_enough_blocks
+	FNrerror
+	EQUD	0
+	EQUS	"Not enough free space on filesystem."+CHR$0:ALIGN
+
+
+.Cache_FreeBlocks
+FNdbg_func("Cache_FreeBlocks","r1,r2,r6","")
+;------------------------
+; Free n blocks whose block numbers reside in the given block.
+;------------------------
+; On entry:
+;	r1  =	pointer to block containing block numbers
+;	r2  =	number of blocks to free
+;	r6  =	pointer to MDB
+; On exit:
+;	ARP
+;------------------------
+	FNfunction("r0-r5")
+	FNreturn
+
+
+.Cache_InodeModified
+FNdbg_func("Cache_InodeModified","r6","")
+;------------------------
+; Does the necessary thing after the last-read inode has been altered.
+;------------------------
+; On entry:
+;	r6  =	pointer to MDB
+;------------------------
+	FNfunction("r0-r1")
+	LDR	r0,[r6,#mnt_flags%]
+	TST	r0,#mntflag_partition%
+	BNE	_error_partition
+	LDR	r4,[r6,#mnt_inodetabaddr%]
+	LDR	r2,[r6,#mnt_inodeblockaddr%]
+	LDR	r4,[r4,#block_basenumber%]
+	LDR	r1,[r6,#s_log_block_size%]
+	MOV	r3,#1
+	ADD	r1,r1,#10
+	MOV	r3,r3,LSL r1
+	MOV	r4,r4,LSL r1
+	BL	Image_WriteBytes_File
+;	LDR	r0,[r1,#block_flags%]
+;	ORR	r0,r0,#bflag_dirty%
+;	STR	r0,[r1,#block_flags%]
+	FNreturn
+._error_partition
+	FNrerror
+	EQUD	0
+	EQUS	"You cannot currently write to partitions."+CHR$0:ALIGN
+
+
+.Cache_CreateInode
+FNdbg_func("Cache_CreateInode","r2,r6","r0,r2")
+;------------------------
+; Creates an inode with some blocks, trying to allocate the inode near to the
+; target block number given.
+;------------------------
+; On entry:
+;	r0  =	target block number
+;	r2  =	size of object in bytes
+;	r6  =	pointer to MDB
+; On exit:
+;	r0  =	inode number
+;	r2  =	actual size allocated to object in bytes
+;------------------------
+	FNfunction("r1,r3-r5,r7,r8")
+	LDR	r0,[r6,#mnt_groupdescs%]
+	MOV	r8,r2
+;------------------------
+; get the group number the target block is in
+	LDR	r3,[r6,#s_blocks_per_group%]
+	MOV	r2,r0			; turn target block -> target group
+	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
+	LDR	r1,[r6,#mnt_numgroups%]
+._lp
+	ADD	r3,r3,r0,LSL #shift_groupdesc%
+	LDR	r14,[r3,#bg_free_inodes_count%]
+	TEQ	r14,#0
+	BEQ	_found_group_with_inode
+	ADD	r0,r0,#1
+	TEQ	r0,r1
+	MOVEQ	r0,#0
+	B	_lp
+._found_group_with_inode
+	MOV	r5,r0
+	LDR	r1,[r6,#s_blocks_per_group%]
+	SUB	r14,r14,#1
+	LDR	r4,[r6,#s_free_inodes_count%]
+	MUL	r0,r5,r1		; block number of group base
+	SUB	r4,r4,#1
+	STR	r14,[r3,#bg_free_inodes_count%]
+	LDR	r14,[r3,#bg_inode_bitmap%]
+	STR	r4,[r6,#s_free_inodes_count%]
+	LDR	r4,[r6,#s_inodes_per_group%]
+	ADD	r0,r0,r14
+	MUL	r4,r5,r4		; base number of first inode in group
+	BL	Cache_GetBlock
+	BVS	_return_error
+	MOV	r3,r0
+._lp
+	LDRB	r14,[r3],#1
+	TEQ	r14,#&ff
+	BEQ	_lp
+	SUB	r2,r3,r0		; base number of first inode in byte
+	ADD	r4,r4,r2,LSL #3
+	MOV	r2,#1
+._lp
+	TST	r14,r2
+	ORREQ	r14,r14,r2
+	BEQ	_found_inode
+	MOV	r2,r2,LSL #1
+	ADD	r4,r4,#1
+._found_inode
+	STRB	r14,[r3,#-1]
+;------------------------
+; do 'block modified' thing here
+	LDR	r14,[r1,#block_flags%]
+	MOV	r0,r4
+	ORR	r14,r14,#bflag_dirty%
+	STR	r14,[r1,#block_flags%]
+	BL	Cache_GetInodePointer
+	MOVVC	r2,r8
+	BLVC	Cache_EnsureInodeSize
+	MOVVC	r0,r4
+	FNcreturn("VC")
+._return_error
+	FNgerror
+
+
+.Cache_DeleteInode
+FNdbg_func("Cache_DeleteInode","r0,r6","")
+;------------------------
+; Deletes an inode and all its blocks.
+;------------------------
+; On entry:
+;	r0  =	inode number
+;	r6  =	pointer to MDB
+; On exit:
+;	ARP
+;------------------------
+	FNfunction("r0-r5")
+;------------------------
+; remove all the inode's blocks
+	MOV	r1,r0
+	BL	Cache_GetInodePointer
+	MOV	r2,#0
+	BL	Cache_EnsureInodeSize
+;------------------------
+; deallocate the inode itself
+	LDR	r3,[r6,#s_inodes_per_group%]
+	MOV	r2,r1
+	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
+	LDR	r3,[r6,#mnt_groupdescs%]
+	LDR	r5,[r6,#s_free_inodes_count%]
+	ADD	r3,r3,r0,LSL #shift_groupdesc%
+	LDR	r14,[r3,#bg_free_inodes_count%]
+	ADD	r5,r5,#1
+	STR	r5,[r6,#s_free_inodes_count%]
+	ADD	r14,r14,#1
+	STR	r14,[r3,#bg_free_inodes_count%]
+	LDR	r5,[r6,#s_blocks_per_group%]
+	LDR	r14,[r3,#bg_inode_bitmap%]
+	MUL	r4,r5,r0		; first block of group containing inode
+	LDR	r5,[r6,#s_log_block_size%]
+	ADD	r0,r14,r4		; block number of inode bitmap block
+	BL	Cache_GetBlock
+	LDRB	r14,[r0,r5,LSR #3]
+	AND	r4,r5,#7
+	MOV	r3,#1
+	BIC	r14,r14,r3,LSL r4
+	LDR	r2,[r1,#block_flags%]
+	STRB	r14,[r0,r5,LSR #3]
+	ORR	r2,r2,#bflag_dirty%
+	STR	r2,[r1,#block_flags%]
+	FNreturn
+
+
+.Cache_EnsureInodeSize
+FNdbg_func("Cache_EnsureInodeSize","r0,r2,r6","r2")
+;------------------------
+; Ensures an inode has a certain number of bytes allocated in its blocks.
+;------------------------
+; On entry:
+;	r0  =	pointer to inode
+;	r2  =	number of bytes to ensure
+;	r6  =	pointer to MDB
+; On exit:
+;	r2  =	actual number of bytes allocated
+;------------------------
+	FNfunction("r0-r5,r7-r10")
+;------------------------
+; get actual size in multiples of one block's size
+	LDR	r14,[r6,#s_log_block_size%]
+	MOV	r5,#1024
+	MOV	r5,r5,LSL r14
+	ADD	r14,r14,#10
+	SUB	r4,r5,#1
+	ADD	r2,r2,r4
+;------------------------
+; get actual size used by current number of blocks
+	LDR	r1,[r0,#i_blocks%]
+	BIC	r2,r2,r4		; SAO
+	MOV	r7,r2,LSR r14		; number of blocks needed
+	MOV	r1,r1,LSR #1		; it's 2* greater than it should be
+	TEQ	r1,r7
+	STREQ	r2,[r13,#4*2]
+	FNcreturn("EQ")
+;------------------------
+; get actual number of blocks required to store all the indirection blocks etc
+	MOV	r8,r5,LSR #2		; no. words that can be fitted in 1blk
+	SUB	r10,r14,#2		; shift for words that can be fitted in
+	SUBS	r14,r7,#12
+	MOV	r9,r7
+	BLE	_done_required
+._lp
+	ADD	r14,r14,r4		; block-align
+	MOV	r14,r14,LSR r10
+	ADD	r9,r9,r14
+	SUBS	r14,r14,r8
+	BGT	_lp
+._done_required
+	SUBS	r14,r1,#12
+	BLE	_done_allocated
+._lp
+	ADD	r14,r14,r4		; block-align
+	MOV	r14,r14,LSR r10
+	ADD	r1,r1,r14
+	SUBS	r14,r14,r8
+	BGT	_lp
+._done_allocated
+;------------------------
+; Current registers:
+;	r0  =	pointer to inode structure
+;	r1  =	number of blocks used by inode
+;	r2  =	byte-size to be allocated to inode
+;	r6  =	MDB
+;	r7  =	number of blocks to be allocated to inode for data
+;	r8  =	number of blocks that can be referenced within a block
+;	r9  =	number of blocks to be used by inode (inc. indirection blocks)
+	LDR	r14,[r6,#s_free_blocks_count%]
+	SUB	r10,r7,r1
+	CMP	r10,r14
+	BGT	_not_enough_blocks
+;------------------------
+; Tell the inode how many blocks it now has and try allocating some after the
+; last block currently allocated to it.
+; I need to allocate r10 more blocks.
+	MOV	r14,r7,LSL #1		; it's 2* greater than it should be
+	STR	r14,[r0,#i_blocks%]
+	STR	r2,[r13,#4*2]		; return new size allocated to inode
+
+
+
+	FNreturn
+
+._not_enough_blocks
+	FNrerror
+	EQUD	0
+	EQUS	"Not enough free space."+CHR$0:ALIGN
+
+
+.Cache_BlockToInode
+FNdbg_func("Cache_BlockToInode","r0-r4,r6","")
+;------------------------
+; Puts a block of data into a certain position on the given block in an inode.
+;------------------------
+; On entry:
+;	r0  =	block number
+;	r1  =	pointer to inode definition
+;	r2  =	pointer to block containing data to write
+;	r6  =	pointer to MDB
+;------------------------
+	FNfunction("r0-r5,r7,r8")
+	LDR	r7,[r6,#s_log_block_size%]
+	MOV	r5,r2
+	MOV	r8,#1024
+	MOV	r8,r8,LSL r7
+	BL	Cache_BlockNumberFromInode
+;------------------------
+; try to find the block in the second level cache
+	LDR	r4,[r12,#blocktable2]
+	MOV	r7,#cache2_blocks%
+._loop
+	SUBS	r7,r7,#1
+	BLT	_fail_cache2
+	LDMIA	r4!,{r1-r3}
+	TEQ	r3,r6			; same mount?
+	TEQEQ	r1,r0			; same block base number?
+	BNE	_loop
+;------------------------
+; block found - copy data into it
+	RSB	r7,r7,#cache2_blocks%
+	LDR	r1,[r12,#blockcache2]
+	SUB	r7,r7,#1
+	MOV	r0,r5
+	ADD	r1,r1,r7,LSL #10	; = blockcache + 1024*blocknumber
+	MOV	r2,r8
+	BL	Memory_QuickCopy
+	FNreturn
+
+._fail_cache2
+FNdbg_str("_fail_cache2")
+;------------------------
+; try to find the block in the first level cache
+	LDR	r4,[r12,#blocktable1]
+	MOV	r7,#cache1_blocks%
+._loop
+	SUBS	r7,r7,#1
+	BLT	_fail_cache1
+	LDMIA	r4!,{r1-r3}
+	TEQ	r3,r6			; same mount?
+	TEQEQ	r1,r0			; same block base number?
+	BNE	_loop
+;------------------------
+; block found - copy data into it
+	RSB	r7,r7,#cache1_blocks%
+	LDR	r1,[r12,#blockcache1]
+	SUB	r7,r7,#1
+	MOV	r0,r5
+	ADD	r1,r1,r7,LSL #10	; = blockcache + 1024*blocknumber
+	MOV	r2,r8
+	BL	Memory_QuickCopy
+	FNreturn
+
+._fail_cache1
+FNdbg_str("_fail_cache1")
+;------------------------
+; prepare address to be returned and place in a safe register
+;	r0  =	block number
+	STMFD	r13!,{r4,r5}
+	LDR	r5,[r12,#blocktable1]
+	LDR	r7,[r12,#blockcache1]
+	LDR	r14,[r6,#s_log_block_size%]
+	LDR	r8,[r12,#blocktouse1]
+	MOV	r4,r0,LSL r14		; offset in file in 1024-byte blocks
+	MOVS	r14,r14,LSL #1		; number of blocks to copy
+	MOV	r4,r4,LSL #10		; image-offset to load from
+	MOVEQ	r14,#1
+	ADD	r9,r8,r14
+	CMP	r9,#cache1_blocks%	; check if the blocks will fit
+	MOVGT	r8,#0			; no - force to cache start
+	MOVGT	r9,r14
+	ADD	r5,r5,r8,LSL #shift1_blocktable%
+	STR	r9,[r12,#blocktouse1]
+	ADD	r5,r5,r8,LSL #shift2_blocktable%
+	MOV	r3,#0			; block_flags
+	MVN	r1,#0			; illegal number for trailing blocks
+	MOV	r10,#0			; illegal mount for trailing blocks
+	ADD	r2,r7,r8,LSL #10	; position to load data into
+	STMIA	r5!,{r0,r3,r6}		; blocknum, blockflags, mount
+	MOV	r11,r14
+	ADD	r0,r0,#1
+._lp
+	SUBS	r11,r11,#1
+	STMGTIA	r5!,{r1,r3,r10}
+	BGT	_lp
+	LDMFD	r13!,{r4,r5}
+	LDR	r7,[r4,#block_flags%]
+;=====================================================
+; NOTE - CODE WILL NEED TO BE ADDED HERE TO FLUSH THE LEVEL ONE CACHE BLOCK
+; WHICH IS BEING OVERWRITTEN.
+;=====================================================
+	MOV	r1,r2			; address of block
+	MOV	r2,r14,LSL #10		; size of a FS block
+	MOV	r0,r5
+	BL	Memory_QuickCopy
+	ORR	r7,r7,#bflag_dirty%
+	STR	r7,[r4,#block_flags%]
+	FNreturn
+
+
+#endif

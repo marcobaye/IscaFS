@@ -1,0 +1,16 @@
+
+
+				IscaFS - Bugs
+				~~~~~~~~~~~~~
+			Version 0.06, 28th October, 1998
+
+
+
+28th March, 1998
+~~~~~~~~~~~~~~~~
+
+
+Blocks bitmap IE
+----------------
+
+The ImageFS entry point for getting the used blocks bitmap from an image is not yet supported.  This is because I haven't got around to it yet.  AFAIK the only instance in which this will be used is when an ext2 floppy is being backed up, so just don't backup any ext2 floppies and everything should be just fine.  This would be a remarkably simple routine, except that while ext2 filesystems' block sizes can go up to 4k, FileSwitch only supports block sizes of up to 1k (moan, complain, moan).

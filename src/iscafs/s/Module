@@ -1,0 +1,123 @@
+#multipass on
+; Module
+; ~~~~~~
+; Miscellaneous module code (Init, final, service etc)
+
+
+.Module_ServiceTable
+	EQUD	0			; flags word
+	EQUD	Module_ServiceKnown	; code to process a known call
+	EQUD	Service_FSReinit	; list of service calls
+	EQUD	Service_IdentifyDisc
+	EQUD	0			; zero terminator
+
+	EQUD	Module_ServiceTable
+.Module_Service
+	MOV	r0,r0			; magic word
+	CMP	r1,#Service_IdentifyDisc	; &69
+	TEQNE	r1,#Service_FSReinit		; &40
+	MOVNES	pc,r14
+	LDR	r12,[r12]
+	BCS	Image_IdentifyDisc
+
+.FS_Declare
+FNdbg_str("FS_Declare")
+	FNfunction("r0-r3")
+	MOV	r0,#FSC_DeclareImageFS
+	ADR	r1,Module_Base
+	MOV	r2,#FS_Info
+	MOV	r3,r12
+	SWI	"XOS_FSControl"
+	FNreturn
+
+.Module_ServiceKnown
+	LDR	r12,[r12]
+	TEQ	r1,#Service_IdentifyDisc
+	BEQ	Image_IdentifyDisc
+	B	FS_Declare
+
+
+.Module_Initialise
+	FNfunction("")
+;------------------------
+; init workspace and memory
+	MOV	r0,#0
+	SWI	X+MAlloc_Vectors
+	ADDVC	r3,r1,#len_workspace%
+	MOVVC	r0,#6
+	SWIVC	"XOS_Module"
+	STRVC	r2,[r12]
+	MOVVC	r12,r2
+	ADDVC	r0,r2,#malloc_tabbase%
+	SWIVC	X+MAlloc_Vectors
+	FNpcreturn("VS")
+	MOV	r0,#0
+	MOV	r1,#len_workspace%
+._lp
+	SUBS	r1,r1,#4
+	STR	r0,[r12,r1]
+	BGT	_lp
+FNdbg_init
+FNdbg_str("Module_Initialise")
+	BL	Memory_Initialise
+;P Cache-line optimisation for memory block #1, which can use the 1024byte
+;P optimised memory copy.
+	FNmovc(3,len_buffer%+len_buffer2%+32)
+	BL	Memory_Claim
+	AND	r3,r2,#31
+	RSB	r3,r3,#32
+	ADD	r2,r2,r3
+	STR	r2,[r12,#buffer]	; this is cache-line aligned
+	ADD	r2,r2,#len_buffer%
+	STR	r2,[r12,#buffer2]	; so is this, but is small
+;	MOV	r3,#len_buffer%		; this is all I need for now
+;	BL	Memory_Claim
+;	STR	r2,[r12,#buffer]
+;	MOV	r3,#len_buffer2%
+;	BL	Memory_Claim
+;	STR	r2,[r12,#buffer2]
+	ADR	r1, _newfilecore
+	SWI	"XOS_SWINumberFromString"
+	MOVVC	r0,#0			; 0 => new filecore
+	MOVVS	r0, #1<<31		; 1 => old filecore
+	STR	r0,[r12,#debug]
+;------------------------
+; init filing system and cache
+	BL	FS_Declare
+	BL	Cache_Initialise
+	FNreturn
+
+._newfilecore
+EQUS	"FileCore_SectorOp"
+EQUB	0 : ALIGN
+
+.Module_Finalise
+	FNfunction("")
+	LDR	r12,[r12]
+FNdbg_str("Module_Finalise")
+;------------------------
+; remove filing system
+	MOV	r0,#FSC_RemoveImageFS
+	MOV	r1,#filetype%
+	SWI	"XOS_FSControl"
+;------------------------
+; remove memory and workspace
+	BL	Memory_Finalise
+FNdbg_final
+	MOV	r2,r12
+	MOV	r0,#7
+	SWI	"XOS_Module"
+	FNreturn
+
+
+
+.FS_Info
+	EQUD	0		; FS information word
+	EQUD	filetype%	; Image filing system file type
+	EQUD	File_Open	- Module_Base
+	EQUD	File_GetBytes	- Module_Base
+	EQUD	0		; IE_PutBytes	- Module_Base
+	EQUD	IE_Args		- Module_Base
+	EQUD	File_Close	- Module_Base
+	EQUD	IE_File		- Module_Base
+	EQUD	IE_Func		- Module_Base

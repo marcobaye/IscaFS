@@ -1,0 +1,329 @@
+#multipass on
+; File
+; ~~~~
+; Whole file manipulation functions.
+
+
+.File_FiletypeFromLeafname
+FNdbg_func("File_FiletypeFromLeafname","r1","r1")
+FNdbg_indstr(1)
+;------------------------
+; Work out the filetype of a file from its leafname
+;------------------------
+; On entry:
+;	r1  =	pointer to leafname
+; On exit:
+;	r1  =	filetype (default fff)
+;------------------------
+	FNfunction("r0,r2")
+._lp
+	LDRB	r0,[r1],#1
+	TEQ	r0,#0
+	BEQ	_return_default
+	TEQ	r0,#ASC","
+	BNE	_lp
+	LDRB	r0,[r1,#3]		; only 3 chars?
+	TEQ	r0,#0
+	BNE	_lp
+	MOV	r0,#16
+	ORR	r0,r0,#1<<29		; must be in range 0->r2
+	FNmovc(2,&fff)
+	SWI	"XOS_ReadUnsigned"
+	MOVVC	r1,r2			; value
+	FNcreturn("VC")
+._return_default
+	FNmovc(1,&fff)
+	FNreturn
+
+
+.File_CatalogueInfoFromInode
+FNdbg_func("File_CatalogueInfoFromInode","r0,r1,r6","r0,r2-r5")
+;------------------------
+; Read file catalogue information from the given inode number.
+;------------------------
+; On entry:
+;	r0  =	pointer to inode block
+;	r1  =	filetype
+;	r6  =	pointer to MDB
+; On exit:
+;	r0  =	object type
+;	r2  =	load address
+;	r3  =	exec address
+;	r4  =	object length
+;	r5  =	object attributes
+;------------------------
+	FNfunction("r1,r9")
+	MOV	r9,r1
+	MOV	r1,r0
+;------------------------
+; Entries are of the form 'load,exec,length,attrs,type,name'.
+	LDR	r14,[r1,#i_mode%]
+	TST	r14,#i_flag_directory%
+	MOVEQ	r5,#3			; attrs self-read/write for file
+	MOVNE	r5,#0			; attrs nothing for directory
+	MOVEQ	r0,#1			; file
+	MOVNE	r0,#2			; directory
+	TST	r14,#i_flags_linkbit%	; see b.Workspace for why this works
+	TSTEQ	r14,#i_flags_erkbit%
+	TSTNE	r14,#i_flags_lerkbit%
+	MOVNE	r5,#0
+	MOVNE	r0,#1
+#if config_write%
+;------------------------
+; check whether I should use RiscOS load/exec stuff
+	LDRB	r14,[r1,#i_loadexecflag%]
+	TEQ	r14,#&35
+	BEQ	_use_load_and_exec
+;------------------------
+#endif
+	LDR	r3,[r1,#i_mtime%]	; time of last modification in seconds
+					; from 1 Jan 1970
+	MOV	r2,r3,LSR #24		; make arithmetic easier
+	BIC	r3,r3,#&ff000000	; calculate time in cs since 1 Jan 1900
+	LDR	r14,_exec_base_bottom
+	ADD	r3, r3, r3, LSL #2	; r3 = r3 *  5
+	ADD	r3, r3, r3, LSL #2	; r3 = r3 * 25
+	ADD	r3, r14, r3, LSL #2	; r3 = r3 * 100 + r14
+	LDR	r14,_exec_base_top
+	ADD	r2, r2, r2, LSL #2	; r2 = r2 *  5
+	ADD	r2, r2, r2, LSL #2	; r2 = r2 * 25
+	ADD	r2, r14, r2, LSL #2	; r2 = r2 * 100 + r14
+	LDR	r14,_load_base
+	ADD	r2,r2,r3,LSR #24
+	BIC	r3,r3,#&ff000000
+	ORR	r3,r3,r2,LSL #24	; exec address is now complete
+	ORR	r14,r14,r9,LSL #8	; add filetype
+	ADD	r2,r14,r2,LSR #8	; load address is now complete
+	LDR	r4,[r1,#i_size%]	; file length
+	FNreturn
+#if config_write%
+._use_load_and_exec
+	LDR	r2,[r1,#i_loadaddr%]
+	LDR	r3,[r1,#i_execaddr%]
+	LDR	r4,[r1,#i_size%]	; file length
+	FNreturn
+#endif
+._load_base
+	EQUD	&fff00033
+._exec_base_bottom
+	EQUD	&996a4c
+._exec_base_top
+	EQUD	&6e
+
+
+#if config_write%
+
+.File_WriteCatalogueInfo
+FNdbg_func("File_WriteCatalogueInfo","r1-r4","")
+;------------------------
+; Write file catalogue information the the given pathname.
+;------------------------
+; On entry:
+;	r1  =	pointer to pathname
+;	r2  =	load address
+;	r3  =	exec address
+;	r4  =	new attributes
+;	r6  =	pointer to MDB
+; On exit:
+;	Nothing required
+;------------------------
+	FNfunction("")
+	MOV	r0,r1
+	BL	Cache_FindInode
+	BLVC	Cache_GetInodePointer
+;------------------------
+; for now, just write load and exec addresses
+	MOV	r14,#&35		; special byte
+	STRB	r14,[r0,#i_loadexecflag%]
+	STRVC	r2,[r0,#i_loadaddr%]
+	STRVC	r3,[r0,#i_execaddr%]
+;------------------------
+	BLVC	Cache_InodeModified
+	FNcreturn("VC")
+	FNgerror
+#endif
+
+
+.File_ReadCatalogueInfo
+FNdbg_func("File_ReadCatalogueInfo","r1","r0,r2-r6")
+FNdbg_indstr(1)
+;------------------------
+; Read file catalogue information from the given pathname.
+;------------------------
+; On entry:
+;	r1  =	pointer to pathname
+;	r6  =	pointer to MDB
+; On exit:
+;	r0  =	object type
+;	r2  =	load address
+;	r3  =	exec address
+;	r4  =	object length
+;	r5  =	object attributes
+;------------------------
+	FNfunction("")
+	MOV	r0,r1
+	BL	Cache_FindInode
+	BLVC	Cache_GetInodePointer
+	BLVC	File_CatalogueInfoFromInode
+	FNcreturn("VC")
+	FNgerror
+
+
+.File_Open
+FNdbg_func("File_Open","r1,r3,r6","r0-r4")
+FNdbg_indstr(1)
+;------------------------
+; Open file.
+;------------------------
+; On entry:
+;	r1  =	pointer to filename
+;	r3  =	FileSwitch handle for file
+;	r6  =	pointer to MDB
+; On exit:
+;	r0  =	image file information word
+;	r1  =	my handle for newly-opened file (0 if not found)
+;	r2  =	buffer size for FileSwitch to use (max 1024)
+;	r3  =	file extent
+;	r4  =	space allocated to file (must be a multiple of buffer size)
+;------------------------
+	FNfunction("r5-r9")
+	MOV	r0,r1
+	BL	Cache_FindInode
+	BVS	_not_found
+	MOV	r7,r0			; I'll need the inode number later
+	MOV	r9,r1			; store filetype
+	BL	Cache_GetInodePointer
+	BVS	_not_found
+	LDR	r8,[r0,#i_mode%]
+	AND	r14,r8,#i_flags_link%
+	TEQ	r14,#i_flags_link%
+	BEQ	_symbolic_link
+	AND	r14,r8,#i_flags_erk%
+	TEQ	r14,#i_flags_erk%
+	BEQ	_abnormal_file
+;------------------------
+; get memory for file block and take a copy of the inode structure
+	MOV	r3,#len_file%
+	BL	Memory_Claim
+	MOV	r1,r2
+	MOV	r2,#len_inode%
+	BL	Memory_BlockCopy
+;------------------------
+; fill in the other information about the inode and link in
+	STR	r9,[r1,#file_type%]
+	STR	r7,[r1,#file_inode%]
+	STR	r6,[r1,#file_mount%]
+	LDR	r0,[r12,#firstfile]
+	STR	r0,[r1,#file_next%]
+	STR	r1,[r12,#firstfile]
+	ADD	r3,r12,#firstfile
+	STR	r3,[r1,#file_last%]
+	TEQ	r0,#0
+	STRNE	r1,[r0,#file_last%]
+	MOV	r0,#1<<30		; read permitted, no write
+	MOV	r2,#1024		; buffer size for FileSwitch to use
+	LDR	r3,[r1,#i_size%]	; file extent
+	LDR	r4,[r1,#i_blocks%]	; make space allocated to file
+	LDR	r14,[r6,#s_log_block_size%]
+	ADD	r14, r14, #9		; i_blocks% is number of blocks *2
+	MOV	r4, r4, LSL r14
+	FNreturn
+
+._not_found
+FNdbg_str("_not_found")
+	MOV	r0,#0
+	FNreturn
+
+._symbolic_link
+FNdbg_str("_symbolic_link")
+	FNrerror
+	EQUD	0
+	EQUS	"Symbolic links are not yet supported."+CHR$0:ALIGN
+
+._abnormal_file
+FNdbg_str("_abnormal_file")
+	FNrerror
+	EQUD	0
+	EQUS	"This is not a normal file."+CHR$0:ALIGN
+
+
+
+.File_Close
+FNdbg_func("File_Close","r1-r3","")
+;------------------------
+; Close an open file.
+;------------------------
+; On entry:
+;	r1  =	my handle for the file
+;	r2  =	new load address
+;	r3  =	new exec address
+; On exit:
+;	ARP
+;------------------------
+	FNfunction("r0,r2,r3")
+	LDR	r0,[r1,#file_last%]
+	LDR	r14,[r1,#file_next%]
+	STR	r14,[r0,#file_next%]
+	TEQ	r14,#0
+	STRNE	r0,[r14,#file_last%]
+	MOV	r2,r1
+	BL	Memory_Free
+	FNreturn
+
+
+
+.File_GetBytes
+FNdbg_func("File_GetBytes","r1-r4","")
+;------------------------
+; Get bytes from an open file.
+;------------------------
+; On entry:
+;	r1  =	my handle for the file
+;	r2  =	pointer to buffer
+;	r3  =	number of bytes to read into buffer
+;	r4  =	file offset from which to get data
+;------------------------
+	FNfunction("r0-r8")
+	LDR	r6,[r1,#file_mount%]	; get mount descriptor pointer
+	MOV	r5,r1
+;------------------------
+; decide what block size the file has
+	LDR	r0,[r6,#s_log_block_size%]
+	MOV	r8,r2			; interleaved for SA-op
+	ADD	r14,r0,#10
+	MOV	r7,r4,LSR r14		; get block number
+	BIC	r4,r4,r7,LSL r14	; get offset from block base
+;------------------------
+;	CMP	r0,#1
+;	MOVLT	r7,r4,LSR #10		; divide by 1024 to get block number
+;	MOVLT	r4,#0			; block-offset
+;	MOVEQ	r7,r4,LSR #11
+;	ANDEQ	r4,r4,#1<<10
+;	MOVGT	r7,r4,LSR #12
+;	ANDGT	r4,r4,#3<<10
+;------------------------
+; loop to get each block in turn and copy into given memory
+;	r4  =	offset from first block to get
+;	r7  =	block number of first block to get
+._loop
+	MOV	r0,r7
+	ADD	r7,r7,#1
+	MOV	r1,r5
+	BL	Cache_BlockFromInode
+	BVS	_return_error
+	ADD	r0,r0,r4		; add initial offset, then reset it to
+	SUB	r2,r1,r0		; amount of block available
+;P incorrect instruction removed from here - would have screwed up large-block
+;P filesystems by using too little of a block.
+	MOV	r4,#0			; ...zero
+	MOV	r1,r8
+	CMP	r3,r2			; do I want that many bytes?
+	MOVLT	r2,r3			; no - get less
+	BL	Memory_BlockCopy
+	SUBS	r3,r3,r2		; and alter my pointer and bytes-to-get
+	ADD	r8,r8,r2
+	BGT	_loop			; loop back if I want more bytes
+	FNreturn
+
+._return_error
+	FNgerror

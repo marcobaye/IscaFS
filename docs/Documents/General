@@ -1,0 +1,52 @@
+
+
+				IscaFS - General
+				~~~~~~~~~~~~~~~~
+			Version 0.06, 28th October, 1998
+
+
+Introduction
+~~~~~~~~~~~~
+ExeterFS was originally written to allow files to be copied from linux ext2 partitions to RiscOS.  IscaFS has been written in order to do the job of ExeterFS in a much nicer way.  Since IscaFS works as an image filing system, you can do all the things with it that you can do with a normal filing system (although IscaFS is currently read-only, so you won't be able to alter anything).  You can even read the linux source code in StrongEd or play an MPEG3 from your linux partition.
+
+
+
+Disclaimer
+~~~~~~~~~~
+A full disclaimer is included in sections 11 and 12 of the GNU General Public Licence, version 2 (distributed with this package in the 'Legal' file).
+
+
+
+Supported image types
+~~~~~~~~~~~~~~~~~~~~~
+Two image types are supported.  The first is a simple image file.  This could be a file on your hard drive which happens to be a linux ext2 disc image (if you set the file type of 'suppimg' to &0b0 and double-click on it, IscaFS will let you read it).  This also works with ext2 floppy discs (ADFS has a highly cunning way of allowing an entire floppy disc to be read as a file - DOSFS uses this too).
+
+The second type is to use an indirection image file.  This is an image file (created by hand or by using the 'GetPartns' program) which simply serves to tell IscaFS where to find the linux partition by specifying a filing system, disc drive and sector numbers, and then IscaFS uses FileCore calls to read sectors directly off the specified drive.
+
+
+
+Filetypes
+~~~~~~~~~
+In principle, IscaFS could be used to run RiscOS applications from within an ext2 partition.  This is currently not possible because IscaFS doesn't yet support file typing.  I am currently unsure as to how to support filetypes - I will be mentioning it on the linux email list and see what people say.  However, it is highly likely that the NFS method will be used (using a comma followed by three hexadecimal digits (ie !Sprites,ff9) to denote filetype).
+
+IscaFS currently uses the filetype &0b0 as a linux ext2 partition filetype.  This is one of the 'reserved for the user' filetypes and has not been allocated by Acorn.
+
+
+
+Program names and their pronunciation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+IscaFS is pronounced as a single word (iscafs) with a hard 'c'.  It should be pronounced 'isker-fuss'
+
+ExeterFS was chosen as a name for the original program because 'exeterfs' sounds very much like 'ext2fs' and is easier to pronounce, and also Exeter was where ExeterFS was written.
+
+IscaFS was chosen for the image filing system version because it is derived from ExeterFS, and the old Roman name for Exeter is Isca, and also Isca starts with 'I', and IscaFS is an 'I'mage filing system.
+
+PNAsm, the preassembler supplied with the self-compile release of IscaFS, is pronounced with 'pn' as in 'pneumatic' and the 'asm' as in 'orgasm'.
+
+PNAsm was named using the Justin Fletcher convention for naming programs (ie name it by preceding a short description of what it does with your first and last initials - eg JFPatch, JFTerm, JFProxy).
+
+
+
+Contacting us
+~~~~~~~~~~~~~
+Please contact us if you find any bugs (especially if you can provide useful information on what causes the bug), or wish to make a donation to a good cause (lessening our overdrafts ;-).  The names and contact details for the members of the IscaFS development team can be found in the 'DevTeam' file.

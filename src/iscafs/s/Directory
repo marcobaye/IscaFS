@@ -1,0 +1,304 @@
+#multipass on
+; Directory
+; ~~~~~~~~~
+; Directory manipulation functions.
+
+
+.Directory_Scan
+FNdbg_func("Directory_Scan","r0-r6,r11","r1-r5")
+;------------------------
+; Read entries from the given inode and call a function for each of them.
+;------------------------
+; On entry:
+;	r0  =	inode number
+;	r1  =	start offset
+;	r2  =	user register
+;	r3  =	user register
+;	r4  =	user register
+;	r5  =	user register
+;	r6  =	pointer to MDB
+;	r11 =	pointer to subroutine
+; On exit:
+;	r1  =	new start offset (-1 if last item reached)
+;	r2-r5 may be corrupted by subroutine
+;------------------------
+; Entry/exit conditions for subroutine:
+; On entry:
+;	r0  =	pointer to block containing data
+;	r6  =	pointer to mount descriptor block
+;	r7  =	offset from start of block
+;	r8  =	number of the block within this directory
+; On exit:
+;	r0  =	-1 if manipulation failed (otherwise preserved)
+; Notes:
+;	If manipulation failed, Directory_Scan will return to its caller with
+; the start offset updated to be the number of the item on which the subroutine
+; returned a 'fail'.  Therefore directory contents reading routines which get
+; to the end of their buffers can simply return fail when the buffer is too
+; small for the given item, and the continue with the given start offset later.
+;	Manipulation may also be flagged as having failed if the subroutine
+; decides that adding the given item would exceed its maximum number of items
+; count.  This maximum items count must be maintained by the subroutine.
+;	Subroutines are not allowed to use buffer or buffer2.
+;------------------------
+	FNfunction("r0-r2,r6-r11")	; BE CAREFUL - FNreturn not always used
+FNdbg_mult
+	MOV	r9,r2			; store user reg in safe place
+	MOV	r10,r1			; start offset
+	BL	Cache_GetInodePointer	; r0 = inode pointer
+	BVS	_return_error
+	LDR	r1,[r12,#buffer2]
+	MOV	r2,#len_inode%
+	BL	Memory_BlockCopy
+	MOV	r2,r9
+	MOV	r9,r1			; keep pointer to inode in here
+	LDR	r14,[r9,#i_mode%]
+	TST	r14,#i_flag_directory%
+	BEQ	_not_a_directory	; if directory flag is unset
+	MOV	r8,#0			; current block in inode definition
+	MOV	r1,r9
+	MOV	r7,#2*(4+len_dirent%)	; omit . and ..
+	MOV	r0,r8			; get first block
+	BL	Cache_BlockFromInode
+	BVS	_return_error
+	CMP	r0,#0
+	BLT	_last_item_read
+	SUB	r2,r1,r0
+	LDR	r1,[r12,#buffer]
+	BL	Memory_QuickCopy	; buffer is cache-line aligned ;-)
+	ADD	r0,r1,r7		; increment by required offset
+	ADD	r1,r1,r2
+;------------------------
+; main loop for getting items in the directory
+._loop
+	CMP	r0,r1			; reached the end of the block yet?
+	BGE	_get_new_block
+._return_from_get_new_block
+	LDR	r14,[r0,#dirent_inode%]
+	TEQ	r14,#0
+	BEQ	_entry_is_null
+	LDR	r14,[r0,#dirent_entry_length%]
+	TST	r14,#&ff0000		; null length leafname?
+	BEQ	_entry_is_null
+;------------------------
+; now call the subroutine if I've got to the correct offset
+	SUBS	r10,r10,#1		; reaches -1 at first item to be read
+	BGE	_entry_is_null
+	LDR	r2,[r13,#8]
+	MOV	r14,pc			; call subroutine
+	MOV	pc,r11
+	STR	r2,[r13,#8]
+	CMP	r0,#0
+	BLT	_subroutine_failed
+._entry_is_null
+	LDR	r14,[r0,#dirent_entry_length%]
+	BICS	r14,r14,#&ff0000	; get offset to next entry
+	ADDNE	r0,r0,r14
+	MOVEQ	r0,r1
+	ADDNE	r7,r7,r14		; increment offset from start of block
+	B	_loop
+
+._not_a_directory
+FNdbg_str("_not_a_directory")
+	FNrerror
+	EQUD	0
+	EQUS	"Not a directory."+CHR$0:ALIGN
+
+._last_item_read
+FNdbg_str("_last_item_read")
+	LDMFD	r13!,{r0-r2}
+	MVN	r1,#0
+	LDMFD	r13!,{r6-r11,pc}^
+
+._subroutine_failed
+FNdbg_str("_subroutine_failed")
+	LDMFD	r13!,{r0-r2}
+	SUB	r1,r1,r10		; calculate new start offset
+	SUB	r1,r1,#1
+	LDMFD	r13!,{r6-r11,pc}^
+
+._get_new_block
+	MOV	r1,r9
+	ADD	r8,r8,#1
+	MOV	r0,r8
+	BL	Cache_BlockFromInode
+	BVS	_return_error
+	CMP	r0,#0
+	BLT	_last_item_read
+	SUB	r2,r1,r0		; copy this into a safe place
+	LDR	r1,[r12,#buffer]
+	BL	Memory_QuickCopy
+	MOV	r0,r1
+	MOV	r7,#0			; offset from start of block is 0
+	ADD	r1,r1,r2
+	B	_return_from_get_new_block
+
+._return_error
+	FNgerror
+
+
+.Directory_ReadEntries
+FNdbg_func("Directory_ReadEntries","r0-r6","r3,r4")
+;------------------------
+; Read entries from the given directory into a given block of memory.
+;------------------------
+; On entry:
+;	r0  =	8="just names" 7="full info"
+;	r1  =	pointer to (wildcarded) directory name
+;	r2  =	pointer to buffer into which to put data
+;	r3  =	number of objects to read
+;	r4  =	offset of first item to read in directory (0=first item)
+;	r5  =	length of buffer
+;	r6  =	pointer to MDB
+; On exit:
+;	r3  =	number of names read
+;	r4  =	offset of next item to read in directory (-1 if end)
+;------------------------
+;P Note - on entry, r0 is not what you'd expect for an ImageEntry_Func for
+;P directory reading; the changed values are a result of MW's cunning IE_Func
+;P optimisation.
+;------------------------
+	FNfunction("")
+	TEQ	r0,#8
+	ADREQ	r11,Directory_ReadNames
+	ADRNE	r11,Directory_ReadFullInfo
+	MOV	r0,r1
+	BL	Cache_FindInode		; r0 = inode number
+	MOVVC	r1,r4
+	MOVVC	r4,r3
+	MOVVC	r3,#0			; init items counter
+	BLVC	Directory_Scan
+	MOVVC	r4,r1			; new start offset or -1
+	FNcreturn("VC")
+FNdbg_mult
+	FNpreturn
+
+
+.Directory_ReadNames
+FNdbg_str("Directory_ReadNames")
+;------------------------
+; Read the full info for the given file into the buffer
+;------------------------
+; On entry:
+;	r0  =	pointer to dirent structure
+;	r2  =	pointer to buffer into which to put data
+;	r3  =	number of items read so far
+;	r4  =	maximum number of items to read
+;	r5  =	number of bytes left in buffer
+; On exit:
+;	r0  =	-1 if max items read or buffer filled
+;	r2  =	pointer to after added item
+;	r3  =	updated number of items read
+;	r5  =	updated number of bytes left in buffer
+;------------------------
+	FNfunction("r1,r4,r6")
+FNdbg_reg(5)
+;------------------------
+; check for max items reached
+	CMP	r3,r4
+	MVNGE	r0,#0			; max items read
+	FNcreturn("GE")
+;------------------------
+; check for buffer filledness
+	LDR	r1,[r0,#dirent_entry_length%]
+	MOV	r1,r1,LSR #16		; get text length
+	ADD	r14,r1,#1
+	CMP	r14,r5
+	MVNGT	r0,#0			; no more space in buffer
+	FNcreturn("GT")
+	SUB	r5,r5,r14
+;------------------------
+; read item into buffer and update buffer status
+; REASON-DEPENDANT CODE STARTS HERE
+	ADD	r4,r0,#len_dirent%
+._loop
+	LDRB	r14,[r4],#1
+	TEQ	r14,#ASC"."
+	MOVEQ	r14,#ASC"/"
+	TEQ	r14,#ASC","		; kill ,b21 etc
+	BEQ	_comma_found
+	STRB	r14,[r2],#1
+	SUBS	r1,r1,#1
+	BGT	_loop
+._comma_found
+	MOV	r14,#0
+	STRB	r14,[r2],#1
+; REASON-DEPENDANT CODE ENDS HERE
+	ADD	r3,r3,#1
+	FNreturn
+
+
+
+.Directory_ReadFullInfo
+FNdbg_str("Directory_ReadFullInfo")
+;------------------------
+; Read the given name into the buffer
+;------------------------
+; On entry:
+;	r0  =	pointer to dirent structure
+;	r2  =	pointer to buffer into which to put data
+;	r3  =	number of items read so far
+;	r4  =	maximum number of items to read
+;	r5  =	number of bytes left in buffer
+;	r6  =	pointer to MDB
+; On exit:
+;	r0  =	-1 if max items read or buffer filled
+;	r2  =	pointer to after added item
+;	r3  =	updated number of items read
+;	r5  =	updated number of bytes left in buffer
+;------------------------
+	FNfunction("r1,r4,r7,r8")
+FNdbg_reg(5)
+;------------------------
+; check for max items reached
+	CMP	r3,r4
+	MVNGE	r0,#0			; max items read
+	FNcreturn("GE")
+;------------------------
+; check for buffer filledness
+	LDR	r1,[r0,#dirent_entry_length%]
+	MOV	r1,r1,LSR #16		; get text length
+	ADD	r14,r1,#4+4*5
+	BIC	r14,r14,#3
+	CMP	r14,r5
+	MVNGT	r0,#0			; no more space in buffer
+	FNcreturn("GT")
+	SUB	r5,r5,r14
+;------------------------
+; read item into buffer and update buffer status
+; REASON-DEPENDANT CODE STARTS HERE
+	MOV	r7,r2
+	STMFD	r13!,{r0,r1,r3-r6,r8}
+	MOV	r8,r1
+	ADD	r1,r0,#dirent_name%
+	ADD	r8,r8,r1
+	LDR	r0,[r0,#dirent_inode%]
+	BL	Cache_GetInodePointer
+	LDRB	r6,[r8]
+	MOV	r14,#0
+	STRB	r14,[r8]
+	BL	File_FiletypeFromLeafname
+	STRB	r6,[r8]
+	BL	File_CatalogueInfoFromInode
+	STMIA	r7!,{r2-r5}
+	STR	r0,[r7],#4
+	MOV	r2,r7
+	LDMFD	r13!,{r0,r1,r3-r6,r8}
+	ADD	r4,r0,#len_dirent%
+._loop
+	LDRB	r14,[r4],#1
+	TEQ	r14,#ASC"."
+	MOVEQ	r14,#ASC"/"
+	TEQ	r14,#ASC","		; kill ,b21 etc
+	BEQ	_comma_found
+	STRB	r14,[r2],#1
+	SUBS	r1,r1,#1
+	BGT	_loop
+._comma_found
+	MOV	r14,#0
+	STRB	r14,[r2],#1
+	ADD	r2,r2,#3		; word align
+	BIC	r2,r2,#3
+; REASON-DEPENDANT CODE ENDS HERE
+	ADD	r3,r3,#1
+	FNreturn

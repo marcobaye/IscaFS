@@ -1,0 +1,8 @@
+| !Boot for !IscaFS
+Set IscaFS$Dir <Obey$Dir>
+Iconsprites <Obey$Dir>.!Sprites
+Set File$Type_0B0 "ext2fs"
+RMEnsure MemoryAllocator 1.09 RMLoad <IscaFS$Dir>.MAlloc
+RMEnsure MemoryAllocator 1.09 Error 0 IscaFS needs the MemoryAllocator module.
+
+RMLoad <IscaFS$Dir>.IscaFS

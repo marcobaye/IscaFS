@@ -1,0 +1,39 @@
+
+/ first, set up all paths that will be needed
+
+#SourcePath @.s.
+#BasicPath @.b.
+#OutputFile @.IscaFS
+#ObjectPath @.o.
+#AsmFile @.source
+#FileType FFA
+#StartAddress &0
+#MacroPath @.m.
+
+
+/ and now start the list of source files
+
+#BeginSources
+Libraries
+Config
+Vars
+Workspace
+
+#EnterCode
+(Header)
+Module
+Args
+Cache
+CacheW
+Directory
+File
+ImageEntry
+Image
+Memory
+Misc
+(Footer)
+#ExitCode
+
+Debug
+
+#EndSources

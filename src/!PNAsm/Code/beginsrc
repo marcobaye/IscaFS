@@ -1,0 +1,15 @@
+REM Code segment for #beginsources
+ON ERROR PRINT REPORT$+" at line "+STR$ERL:STOP
+IF FALSE THEN
+DEF PROCaa_errorhandler
+ON ERROR PRINT REPORT$+" in error handler at line "+STR$ERL:STOP
+LOCAL line%
+line%=ERL-aa_errorhandler_startline%
+PRINT REPORT$+" at line "+STR$line%+" of file "+aa_errorhandler_file$
+PRINT "("+STR$ERL+" of source file)"
+STOP
+ENDPROC
+ENDIF
+aa_errorhandler_startline%=0
+aa_errorhandler_file$="beginsources"
+ON ERROR PROCaa_errorhandler

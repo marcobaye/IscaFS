@@ -1,0 +1,13 @@
+REM Code segment for #exitcode
+]NEXT
+SYS"OS_File",10,"\outputfile\",&\filetype\,,code%,O%
+PRINT "Program saved."
+sz%=O%-code%
+PRINT"Size of output image was "+STR$sz%+" bytes ("+FNexitcode_get_k(sz%)+"k)"
+SYS"Wimp_CommandWindow",-1
+QUIT
+DEF FNexitcode_get_k(s%)
+LOCAL i%,out$
+out$=STR$(s%/1024)
+i%=INSTR(out$,".")
+=LEFT$(out$,i%+2)

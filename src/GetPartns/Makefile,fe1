@@ -1,0 +1,32 @@
+# Project:   GetPartns
+
+
+# Toolflags:
+CCflags = -c -depend !Depend -IC: -throwback
+C++flags = -c -depend !Depend -IC: -throwback
+Linkflags = -aif -c++ -o $@
+f2cflags = 
+ObjAsmflags = -throwback -NoCache -depend !Depend
+CMHGflags = 
+LibFileflags = -c -o $@
+Squeezeflags = -o $@
+JFPatchflags = -depend !Depend -throwback -nobanner
+
+
+# Final targets:
+@.GetPartns:   @.o.main @.o.discops C:o.stubs 
+        Link $(Linkflags) @.o.main @.o.discops C:o.stubs 
+
+
+# User-editable dependencies:
+
+# Static dependencies:
+@.o.main:   @.c.main
+        cc $(ccflags) -o @.o.main @.c.main 
+@.o.discops:   @.s.discops
+        objasm $(objasmflags) -from @.s.discops -to @.o.discops
+
+
+# Dynamic dependencies:
+o.main:	c.main
+o.discops: s.discops

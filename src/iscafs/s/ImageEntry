@@ -1,0 +1,75 @@
+#multipass on
+; ImageEntry
+; ~~~~~~~~~~
+; ImageFS function entry points.
+
+
+.IE_Args
+	TEQ	r0,#4
+	BEQ	Args_ReadAllocatedSize
+	TEQ	r0,#9
+	BEQ	Args_ReadDateStamp
+	MOVS	pc,r14
+
+
+.IE_File
+	TEQ	r0,#0			; save file
+#if config_write%=0
+	TEQNE	r0,#1			; write catalogue information
+#endif
+	TEQNE	r0,#6			; delete object
+	TEQNE	r0,#7			; create file
+	TEQNE	r0,#8			; create directory
+	BEQ	IE_Error_ReadOnly
+#if config_write%
+	TEQ	r0,#1
+	BEQ	File_WriteCatalogueInfo
+#endif
+	TEQ	r0,#5
+	BEQ	File_ReadCatalogueInfo
+	TEQ	r0,#10
+	MOVEQ	r2,#1024		; read block size
+	MOVS	pc,r14
+
+
+.IE_Func
+	TEQ	r0,#30			; optimise later - just hack them in
+	BEQ	Image_ReadFreeSpace	; for now.
+	TEQ	r0,#29
+	BEQ	Image_ReadUsedSpaceMap
+	SUBS	r0, r0, #8		;P very nice optimisation here ;-)
+	RSBGES  r0, r0, #14
+	ADDGE	pc, pc, r0, LSL #2
+	B	_unsupported_op		; >22
+	B	Image_Umount		; 22
+	B	Image_Mount		; 21
+	B	_unsupported_op		; 20
+	B	_unsupported_op		; 19
+	B	_unsupported_op		; 18
+	B	_unsupported_op		; 17
+	B	_unsupported_op		; 16
+	B	Directory_ReadEntries	; 15
+	B	Directory_ReadEntries	; 14
+	B	_unsupported_op		; 13
+	B	_unsupported_op		; 12
+	B	_unsupported_op		; 11
+	B	_unsupported_op		; 10
+	B	_unsupported_op		; 9
+	B	_func_rename		; 8
+
+
+._unsupported_op
+._func_rename
+;P Bah - you forgot to put the error handler in here!
+	ADR	r0,_error
+	ORRS	pc,r14,#1<<28
+._error
+	EQUD	0
+	EQUS	"This operation is not supported by IscaFS."+CHR$0:ALIGN
+
+.IE_Error_ReadOnly
+	ADR	r0,_error
+	ORRS	pc,r14,#1<<28
+._error
+	EQUD	0
+	EQUS	"Filing system is read-only."+CHR$0:ALIGN
