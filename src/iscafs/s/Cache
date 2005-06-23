@@ -382,6 +382,7 @@ FNdt("_match_leaf")
 	TEQNE	r7,#4			; ext2 name must have same
 	BNE	_clean_exit		; length or be 4 (",xxx") chars longer
 	MOV	r7,r4			; save local filename length in r7
+; FIXME - does this mean that NAME+4CHARS is always accepted?!
 ._lp
 		LDRB	r3,[r6],#1	; FIXME - convert invalid chars!
 		LDRB	r14,[r5],#1
@@ -473,9 +474,15 @@ FNdt("  r6 (MDB) = %6x8")
 	BL	Cache_BlockNumberFromInode
 FNdtc(vs, "<<! Cache_BlockFromInode (Cache_BlockNumberFromInode failed)")
 	FNreturnOnErr
-	CMP	r0,#0
-FNdtc(lt, "<<? Cache_BlockFromInode (negative block pointer)")
-	BLT	_clean_exit		; changed creturn to BLT
+; negative block pointers are okay now
+; new:
+	CMN	r0, #1			; check for -1 (illegal)
+	BEQ	_clean_exit
+; old:
+;	CMP	r0,#0
+;FNdtc(lt, "<<? Cache_BlockFromInode (negative block pointer)")
+;	BLT	_clean_exit		; changed creturn to BLT
+
 	BL	Cache_GetBlock
 	MOV	r2,r1
 	ADD	r1,r0,r3

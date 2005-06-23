@@ -34,3 +34,5 @@ MB> Thanks to Frank de Bruijn, who significantly helped in putting together rele
 MB> Thanks to Daniel Ellis who found the bug preventing RO5/Iyonix compatibility and helped to fix it.
 
 MB> Thanks to Rien Mertens for reporting the cache bug.
+
+MB> Thanks to Chris Terran for finding the cause of the "empty filer window" bug.

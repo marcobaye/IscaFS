@@ -39,9 +39,9 @@ FNdt("  r2 (buffer size if known) = %2i4")
 	BVS	_bad_image
 	LDMDB	r2,{r0,r3}
 	ADD	r2,r6,#superblock%
-	LDR	r4,_special_words
-	TEQ	r4,r0
-	LDREQ	r4,_special_words+4
+	LDR	r4,_special_words	; FIXME - specialword2
+	TEQ	r4,r0			; and THEN specialword1
+	LDREQ	r4,_special_words+4	; is accepted!
 	TEQ	r4,r3
 	BEQ	_pseudo_image
 	FNladr(0, Image_ReadBytes_File)
@@ -598,12 +598,15 @@ FNdt(">>> Image_IdentifyDisc")
 	MOV	r4,#s_magic%+4
 	CMP	r3, #LEN(format_name$)+1
 ;XXXXXXXXXXXXXX
-	MOVLE	r7, #0
-	MOVGT	r7, r2
+; finally activated MW's suggestion:
+; new:
 ; MW thinks this should be:
-;	MOVLO	r7, #0
-;	MOVHS	r7, r2
-; this doesn't do the same thing	FIXME - MB thinks MW is right
+	MOVLO	r7, #0
+	MOVHS	r7, r2
+; old:
+;	MOVLE	r7, #0
+;	MOVGT	r7, r2
+; this doesn't do the same thing	(MB thinks MW is right)
 ;XXXXXXXXXXXXXX
 	LDR	r2,[r5,#&c]		; disc address of root directory
 	MOV	r4,#len_superblock%	; get 60 bytes of the super block
