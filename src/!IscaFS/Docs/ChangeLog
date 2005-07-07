@@ -8,6 +8,25 @@ To do
  * Add WIMP front-end for generating pseudo image files
  * Make ,xxx filetyping optional
  * Add write capability (MB> I think I won't do that)
+ * Fix known bugs (see "Docs.Bugs" file)
+
+
+07 Jul 2005, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Released as version 0.17
+
+
+23 Jun 2005, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Fixed a bug concerning top-bit-set addresses, mainly surfacing on RO5:
+   This resulted in empty filer windows. Thanks to Chris Terran for spotting
+   this bug.
+ * Adjusted module version number used in the !Run file (had been wrong the
+   last few releases).
+ * Fixed a bug concerning comma-separated file type information: When chopping
+   off the file type information, wrong file name lengths were generated. In
+   most cases, this resulted in removing ",xyz" even if "xyz" was not a valid
+   hexadecimal number.
 
 
 07 Sep 2004, Marco Baye

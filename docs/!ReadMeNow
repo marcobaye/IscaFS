@@ -1,10 +1,10 @@
 
 
-                                IscaFS 0.16
-                                07 Sep 2004
+                                IscaFS 0.17
+                                07 Jul 2005
 
 
-This is release 0.16 of IscaFS. If you did not download this archive from
+This is release 0.17 of IscaFS. If you did not download this archive from
     http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
 or
     http://splodge.fluff.org/~phil/
@@ -46,6 +46,17 @@ What this archive contains:
         Helper programs. See the file !IscaFS.Docs.Support
 
 
+Changes from release 0.16, 07 Sep 2004
+          to release 0.17, 07 Jul 2005:
+
+    Fixed a bug concerning top-bit-set addresses, mainly surfacing on RO5.
+        This resulted in empty filer windows. Thanks to Chris Terran for
+        finding the cause of this bug.
+    Adjusted module version number used in the !Run file (had been wrong the
+        last few releases).
+    Fixed a bug concerning comma-separated file type information.
+
+
 Changes from release 0.14, 08 May 2004
           to release 0.16, 07 Sep 2004:
 
@@ -71,4 +82,4 @@ Changes from release 0.13, 23 Apr 2004
 
 I think that's all for now.
 Have fun.
-Marco Baye, 07 Sep 2004
+Marco Baye, 07 Jul 2005

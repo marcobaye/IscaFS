@@ -3,12 +3,24 @@
                                 IscaFS - Bugs
 
 
-23 Apr 2004
+07 Jul 2005
 ~~~~~~~~~~~
  * Still no write support ;)
  * Won't work with drive numbers > 9
  * "PartTool" doesn't complain if the partition ID is too high or too low, it
    just fails silently.
+ * Support for ",hex" file types is still not yet perfect. Though *Ex, *Cat and
+   the Filer work correctly, there's still an interface left (used by *EnumDir,
+   for example) which returns inconsistent information:
+   Linux:	test,ffb	smart1,2.h
+   Filer:	test (BASIC)	smart1,2/h (Text)
+   EnumDir:	test		smart1	(inconsistent with the Filer info)
+ * Checking the header of Pseudo Image Files is not strict enough: In addition
+   to "þhîLext2", "ext2þhîL" is accepted as well.
+ * The IscaFS cache system does not cope with recursive calls (ext2 image files
+   on ext2 partitions).
+ * Some files cannot be accessed because the file names contain characters
+   which are illegal in RISC OS file names. I'll need to add some quoting code.
 
 
 18 Apr 2004
