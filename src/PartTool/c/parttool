@@ -1,4 +1,3 @@
-//
 // PartTool - replacement for GetPartns and ReadPart.
 // Copyright (C) 1998-2004 Phil Norman and Marco Baye
 //
@@ -33,7 +32,6 @@
 //		dumps whole partition to file (if partition is < 4GB)
 //
 // let's call it version 0.02
-//
 
 
 #include <stdlib.h>
@@ -55,18 +53,17 @@
 #define COMMAND_DISPLAY		"display"
 #define COMMAND_MKPSEUDO	"makepseudo"
 #define COMMAND_DUMP		"dumptofile"
-#define SECTOR_BUF_SIZE		2048		// must be at least 2048!
-#define SECTORS_PER_CHUNK	1024		// 512K if 512 byte per sector
+#define SECTOR_BUF_SIZE		2048	// must be at least 2048!
+#define SECTORS_PER_CHUNK	1024	// 512K if 512 byte per sector
 
 struct linux_part {
-	int magic;
-	int start_sector;
-	int sector_count;
+	int	magic;
+	int	start_sector;
+	int	sector_count;
 };
 
 
 // file format of pseudo image files
-//
 struct pseudo_image_file_format {
 	bits	Phil;		// magic word to recognize file format
 	bits	ext2;		// magic word to recognize contents
@@ -79,29 +76,27 @@ struct pseudo_image_file_format {
 
 
 // globals
-//
-char*		prog_name;
-void*		private_word;
+char		*prog_name;
+void		*private_word;
 filecore_disc	discrecord;
-byte		sec_buf[SECTOR_BUF_SIZE];
-int		partition_sector;
+byte		bootblock[SECTOR_BUF_SIZE];
+byte		partitiontable[SECTOR_BUF_SIZE];
+int		partition_sector;	// sector holding partition table
 int		desired_partition;
-char*		output_file_name;
-char*		filing_system_name;
+char		*output_file_name;
+char		*filing_system_name;
 int		drive_number;
-int		partition_id;
 // stuff for generating a pseudo image file
-struct pseudo_image_file_format*	filestruct;
-int					pseudo_image_file_size;
+struct pseudo_image_file_format	*filestruct;
+int		pseudo_image_file_size;
 
 
 // error handler
-//
-void exit_error(const char msg[], bool show_syntax) {
-
-	if(msg)
+static void exit_error(const char msg[], bool show_syntax)
+{
+	if (msg)
 		fprintf(stderr, "\nError: %s\n", msg);
-	if(show_syntax)
+	if (show_syntax)
 		fprintf(stderr,
 "\n"
 "Syntax:\n"
@@ -118,74 +113,66 @@ void exit_error(const char msg[], bool show_syntax) {
 
 
 // catch os errors and send to program's error handler
-//
-void oslibwrapper(os_error* err) {
-
-	if(err)
+static void oslibwrapper(os_error *err)
+{
+	if (err)
 		exit_error(err->errmess, FALSE);
 }
 
 
-// read sectors using the old (29bit) interface
+// read sectors using the old (29-bit) interface
 // the return value (number of bytes unread) is ignored
-//
-void readsectors_via_old_filecore(int start_sector, char *buf, int bufsize) {
-
+static void readsectors_via_29bit_filecore(int start_sector, char *buf, int bufsize)
+{
 	filecorediscop_read_sectors(
 		((int) &discrecord) << 6,
-		(start_sector << discrecord.log2secsize) | (drive_number<<29),
-		buf,
-		bufsize,
-		&private_word,
-		NULL,
-		NULL);
+		(start_sector << discrecord.log2secsize) | (drive_number << 29),
+		buf, bufsize, &private_word, NULL, NULL);
 }
 
 
-// function pointer for reading sectors
-// initially, the old (29bit) FileCore_DiscOp interface is used. It is then
-// changed to use the newer (38bit) FileCore_SectorOp, if available.
-void	(*read_sectors)(int start_sector, char *buf, int bufsize)
-		= readsectors_via_old_filecore;
-
-
-// read sectors using the newer (38bit) interface
+// read sectors using the newer (38-bit) interface
 // the return value (number of bytes unread) is ignored
-//
-void readsectors_via_new_filecore(int start_sector, char *buf, int bufsize) {
-
+static void readsectors_via_38bit_filecore(int start_sector, char *buf, int bufsize)
+{
 	filecoresectorop_read_sectors(
 		((int) &discrecord) << 6,
 		start_sector | (drive_number << 29),
-		buf,
-		bufsize,
-		&private_word,
-		NULL,
-		NULL);
+		buf, bufsize, &private_word, NULL, NULL);
 }
 
 
-// set drive size so FileCore won't refuse to access beyond FileCore partition
-//
-void set_sector_limit(unsigned int sector_limit) {
+// read sectors using the newest (64-bit) interface
+// FIXME - add code for filecorediscop64_read_sectors() call!
 
+
+// function pointer for reading sectors
+// initially, the old (29-bit) FileCore_DiscOp interface is used. It is then
+// changed to use the newer (38-bit) FileCore_SectorOp, if available.
+static void	(*read_sectors)(int start_sector, char *buf, int bufsize)	= readsectors_via_29bit_filecore;
+
+
+// set drive size so FileCore won't refuse to access beyond FileCore partition
+static void set_sector_limit(unsigned int sector_limit)
+{
 	discrecord.disc_size = sector_limit << discrecord.log2secsize;
 	discrecord.disc_size_hi = sector_limit >> (32 - discrecord.log2secsize);
-	if(read_sectors == readsectors_via_new_filecore)
+	if (read_sectors == readsectors_via_38bit_filecore)
 		return;
+
 	// check for old FileCore limit
-	if((discrecord.disc_size_hi) || (discrecord.disc_size >> 29))
+	if ((discrecord.disc_size_hi) || (discrecord.disc_size >> 29))
 		exit_error("Sorry, your version of FileCore cannot read this far into the disc.", FALSE);
 }
 
 
 // common start for all three operations
-//
-void common_start(int argc, char *argv[], int desired_argc) {
+static void common_start(int argc, char *argv[], int desired_argc)
+{
 	char	module_title[256];	// buffer for "FileCore%FILINGSYSTEM"
 	char	disc_spec[16];		// holds ":DRIVENUMBER" string
 
-	if(argc != desired_argc)
+	if (argc != desired_argc)
 		exit_error("Wrong number of arguments", TRUE);
 
 	// remember name of filing system
@@ -195,188 +182,176 @@ void common_start(int argc, char *argv[], int desired_argc) {
 	sprintf(module_title, "FileCore%%%s", filing_system_name);
 
 	// get module's private word
-	if(xosmodule_lookup(module_title, NULL,NULL,NULL, &private_word, NULL))
+	if (xosmodule_lookup(module_title, NULL,NULL,NULL, &private_word, NULL))
 		exit_error("Given filing system does not exist or is not a FileCore filing system", TRUE);
 
 	// get drive number
-	if(sscanf(argv[1], "%d", &drive_number) != 1)
+	if (sscanf(argv[1], "%d", &drive_number) != 1)
 		exit_error("Could not parse drive number", TRUE);
 
-	// check whether new FileCore is available
+	// FIXME - check whether 64-bit access is available!
+
+	// check whether 38-bit FileCore is available
 	// if yes, use it
-	if(!xos_swi_number_from_string("FileCore_SectorOp", NULL))
-		read_sectors = readsectors_via_new_filecore;
+	if (!xos_swi_number_from_string("FileCore_SectorOp", NULL))
+		read_sectors = readsectors_via_38bit_filecore;
 
 	// examine disc
 	sprintf(disc_spec, ":%d", drive_number);
-	oslibwrapper(xfilecore_describe_disc(
-		disc_spec,
-		&discrecord,
-		&private_word));
+	oslibwrapper(xfilecore_describe_disc(disc_spec, &discrecord, &private_word));
 
 	// Read boot block. Actually it's located at byte offset &0c00, but
 	// we're using sector addressing, and to cater for sector size = 2048,
 	// we're starting to read at &0800. Otherwise, the shifts might lose
 	// relevant bits.
-	read_sectors(0x800 >> discrecord.log2secsize, sec_buf, SECTOR_BUF_SIZE);
+	read_sectors(0x800 >> discrecord.log2secsize, bootblock, SECTOR_BUF_SIZE);
 
-	if(sec_buf[0x5fc] != PARTITION_LINUX)
+	if (bootblock[0x5fc] != PARTITION_LINUX)
 		exit_error("Second partition is not a linux partition table", FALSE);
 
-	partition_sector = discrecord.secspertrack * discrecord.heads *
-		((sec_buf[0x5fd]) + ((sec_buf[0x5fe]) << 8));
+	partition_sector = discrecord.secspertrack * discrecord.heads * ((bootblock[0x5fd]) + ((bootblock[0x5fe]) << 8));
 
 	// set disc size so FileCore won't refuse to access partition table
 	set_sector_limit(partition_sector + 2);	// !PartMan assigns 2 blocks
 
 	// read partition table
-	read_sectors(partition_sector, sec_buf, 1024);
+	read_sectors(partition_sector, partitiontable, 1024);
 }
 
 
 // handle additional arguments (partition number and output filename)
-//
-void get_extended_arguments(char *argv[]) {
-
-	if(sscanf(argv[0], "%d", &desired_partition) != 1)
+static void get_extended_arguments(char *argv[])
+{
+	if (sscanf(argv[0], "%d", &desired_partition) != 1)
 		exit_error("Could not parse partition number", TRUE);
 	output_file_name = argv[1];
 }
 
 
-// loop over partitions, calling registered fn for each
-//
-void process_all_partitions(struct linux_part* p,
-				void (*fn)(int id, struct linux_part* p)) {
+// loop over partitions, calling given callback function for each
+static void process_all_partitions(struct linux_part *part, void (*callback)(int id, struct linux_part *part))
+{
+	int	partition_id;
 
 	partition_id = 3;	// 1 = FileCore, 2 = Linux partition table
-	while((p->magic == MAGIC_NATIVE) || (p->magic == MAGIC_SWAP)) {
-		fn(partition_id, p);
-		partition_id++;
-		p++;
+	while ((part->magic == MAGIC_NATIVE) || (part->magic == MAGIC_SWAP)) {
+		callback(partition_id, part);
+		++partition_id;
+		++part;
 	}
 }
 
 
 // dump partition info
-//
-void displayinfo(int id, struct linux_part* p) {
+static void displayinfo(int id, struct linux_part *part)
+{
 	static bool	show_header	= TRUE;
 
-	if(show_header) {
+	if (show_header) {
 		printf(" ID   Start sector    Sectors  Type\n");
 		show_header = FALSE;
 	}
-	printf("%3d    %10d  %10d  %s\n", id, partition_sector + p->start_sector, p->sector_count,
-		(p->magic == MAGIC_NATIVE) ? "Native" : "Swap");
+	printf("%3d    %10d  %10d  %s\n", id, partition_sector + part->start_sector, part->sector_count, (part->magic == MAGIC_NATIVE) ? "Native" : "Swap");
 }
 
 
 //
-//
-void main_display_info(int argc, char *argv[]) {
-
+static void main_display_info(int argc, char *argv[])
+{
 	common_start(argc, argv, 2);
-	process_all_partitions((struct linux_part*) sec_buf, displayinfo);
+	process_all_partitions((struct linux_part *) partitiontable, displayinfo);
 }
 
 
 // Yes, I know, this is sick. I like it.
-//
-char	done[]	= "Done.\nIf you have IscaFS, double-clicking the %sfile should open it.\nThat is, if the partition contains a valid ext2/ext3 filesystem.\n";
+char	done[]	= "Done.\n"
+"If you have IscaFS, double-clicking the %sfile should open it.\n"
+"That is, if the partition contains a valid ext2/ext3 filesystem.\n";
 
 
 // make pseudo image file
-//
-void makepseudo(int id, struct linux_part* p) {
-
-	if(id != desired_partition)
+static void makepseudo(int id, struct linux_part *part)
+{
+	if (id != desired_partition)
 		return;
-	if(p->magic != MAGIC_NATIVE) {
-		fprintf(stderr,
-			"Partition %d is not a Linux Native partition.\n",
-			id);
+
+	if (part->magic != MAGIC_NATIVE) {
+		fprintf(stderr, "Partition %d is not a Linux Native partition.\n", id);
 		return;
 	}
 
-	displayinfo(id, p);
+	displayinfo(id, part);
 
-	filestruct->first_sector = partition_sector + p->start_sector;
-	filestruct->last_sector =
-		filestruct->first_sector + p->sector_count - 1;
+	filestruct->first_sector = partition_sector + part->start_sector;
+	filestruct->last_sector = filestruct->first_sector + part->sector_count - 1;
 	oslibwrapper(xosfile_save_stamped(
 		output_file_name,
 		FILETYPE_ISCAFS,
-		(byte*) filestruct,
-		((byte*) filestruct) + pseudo_image_file_size));
+		(byte *) filestruct,
+		((byte *) filestruct) + pseudo_image_file_size));
 
 	printf(done, "pseudo ");
 }
 
 
 //
-//
-void main_make_pseudo(int argc, char *argv[]) {
-
+static void main_make_pseudo(int argc, char *argv[])
+{
 	common_start(argc, argv, 4);
 	get_extended_arguments(argv + 2);
 
 	// build pseudo image file in memory
-	pseudo_image_file_size =
-		sizeof(struct pseudo_image_file_format) +
-		strlen(filing_system_name) + 1;
-	filestruct =
-		(struct pseudo_image_file_format*)
-		malloc(pseudo_image_file_size);
+	pseudo_image_file_size = sizeof(struct pseudo_image_file_format) + strlen(filing_system_name) + 1;
+	filestruct = (struct pseudo_image_file_format *) malloc(pseudo_image_file_size);
 
 	// fill in the struct
-	filestruct->Phil = 0x4cee68fe;	// "þhîL"
+	filestruct->Phil = 0x4cee68fe;	// "Ã¾hÃ®L"       (comment string is UTF-8!)
 	filestruct->ext2 = 0x32747865;	// "ext2"
-	filestruct->log2secsize = discrecord.log2secsize;	// shoesize
-	filestruct->drive = drive_number;			// IQ
-	strcpy(filestruct->fs, filing_system_name);		// fs name
+	filestruct->log2secsize = discrecord.log2secsize;
+	filestruct->drive = drive_number;
+	strcpy(filestruct->fs, filing_system_name);
 
-	process_all_partitions((struct linux_part*) sec_buf, makepseudo);
+	process_all_partitions((struct linux_part *) partitiontable, makepseudo);
 }
 
 
 // make real image file
-//
-void dump_part_to_file(int id, struct linux_part* p) {
+static void dump_part_to_file(int id, struct linux_part *part)
+{
 	unsigned int	startsector,
 			bytes_per_chunk,
 			bytes_to_transfer;
 	os_fw		file_handle;
-	os_error*	err		= NULL;
-	char*		chunk;
+	os_error	*err		= NULL;
+	char		*chunk;
 	int		unwritten	= 0;
 
-	if(id != desired_partition)
+	if (id != desired_partition)
 		return;
 
-	displayinfo(id, p);
+	displayinfo(id, part);
 
 	// check hypothetical size of output file
-	if(p->sector_count >= (0xffffffffu >> discrecord.log2secsize))
+	if (part->sector_count >= (0xffffffffu >> discrecord.log2secsize))
 		exit_error("Dump file would exceed the 4 GB file size limit imposed by RISC OS", FALSE);
 
 	// calculate transfer values
-	startsector = partition_sector + p->start_sector;
+	startsector = partition_sector + part->start_sector;
 	bytes_per_chunk = SECTORS_PER_CHUNK << (discrecord.log2secsize);
-	bytes_to_transfer = (p->sector_count) << (discrecord.log2secsize);
+	bytes_to_transfer = (part->sector_count) << (discrecord.log2secsize);
 
 	// set new disc size so FileCore won't refuse to access partition
-	set_sector_limit(startsector + p->sector_count);
+	set_sector_limit(startsector + part->sector_count);
 
 	// calculate transfer values: buffer size, transfer count
-	chunk = (char*) malloc(bytes_per_chunk);
-	if(chunk == NULL)
+	chunk = (char *) malloc(bytes_per_chunk);
+	if (chunk == NULL)
 		exit_error("Could not allocate transfer buffer", FALSE);
 
 	// try to create file with needed size
 	oslibwrapper(xosfile_create_stamped(
 		output_file_name,
-		(p->magic == MAGIC_NATIVE) ? FILETYPE_ISCAFS : FILETYPE_OTHER,
+		(part->magic == MAGIC_NATIVE) ? FILETYPE_ISCAFS : FILETYPE_OTHER,
 		bytes_to_transfer));
 
 	// open file
@@ -389,39 +364,32 @@ void dump_part_to_file(int id, struct linux_part* p) {
 	puts("Transfer in progress");
 
 	// transfer loop
-	while(bytes_to_transfer > bytes_per_chunk) {
+	while (bytes_to_transfer > bytes_per_chunk) {
 		read_sectors(startsector, chunk, bytes_per_chunk);
-		err = xosgbpb_writew(
-			file_handle,
-			chunk,
-			bytes_per_chunk,
-			&unwritten);
-		if(err || unwritten)
+		err = xosgbpb_writew(file_handle, chunk, bytes_per_chunk, &unwritten);
+		if (err || unwritten)
 			break;
+
 		startsector += SECTORS_PER_CHUNK;
 		bytes_to_transfer -= bytes_per_chunk;
 		putchar('.');
 	}
-	if((err == NULL) && (unwritten == 0)) {
+	if ((err == NULL) && (unwritten == 0)) {
 		read_sectors(startsector, chunk, bytes_to_transfer);
-		err = xosgbpb_writew(
-			file_handle,
-			chunk,
-			bytes_to_transfer,
-			&unwritten);
+		err = xosgbpb_writew(file_handle, chunk, bytes_to_transfer, &unwritten);
 		putchar('.');
 	}
 
 	// close file
 	xosfind_closew(file_handle);	// ignore errors
 
-	if(err)
+	if (err)
 		oslibwrapper(err);
-	if(unwritten)
+	if (unwritten)
 		exit_error("Could not write all bytes", FALSE);
 
 	//
-	if(p->magic == MAGIC_NATIVE)
+	if (part->magic == MAGIC_NATIVE)
 		printf(done, "");
 	else
 		printf("Done.\n");
@@ -429,34 +397,33 @@ void dump_part_to_file(int id, struct linux_part* p) {
 
 
 // dump partition to file
-//
-void main_dump_to_file(int argc, char *argv[]) {
-
+static void main_dump_to_file(int argc, char *argv[])
+{
 	common_start(argc, argv, 4);
 	get_extended_arguments(argv + 2);
 
-	process_all_partitions((struct linux_part*) sec_buf, dump_part_to_file);
+	process_all_partitions((struct linux_part *) partitiontable, dump_part_to_file);
 }
 
 
-// wow, it's "main"!
 //
-int main(int argc, char *argv[]) {
-
+int main(int argc, char *argv[])
+{
 	// first thing to do, as it's needed by the error handler
 	prog_name = argv[0];
 
 	// check number of command line arguments
-	if(argc < 2)
+	if (argc < 2)
 		exit_error(NULL, TRUE);
 
-	if(strcmp(argv[1], COMMAND_DISPLAY) == 0)
-		main_display_info(argc-2, argv+2);
-	else if(strcmp(argv[1], COMMAND_MKPSEUDO) == 0)
-		main_make_pseudo(argc-2, argv+2);
-	else if(strcmp(argv[1], COMMAND_DUMP) == 0)
-		main_dump_to_file(argc-2, argv+2);
-	else exit_error("Illegal command string", TRUE);
+	if (strcmp(argv[1], COMMAND_DISPLAY) == 0)
+		main_display_info(argc - 2, argv + 2);
+	else if (strcmp(argv[1], COMMAND_MKPSEUDO) == 0)
+		main_make_pseudo(argc - 2, argv + 2);
+	else if (strcmp(argv[1], COMMAND_DUMP) == 0)
+		main_dump_to_file(argc - 2, argv + 2);
+	else
+		exit_error("Illegal command string", TRUE);
 
-	return(EXIT_SUCCESS);
+	return EXIT_SUCCESS;
 }
