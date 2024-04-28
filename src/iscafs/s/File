@@ -2,7 +2,7 @@
 ; File
 ; ~~~~
 ; Whole file manipulation functions.
-; 23 Mar 2004: 32bitclean
+; 23 Mar 2004 - 32bitclean
 
 
 ; rewritten, now needs and returns length info

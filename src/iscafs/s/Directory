@@ -2,7 +2,7 @@
 ; Directory
 ; ~~~~~~~~~
 ; Directory manipulation functions.
-; 23 Mar 2004: 32bitclean
+; 23 Mar 2004 - 32bitclean
 
 
 .Directory_Scan
@@ -174,11 +174,11 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r3  =	number of names read
 ;	r4  =	offset of next item to read in directory (-1 if end)
 ;------------------------
-;MB: the following paragraph is no longer true:
+;MB - the following paragraph is no longer true:
 ;P Note - on entry, r0 is not what you'd expect for an ImageEntry_Func for
 ;P directory reading; the changed values are a result of MW's cunning IE_Func
 ;P optimisation.
-;MB: I changed those values back when optimising some more. ;)
+;MB - I changed those values back when optimising some more. ;)
 ;------------------------
 	FNfunction("")
 	TEQ	r0,#14

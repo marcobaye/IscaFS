@@ -2,7 +2,7 @@
 ; ImageEntry
 ; ~~~~~~~~~~
 ; ImageFS function entry points.
-; 23 Mar 2004: 32bitclean
+; 23 Mar 2004 - 32bitclean
 
 
 .IE_Args

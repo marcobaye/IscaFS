@@ -2,7 +2,7 @@
 ; Image
 ; ~~~~~
 ; Image mounting/umounting and low-level filesystem manipulation.
-; 23 Mar 2004: 32bitclean
+; 23 Mar 2004 - 32bitclean
 
 
 .Image_Mount

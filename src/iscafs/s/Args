@@ -2,7 +2,7 @@
 ; Args
 ; ~~~~
 ; Open file manipulation functions.
-; 23 Mar 2004: 32bitclean
+; 23 Mar 2004 - 32bitclean
 
 
 .Args_ReadAllocatedSize

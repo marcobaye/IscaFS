@@ -2,7 +2,7 @@
 ; Module
 ; ~~~~~~
 ; Miscellaneous module code (Init, final, service etc)
-; 23 Mar 2004: 32bitclean
+; 23 Mar 2004 - 32bitclean
 
 
 .Module_ServiceTable

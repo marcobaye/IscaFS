@@ -2,7 +2,7 @@
 ; Memory
 ; ~~~~~~
 ; Memory management code for dynamic areas or RMA.
-; 23 Mar 2004: 32bitclean
+; 23 Mar 2004 - 32bitclean
 
 
 ]

@@ -3,7 +3,7 @@
 ; ~~~~~~
 ; Cache control code and general high-level filesystem interface for write
 ; operations.
-; 23 Mar 2004: 32bitclean
+; 23 Mar 2004 - 32bitclean
 #if config_write%
 
 
