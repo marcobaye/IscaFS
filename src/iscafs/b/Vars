@@ -5,7 +5,7 @@ REM for IscaFS, © Phil Norman 28th May, 1998
 mod_title$	= "IscaFS"
 REM FIXME - change version number before releasing
 mod_author$	= "Phil Norman, Matthew Wilcox, Nicholas Clark, Marco Baye"
-mod_version%	= 17
+mod_version%	= 18
 mod_year$	= "1997-2005"
 mod_flags	= 1:REM module is 32bit compatible
 

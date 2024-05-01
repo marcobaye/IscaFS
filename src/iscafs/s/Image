@@ -597,7 +597,7 @@ FNdt(">>> Image_IdentifyDisc")
 	LDR	r2,[r4,#s_log_block_size%-superblock%]
 	LDR	r1,[r4,#s_blocks_count%-superblock%]
 	ADD	r2, r2, #10
-	MOV	r1, r1, LSL r2
+	MOV	r1, r1, LSL r2		; FIXME - more than 4 GiB will overflow!
 	STR	r1,[r5,#16]		; disc_size
 ;------------------------
 ; write disc name and cycle ID into FileCore descriptor block
@@ -606,9 +606,9 @@ FNdt(">>> Image_IdentifyDisc")
 	MOV	r3, r3, LSL #16		; drop last 2 characters
 	ORR	r3, r3, r2, LSR #16	; and put the two from r2 in
 	MOV	r2, r2, LSL #16		; drop last 2 characters
-	ORR	r2, r2, r1, LSR #16	; and put the two from r2 in
+	ORR	r2, r2, r1, LSR #16	; and put the two from r1 in
 	MOV	r1, r1, LSL #16		; put the first two chars at the top
-	LDR	r14, [r4, #s_volume_name%-s_wtime%]	; FIXME - offset should be negated, right?
+	LDR	r14, [r4, #-(s_volume_name%-s_wtime%)]	; get time of last write
 	ADD	r4, r5, #20
 	MOV	r14, r14, LSL #16	; put the lsb at the top..
 	ORR	r1, r1, r14, LSR #16	; and then ORR it into the bottom.
