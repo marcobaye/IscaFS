@@ -63,9 +63,7 @@ shift_cachectrl%	= 3
 REM Cache entry block
 PROCwksp_init
 cacheent_pointer%	= FNwksp_int	:REM 0 if no block claimed for it.
-REM adjusted name (was "cacheent_mount%")
-cacheent_vol_id%	= FNwksp_int	:REM 0 if the cache entry is invalid.
-
+cacheent_vol_id%	= FNwksp_int	:REM 0 if the cache entry is invalid. (used to be called "cacheent_mount%")
 cacheent_blocknum%	= FNwksp_int
 cacheent_flags%		= FNwksp_int
 
@@ -104,40 +102,40 @@ REM superblock structure (inside image descriptor structure)
 superblock%		= FNwksp_length
 s_inodes_count%		= FNwksp_int
 s_blocks_count%		= FNwksp_int
-s_r_blocks_count%	= FNwksp_int
+s_r_blocks_count%	= FNwksp_int:REM number of reserved blocks (for super-user)
 s_free_blocks_count%	= FNwksp_int
 s_free_inodes_count%	= FNwksp_int
-s_first_data_block%	= FNwksp_int
-s_log_block_size%	= FNwksp_int
-s_log_frag_size%	= FNwksp_int
-s_blocks_per_group%	= FNwksp_int
-s_frags_per_group%	= FNwksp_int
+s_first_data_block%	= FNwksp_int:REM 1 for 1K block size, 0 for all others
+s_log_block_size%	= FNwksp_int:REM 0/1/2 for 1K/2K/4K (i.e. add 10 to get log2)
+s_log_frag_size%	= FNwksp_int:REM in ext4 now log_cluster_size (bigalloc feature)
+s_blocks_per_group%	= FNwksp_int:REM 8K/16K/32K for 1K/2K/4K block size
+s_frags_per_group%	= FNwksp_int:REM in ext4 now clusters_per_group (bigalloc feature)
 s_inodes_per_group%	= FNwksp_int
-s_mtime%		= FNwksp_int
-s_wtime%		= FNwksp_int
-s_mnt_count%		= FNwksp_short
-s_max_mnt_count%	= FNwksp_short
-s_magic%		= FNwksp_short
+s_mtime%		= FNwksp_int:REM mount time
+s_wtime%		= FNwksp_int:REM write time
+s_mnt_count%		= FNwksp_short:REM mounts since last fsck
+s_max_mnt_count%	= FNwksp_short:REM when fsck is forced
+s_magic%		= FNwksp_short:REM must be 0xef53
 s_state%		= FNwksp_short
-s_errors%		= FNwksp_short
+s_errors%		= FNwksp_short:REM do what? continue, remount readonly, panic?
 s_minor_rev_level%	= FNwksp_short
-s_lastcheck%		= FNwksp_int
-s_checkinterval%	= FNwksp_int
+s_lastcheck%		= FNwksp_int:REM date of last fsck
+s_checkinterval%	= FNwksp_int:REM max time between fsck
 s_creator_os%		= FNwksp_int
-s_rev_level%		= FNwksp_int
-
-s_def_resuid%		= FNwksp_short
-s_def_resgid%		= FNwksp_short
-s_first_ino%		= FNwksp_int
-s_inode_size%		= FNwksp_short
-s_block_group_nr%	= FNwksp_short
-s_feature_compat%	= FNwksp_int
-s_feature_incompat%	= FNwksp_int
-s_feature_ro_compat%	= FNwksp_int
+s_rev_level%		= FNwksp_int:REM 0 or 1, see below
+s_def_resuid%		= FNwksp_short:REM default uid for reserved blocks
+s_def_resgid%		= FNwksp_short:REM default gid for reserved blocks
+REM rev level 0 stops here, rev level 1 goes on:
+s_first_ino%		= FNwksp_int:REM first non-reserved inode
+s_inode_size%		= FNwksp_short:REM default was 128, ext4 changed to 256
+s_block_group_nr%	= FNwksp_short:REM where this superblock is
+s_feature_compat%	= FNwksp_int:REM compatible features
+s_feature_incompat%	= FNwksp_int:REM incompatible features
+s_feature_ro_compat%	= FNwksp_int:REM readonly-compatible features
 s_uuid%			= FNwksp_add(4,4)
 s_volume_name%		= FNwksp_add(1,16)
 s_last_mounted%		= FNwksp_int
-REM end of superblock structure
+REM end of superblock structure (actually it goes on, but we don't care)
 REM Note: len_superblock% is not the actual length of a superblock, but the
 REM length of it that should be read into the block.
 len_superblock%		= FNwksp_length - superblock%

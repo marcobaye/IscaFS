@@ -182,7 +182,6 @@ FNdt("_pseudo_image")
 ; sort out the read/write vectors
 ; uses ReadPartition 29/38/64 function pointer
 	LDR	r0,[r12,#read_part_fn]		; load function ptr
-
 	STR	r0,[r6,#mnt_readbytes%]
 	FNladr(0, Image_WriteBytes_ReadOnly)	; partitions are ALWAYS ro
 	STR	r0,[r6,#mnt_writebytes%]
@@ -260,16 +259,9 @@ FNdt("_pseudo_image")
 	LDR	r2,[r12,#disc_size_limit]
 	CMP	r2,r14
 	BCC	_partition_is_unreadable
-; old:
-;	LDR	r14,[r12,#sysflags]
-;	TST	r14,#sysflag_oldfilecore%	; is this old filecore
-;	TSTNE	r2,#&e0000000			; and if it is, is it too large?
-;	BNE	_partition_is_unreadable
-
 ;------------------------
 ; read the super block
 ; now uses ReadPartition 29/38/64 function pointer
-; new:
 	ADD	r2,r6,#superblock%	; target buffer
 	MOV	r3,#len_superblock%	; number of bytes to read
 	MOV	r4,#1024		; partition offset to read
@@ -278,28 +270,6 @@ FNdt("_pseudo_image")
 	LDR	pc,[r6,#mnt_readbytes%]	; Image_ReadBytes_Partition 29/38/64
 	BVC	_check_image
 	B	_error_return
-; old:
-;	MOV	r1,r1,LSL #6			; descriptor shifted up
-;	ADD	r1,r1,#1
-;	MOV	r2,#1024			; disc address to read
-;	TST	r14,#sysflag_oldfilecore%	; EQ -> newfilecore, NE -> old
-;	LDR	r14,[r6,#mnt_startsector%]
-;	MOVEQ	r2,r2,LSR r0			; mnt_lbtsectorlen%, from before
-;	ADDEQ	r2,r2,r14
-;	ADDNE	r2,r2,r14,LSL r0		; mnt_lbtsectorlen%, from before
-;	LDR	r14,[r6,#mnt_drivenumber%]
-;	ADD	r3,r6,#superblock%
-;	ADD	r2,r2,r14,LSL #29
-;	MOV	r4,#len_superblock%
-;; changed SWIEQ/SWINE combo to 32bit-clean variant
-;	BNE	_old_filecore
-;	SWI	X+FileCore_SectorOp		; new FileCore
-;	BVC	_check_image
-;	B	_error_return
-;._old_filecore
-;	SWI	"XFileCore_DiscOp"		; old FileCore
-;	BVC	_check_image
-;	B	_error_return
 
 ;------------------------
 ; Check if the old FileCore is physically able to read all of the partition.
@@ -638,7 +608,7 @@ FNdt(">>> Image_IdentifyDisc")
 	MOV	r2, r2, LSL #16		; drop last 2 characters
 	ORR	r2, r2, r1, LSR #16	; and put the two from r2 in
 	MOV	r1, r1, LSL #16		; put the first two chars at the top
-	LDR	r14, [r4, #s_volume_name%-s_wtime%]
+	LDR	r14, [r4, #s_volume_name%-s_wtime%]	; FIXME - offset should be negated, right?
 	ADD	r4, r5, #20
 	MOV	r14, r14, LSL #16	; put the lsb at the top..
 	ORR	r1, r1, r14, LSR #16	; and then ORR it into the bottom.

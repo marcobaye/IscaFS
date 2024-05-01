@@ -258,12 +258,9 @@ FNdtc(gt, "<<< Directory_ReadNames (no space in buffer)")
 	BLS	_loop		; if name's too short for ",xxx", skip this
 	LDRB	r14,[r4,r14]	; get fourth-last character
 	TEQ	r14,#ASC","	; if it's a comma,
-; fixed bug introduced by myself:
-; old:
-;	MOVEQ	r1,r14		; pretend name is 4 chars shorter
-; new:
 	SUBEQ	r1,r1,#4	; pretend name is 4 chars shorter
-
+	; FIXME - that is wrong, end is chopped off even if not hex number!
+	; maybe call .File_FiletypeFromLeafname instead?
 ._loop
 		LDRB	r14,[r4],#1	; FIXME - convert invalid chars!
 		TEQ	r14,#ASC"."
@@ -286,7 +283,7 @@ FNdt("<<< Directory_ReadNames")
 FNdt(">>> Directory_ReadFullInfo")
 FNdt("  r0 (dirent pointer) = %0x8")
 FNdt("  r2 (buffer to put data in) = %2x8")
-FNdt("  r3 (number read so far) = %3i4")
+FNdt("  r3 (items read so far) = %3i4")
 FNdt("  r4 (number to read) = %4i4")
 FNdt("  r5 (bytes left in buffer) = %5i4")
 FNdt("  r6 (MDB) = %6x8")

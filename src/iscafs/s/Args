@@ -21,7 +21,6 @@ FNdt("  r1 (my handle for file) = %1h8")
 ; blocks in traditional UNIX fashion - that is, in 512-byte blocks, regardless
 ; of the file system's logical block size.
 ; FIXME - might still make problems if the file has holes!
-; new:
 	LDR	r2,[r1,#i_512bblocks%]
 	ADD	r2,r2,#1		; round to next even number
 	BIC	r2,r2,#1		; (to have multiple of buffer size)
@@ -30,13 +29,6 @@ FNdt("  r1 (my handle for file) = %1h8")
 	BICCS	r2,r2,#&0f800000
 	;=MOVCS	r2,   #&007ffffe
 	MOV	r2,r2,LSL #9		; convert 512byte count to byte count
-; old:
-;	ldr	r14,[r1,#file_mount%]
-;	ldr	r2,[r1,#i_blocks%]
-;	ldr	r14,[r14,#s_log_block_size%]
-;	add	r14, r14, #9		; i_blocks% is number of blocks *2
-;	mov	r2, r2, LSL r14
-
 FNdt("<<< Args_ReadAllocatedSize")
 FNdt("  r2 (size allocated to file) = %2i4")
 	FNreturnClean
@@ -58,7 +50,7 @@ FNdt("  r1 (my handle for file) = %1h8")
 	mov	r0,r1
 	ldr	r6,[r1,#file_mount%]
 	ldr	r1,[r1,#file_type%]
-	bl	File_CatalogueInfoFromInode	; cannot fail
+	bl	File_CatalogueInfoFromInode	; never fails
 FNdt("<<< Args_ReadDataStamp")
 FNdt("  r2 (load address) = %2h8")
 FNdt("  r3 (exec address) = %3h8")

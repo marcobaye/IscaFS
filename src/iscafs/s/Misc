@@ -39,7 +39,7 @@ FNdt("  r3 (denominator) = %3i4")
 ;	SWI	"XOS_Write0"
 ;	SWI	"XOS_NewLine"
 ;	LDMFD	R13!,{R0-R2,R14}
-
+;; end
 	FNfunction("r1")
 	TEQ	r3,#0
 	BEQ	_DivisionByZero

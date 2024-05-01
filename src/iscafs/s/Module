@@ -103,13 +103,6 @@ FNdt(">>> Module_Initialise (debugging just started)")
 	STR	r2,[r12,#ptr_blockbuffer]	; this is cache-line aligned
 	ADD	r2,r2,#len_blockbuffer%
 	STR	r2,[r12,#ptr_inodebuffer]	; so is this, but is small
-;	MOV	r3,#len_blockbuffer%		; this is all I need for now
-;	BL	Memory_Claim
-;	STRVC	r2,[r12,#ptr_blockbuffer]
-;	MOVVC	r3,#len_inodebuffer%
-;	BLVC	Memory_Claim
-;	FNreturnOnErr
-;	STR	r2,[r12,#ptr_inodebuffer]
 ; new way of finding out FileCore limits
 	ADR	r1,_discop64
 	SWI	"XOS_SWINumberFromString"
@@ -120,7 +113,6 @@ FNdt(">>> Module_Initialise (debugging just started)")
 	ADD	r2,r1,r2			; convert relative to absolute address
 	STR	r2,[r12,#read_part_fn]		; store function pointer
 	STR	r3,[r12,#disc_size_limit]	; store max number of address bits
-
 ;------------------------
 ; init filing system and cache
 	bl	FS_Declare

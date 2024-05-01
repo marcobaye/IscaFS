@@ -89,11 +89,12 @@ FNdt("  r6 (MDB) = %6x8")
 	FNfunction("r0,r1,r3-r11")
 	add	r2,r2,r1,lsl #shift_cachectrl%
 ; now uses one LDMIA instead of two LDRs
+; FIXME - that is great, until someone changes the struct and the offsets change!
 ; old:
 ;	ldr	r3,[r2,#cachectrl_numentries%]
 ;	ldr	r2,[r2,#cachectrl_pointer%]
 ; new:
-	ldmia	r2,{r2,r3}
+	ldmia	r2,{r2,r3}	; #cachectrl_pointer%, #cachectrl_numentries%
 
 ; FNdt("iii Checking in cache control block %2x8")
 	ldr	r14,[r6,#mnt_volume_id%]
@@ -188,11 +189,8 @@ FNdt("  r6 (MDB) = %6x8")
 	stmia	r3,{r4,r5,r7,r8}
 	stmia	r2,{r9,r10,r11,r14}
 	mov	r2,r3		; The required block has moved to here.
-; commented out because fall-through works as well
 ;	b	_found_cache_entry
-
 ; FALLTHROUGH
-
 ._found_cache_entry
 ;------------------------
 ; We've found the entry - its cacheent is in r2.
@@ -206,16 +204,12 @@ FNdt("  r1 (cache entry) = %1x8")
 ._cache_miss
 ;------------------------
 ; Find a block in cache A we can load the data into.
-; fixed wrong cache references.
-;	ldr	r3,[r12,#blocktableB]
 	ldr	r3,[r12,#blocktableA]
 	add	r3,r3,r1,lsl #shift_cachectrl%
 	ldr	r3,[r3,#cachectrl_pointer%]
 	FNrnd(4)
-;	and	r4,r4,#config_blocksB%-1
 	and	r4,r4,#config_blocksA%-1
 	add	r4,r3,r4,lsl #shift_cacheent%
-
 ;------------------------
 ; If there's no block currently there, claim one.
 	ldr	r2,[r4,#cacheent_pointer%]
@@ -238,7 +232,7 @@ FNdt("  r1 (cache entry) = %1x8")
 	mov	r2,#0
 ._claim_target_block
 	bl	Memory_Resize	; Claim new block (right size!).
-	FNreturnOnErr		; !!! Handle this more gracefully.
+	FNreturnOnErr		; FIXME - Handle this more gracefully!
 	str	r2,[r4,#cacheent_pointer%]
 ._existing_block_ok
 ;------------------------
@@ -251,7 +245,6 @@ FNdt("  r1 (cache entry) = %1x8")
 ; new:
 	ldr	r5,[r6,#mnt_volume_id%]	; get unique volume id
 	stmib	r4,{r5,r7,r8}	; vol id, block num, flags (block size).
-
 ;------------------------
 ; Store all pertinent information about this block.
 	mov	r1,r4		; Return value - pointer to cache entry.
@@ -308,7 +301,7 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("r2-r11")
 	ADDS	r5,r0,#0		; clears V
-	mov	r0,#2
+	mov	r0,#2			; inode number of root directory
 	ldrneb	r1,[r5]
 	teqne	r1,#0
 FNdtc(eq, "<<< Cache_FindInode (root)")
@@ -382,7 +375,7 @@ FNdt("_match_leaf")
 	TEQNE	r7,#4			; ext2 name must have same
 	BNE	_clean_exit		; length or be 4 (",xxx") chars longer
 	MOV	r7,r4			; save local filename length in r7
-; FIXME - does this mean that NAME+4CHARS is always accepted?!
+; "desired name + any 4 chars" is not yet rejected
 ._lp
 		LDRB	r3,[r6],#1	; FIXME - convert invalid chars!
 		LDRB	r14,[r5],#1
@@ -394,6 +387,7 @@ FNdt("_match_leaf")
 		BNE	_clean_exit	; has been creturn
 		SUBS	r4,r4,#1
 		BGT	_lp
+; "desired name + any 4 chars" is not yet rejected
 	MOV	r5,r0			; save dirent pointer in r5
 	ADD	r0,r0,#dirent_name%
 	; r0 => ext2 filename
@@ -402,6 +396,9 @@ FNdt("_match_leaf")
 	MOV	r3,r0			; r3 = filetype
 	MOV	r0,r5			; restore dirent pointer
 	TEQ	r1,r7			; do lengths match without ",xxx"?
+; entry is only accepted if corrected name lengths match, so
+; "desired name + any 4 chars" is rejected if "any 4 chars" is not a comma with
+; three-hex-digits number.
 	LDREQ	r2,[r0,#dirent_inode%]
 	MVNEQ	r0,#0			; "-1" = matched
 ._clean_exit
@@ -510,12 +507,10 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r0  =	block number (-1 = no such block, outside file)
 ;------------------------
 	FNfunction("r1-r4,r8")
-; fixed i_512bblocks% usage. i_512bblocks% contains the number of allocated
-; blocks in traditional UNIX fashion - that is, in 512-byte blocks, regardless
-; of the file system's logical block size.
-; In addition to that, the i_512bblocks% count does not include black holes.
-; So now the file extent is used instead to check for "outside file".
-; new:
+; first check for "outside of file":
+; i_512bblocks% cannot be used for that, it might be too small (because of
+; holes in sparse files) or too large (because of indirect blocks).
+; So now the file's extent is used:
 	LDR	r2,[r6,#s_log_block_size%]	; r2 = log2-10
 	LDR	r3,[r1,#i_size%]		; r3 = file extent
 	ADD	r2,r2,#10			; r2 = log2
@@ -523,15 +518,8 @@ FNdt("  r6 (MDB) = %6x8")
 	BLS	_no_such_block
 	ADD	r1,r1,#i_block%
 	SUB	r8,r2,#2			; r8 = block pointers per block
-; old:
-;	ldr	r2,[r1,#i_blocks%]
-;	cmp	r0,r2,LSR #1	; for some odd reason it's 2x too big
-;	bge	_no_such_block
-;	ldr	r2,[r6,#s_log_block_size%]
-;	add	r1,r1,#i_block%
-;	add	r8, r2, #8	; 8=10-2 (10 add to s_log, 2 for 1word/entry)
 
-	subs	r4,r0,#12		; main section?
+	subs	r4,r0,#12			; main section?
 	bge	_sub_block
 	ldr	r0,[r1,r0,LSL #2]; get block number
 FNdt("<<< Cache_BlockNumberFromInode (primary block)")
