@@ -11,6 +11,11 @@ To do
  * Fix known bugs (see "Docs.Bugs" file)
 
 
+02 May 2024, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Fixed a bug concerning floppy disc cycle IDs
+
+
 07 Jul 2005, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Released as version 0.17
