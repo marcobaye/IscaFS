@@ -29,8 +29,8 @@ can do about it.
 
 Format
 ~~~~~~
-1w	Special word 1 : "þhîL"
-1w	Special word 2 : "ext2"
+1w	Special word 1: &4cee68fe
+1w	Special word 2: &32747865 ("ext2")
 1w	Start sector
 1w	End sector
 1w	Log to base 2 of length of one sector, in bytes

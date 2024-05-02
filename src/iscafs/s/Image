@@ -148,7 +148,7 @@ FNdt("  r1 (my file handle) = %1x8")
 
 
 ._special_words
-	EQUS	"þhîL"
+	EQUD	&4cee68fe
 ._ext2_word
 	EQUS	"ext2"
 
