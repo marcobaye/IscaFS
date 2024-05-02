@@ -33,16 +33,16 @@ FNdt("  r2 (buffer size if known) = %2i4")
 ; check to see if it's a pseudo-image
 	MOV	r0,#3
 	ADD	r2,r6,#superblock%
-	MOV	r3,#8
+	MOV	r3,#8			; check first two words
 	MOV	r4,#0
 	SWI	"XOS_GBPB"
 	BVS	_bad_image
 	LDMDB	r2,{r0,r3}
-	ADD	r2,r6,#superblock%
-	LDR	r4,_special_words	; FIXME - specialword2
-	TEQ	r4,r0			; and THEN specialword1
-	LDREQ	r4,_special_words+4	; is accepted!
-	TEQ	r4,r3
+	ADD	r2,r6,#superblock%	; FIXME - what is this for?!
+	LDR	r4,_special_words
+	TEQ	r4,r0
+	LDR	r4,_special_words+4
+	TEQEQ	r4,r3
 	BEQ	_pseudo_image
 	FNladr(0, Image_ReadBytes_File)
 	STR	r0,[r6,#mnt_readbytes%]
@@ -149,8 +149,7 @@ FNdt("  r1 (my file handle) = %1x8")
 
 ._special_words
 	EQUD	&4cee68fe
-._ext2_word
-	EQUS	"ext2"
+	EQUD	&32747865	; "ext2"
 
 ._error_return
 	MOV	r2,r6

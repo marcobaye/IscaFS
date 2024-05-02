@@ -14,6 +14,8 @@ To do
 02 May 2024, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Fixed a bug concerning floppy disc cycle IDs
+ * Fixed a bug checking the header of Pseudo Image Files: now both words
+   must be correct.
 
 
 07 Jul 2005, Marco Baye
