@@ -8,30 +8,41 @@ This is release 0.17 of IscaFS. If you did not download this archive from
     http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
 or
     http://splodge.fluff.org/~phil/
-just now, then I suggest you check whether there's a newer version available.
+just now, then I suggest you check whether there's a newer version
+available.
 
 
 Legalese:
-    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the file !IscaFS.Docs.Legal for more details.
+    This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE. See the file !IscaFS.Docs.Legal for
+more details.
 
 
 What it is:
-    IscaFS is an image filing system allowing read-only access to ext2/ext3 file systems. In addition to floppy discs and image files, it also handles hard disc partitions (so if you have ARMLinux, you can access the files on your ext2/ext3 partitions).
+    IscaFS is an image filing system allowing read-only access to ext2/ext3
+file systems. In addition to floppy discs and image files, it also handles
+hard disc partitions (so if you have ARMLinux, you can access the files on
+your ext2/ext3 partitions).
 
 
 Supported OS versions:
     RISC OS < 3.5:
-        You will either need a copy of Justin Fletcher's dynamic areas support
-        module (called "DDA" or "Dummy") or you will have to re-assemble IscaFS
-        after configuring it to use the RMA instead of a dynamic area. See the
-        file !IscaFS.Docs.Build on how to do this.
+        You will either need a copy of Justin Fletcher's dynamic areas
+        support module (called "DDA" or "Dummy") or you will have to
+        re-assemble IscaFS after configuring it to use the RMA instead of a
+        dynamic area. See the file !IscaFS.Docs.Build on how to do this.
     RISC OS 3.5 or higher:
         IscaFS should work without problems.
-        It's 32bit-clean, so it should run on Iyonix as well. If not, tell me.
+        It's 32bit-clean, so it should run on Iyonix as well. If not, tell
+        me.
 
 
 Where the docs are:
-    The complete documentation is contained in the !IscaFS.Docs directory. Open the Filer's menu over the !IscaFS icon and choose the "Help" menu entry to open the directory containing the documentation. Start by reading the file !IscaFS.Docs.!ReadMe
+    The complete documentation is contained in the !IscaFS.Docs directory.
+Open the Filer's menu over the !IscaFS icon and choose the "Help" menu entry
+to open the directory containing the documentation. Start by reading the
+file !IscaFS.Docs.!ReadMe
 
 
 What this archive contains:
@@ -40,8 +51,8 @@ What this archive contains:
     !ReadMeNow
         *This* file.
     Source
-        Needed if you want to assemble/compile IscaFS or its helper programs.
-        See the file !IscaFS.Docs.Build on how to do this.
+        Needed if you want to assemble/compile IscaFS or its helper
+        programs. See the file !IscaFS.Docs.Build on how to do this.
     Support
         Helper programs. See the file !IscaFS.Docs.Support
 
@@ -71,8 +82,8 @@ Changes from release 0.13, 23 Apr 2004
     Just bug fixes:
 
     Fixed bug in two-level cache usage (cache A wasn't used at all).
-    Fixed bug which could result in stale cache entries being used. This only
-        surfaced when dismounting volumes (for example floppy discs).
+    Fixed bug which could result in stale cache entries being used. This
+        only surfaced when dismounting volumes (for example floppy discs).
         Thanks to Rien Mertens for reporting that bug.
     Fixed time/date conversion code. No longer off by 0.76 seconds.
 

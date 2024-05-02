@@ -5,59 +5,99 @@
 
 Introduction
 ~~~~~~~~~~~~
-This file is here in order to explain any commonly used terms in linux which relate to ext2, and also the many terms which I use in my source code and my descriptions of data structures.
+This file is here in order to explain any commonly used terms in linux which
+relate to ext2, and also the many terms which I use in my source code and my
+descriptions of data structures.
 
 
 Personal terms
 ~~~~~~~~~~~~~~
 ARP
 ---
-All Registers Preserved.  Used to show a function will preserve all registers when it returns.
+All Registers Preserved.  Used to show a function will preserve all
+registers when it returns.
 
 AORP
 ----
-All Other Registers Preserved.  Used to show a function will preserve all registers except those which are explicitly returned when it returns.
+All Other Registers Preserved.  Used to show a function will preserve all
+registers except those which are explicitly returned when it returns.
 
 ZTS
 ---
-Zero-Terminated String.  Used in structure definitions in documentation files.
+Zero-Terminated String.  Used in structure definitions in documentation
+files.
 
 
 Linux terms
 ~~~~~~~~~~~
 Inode
 -----
-These are the basic definitions for files, directories etc on the disc.  EVERY object on an ext2 filesystem has an inode and there are a fixed number of them available on the disc.  Each inode is 128 bytes long.
+These are the basic definitions for files, directories etc on the disc.
+EVERY object on an ext2 filesystem has an inode and there are a fixed number
+of them available on the disc.  Each inode is 128 bytes long.
 
 Block
 -----
-A block is the smallest unit of storage in any ext2 device.  It can take the values 1024, 2048 or 4096 (bytes), and there can be no variation in block size throughout the device.  The default size is 1024.
+A block is the smallest unit of storage in any ext2 device.  It can take the
+values 1024, 2048 or 4096 (bytes), and there can be no variation in block
+size throughout the device.  The default size is 1024.
 
 Superblock
 ----------
-This is the disc descriptor.  It can be found at 1k from the start of an ext2 partition, and it describes the ext2 format completely, including how many inodes there are, how much disc space is free etc.  Its given size is 1k, although not much of that is used at this time.
+This is the disc descriptor.  It can be found at 1k from the start of an
+ext2 partition, and it describes the ext2 format completely, including how
+many inodes there are, how much disc space is free etc.  Its given size is
+1k, although not much of that is used at this time.
 
 Group
 -----
-A group is a collection of blocks.  The group size depends on the block size:
+A group is a collection of blocks.  The group size depends on the block
+size:
  Block size     Group size
    1024            8192 blocks =   8 MB
    2048           16384 blocks =  32 MB
    4096           32768 blocks = 128 MB
-As the block size is constant throughout the disc, the group size is as well.  The first group begins at the start of the device. On older ext2 partitions, each group contains a copy of the superblock and the group descriptor table. Newer ext2 partitions use the "sparse_super" feature, which means that only groups 0, 1, 3^x, 5^x and 7^x contain that copy.  Each group has its own set of inodes, and another number of blocks for storing data.  It also has bitmaps of used inodes and used blocks.  The positions of these are given in the group descriptor.
+As the block size is constant throughout the disc, the group size is as
+well.  The first group begins at the start of the device. On older ext2
+partitions, each group contains a copy of the superblock and the group
+descriptor table. Newer ext2 partitions use the "sparse_super" feature,
+which means that only groups 0, 1, 3^x, 5^x and 7^x contain that copy.  Each
+group has its own set of inodes, and another number of blocks for storing
+data.  It also has bitmaps of used inodes and used blocks.  The positions of
+these are given in the group descriptor.
 
 Group descriptor
 ----------------
-The group descriptor contains information about where to find the various structures in the group (given as absolute block numbers).  A table of all group descriptors is stored after each copy of the superblock (starting in the next block).
+The group descriptor contains information about where to find the various
+structures in the group (given as absolute block numbers).  A table of all
+group descriptors is stored after each copy of the superblock (starting in
+the next block).
 
 Files
 -----
-Inodes contain a list of 15 block numbers.  These block numbers describe the blocks in which the file information is stored.  The first blocks given in the inode hold the first 12 blocks' worth of file data.  Blocks are filled from the start onwards, each block being completely filled before the next one is used - therefore only the last block can be partially filled.  Block number 13 (in the inode definition) is a block containing other block numbers, each of which hold file data.  Block 14 is a block containing other block numbers, each of which hold other block numbers which hold file information.  Block 15 is triply indirected (block 14 is doubly-indirected). The "i_blocks" record in the inode stores the number of blocks used by the inode body. This number does not only include the actual data blocks, but also the (singly-/doubly-/triply-) indirect blocks. For historical reasons, this value does not count ext2's logical blocks (1024, 2048 or 4096 bytes), but traditional UNIX blocks (512 bytes).
+Inodes contain a list of 15 block numbers.  These block numbers describe the
+blocks in which the file information is stored.  The first blocks given in
+the inode hold the first 12 blocks' worth of file data.  Blocks are filled
+from the start onwards, each block being completely filled before the next
+one is used - therefore only the last block can be partially filled.  Block
+number 13 (in the inode definition) is a block containing other block
+numbers, each of which hold file data.  Block 14 is a block containing other
+block numbers, each of which hold other block numbers which hold file
+information.  Block 15 is triply indirected (block 14 is doubly-indirected).
+The "i_blocks" record in the inode stores the number of blocks used by the
+inode body. This number does not only include the actual data blocks, but
+also the (singly-/doubly-/triply-) indirect blocks. For historical reasons,
+this value does not count ext2's logical blocks (1024, 2048 or 4096 bytes),
+but traditional UNIX blocks (512 bytes).
 
 Directories
 -----------
-A directory's blocks are organised in exactly the same way as a file's.  The blocks are filled with directory entry definitions instead of file data.
+A directory's blocks are organised in exactly the same way as a file's.  The
+blocks are filled with directory entry definitions instead of file data.
 
 Symbolic links
 --------------
-The pathname of the target of the link is actually written over where the block numbers are in the inode definition.  For pathnames longer than 60 bytes, the pathname is stored in a block instead. IscaFS does not yet support symbolic links.
+The pathname of the target of the link is actually written over where the
+block numbers are in the inode definition.  For pathnames longer than 60
+bytes, the pathname is stored in a block instead. IscaFS does not yet
+support symbolic links.

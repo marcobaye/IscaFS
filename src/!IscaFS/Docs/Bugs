@@ -7,40 +7,50 @@
 ~~~~~~~~~~~
  * Still no write support ;)
  * Won't work with drive numbers > 9
- * "PartTool" doesn't complain if the partition ID is too high or too low, it
-   just fails silently.
- * Support for ",hex" file types is still not yet perfect. Though *Ex, *Cat and
-   the Filer work correctly, there's still an interface left (used by *EnumDir,
-   for example) which returns inconsistent information:
+ * "PartTool" doesn't complain if the partition ID is too high or too low,
+   it just fails silently.
+ * Support for ",hex" file types is still not yet perfect. Though *Ex, *Cat
+   and the Filer work correctly, there's still an interface left (used by
+   *EnumDir, for example) which returns inconsistent information:
    Linux:	test,ffb	smart1,2.h
    Filer:	test (BASIC)	smart1,2/h (Text)
    EnumDir:	test		smart1	(inconsistent with the Filer info)
- * Checking the header of Pseudo Image Files is not strict enough: In addition
-   to "þhîLext2", "ext2þhîL" is accepted as well.
- * The IscaFS cache system does not cope with recursive calls (ext2 image files
-   on ext2 partitions).
+ * Checking the header of Pseudo Image Files is not strict enough: In
+   addition to "þhîLext2", "ext2þhîL" is accepted as well.
+ * The IscaFS cache system does not cope with recursive calls (ext2 image
+   files on ext2 partitions).
  * Some files cannot be accessed because the file names contain characters
-   which are illegal in RISC OS file names. I'll need to add some quoting code.
+   which are illegal in RISC OS file names. I'll need to add some quoting
+   code.
 
 
 18 Apr 2004
 ~~~~~~~~~~~
- * I (Marco) hate to write documentation and therefore I have been too lazy to
-   actually mark which parts of the docs were added/changed by me and which
-   parts were copied from Phil's original 0.08 release (most stuff belongs to
-   the latter category).
+ * I (Marco) hate to write documentation and therefore I have been too lazy
+   to actually mark which parts of the docs were added/changed by me and
+   which parts were copied from Phil's original 0.08 release (most stuff
+   belongs to the latter category).
 
 
 10th April, 1999
 ~~~~~~~~~~~~~~~~
-Chris Rutter's mentioned having data aborts.  This needs to be looked into at some point soon, but these are the only ones I've heard about.
-MB, 16 Apr 2004> I wish I knew whether those errors still happen with my releases (0.11 and higher).
+Chris Rutter's mentioned having data aborts.  This needs to be looked into
+at some point soon, but these are the only ones I've heard about.
+MB, 16 Apr 2004> I wish I knew whether those errors still happen with my
+releases (0.11 and higher).
 
 
 28th March, 1998
 ~~~~~~~~~~~~~~~~
 Blocks bitmap IE
 ----------------
-The ImageFS entry point for getting the used blocks bitmap from an image is not yet supported.  This is because I haven't got around to it yet.  AFAIK the only instance in which this will be used is when an ext2 floppy is being backed up, so just don't backup any ext2 floppies and everything should be just fine.  This would be a remarkably simple routine, except that while ext2 filesystems' block sizes can go up to 4k, FileSwitch only supports block sizes of up to 1k (moan, complain, moan).
-MB, 16 Apr 2004> IscaFS now gives an error if this function is called, instead of failing silently.
+The ImageFS entry point for getting the used blocks bitmap from an image is
+not yet supported.  This is because I haven't got around to it yet.  AFAIK
+the only instance in which this will be used is when an ext2 floppy is being
+backed up, so just don't backup any ext2 floppies and everything should be
+just fine.  This would be a remarkably simple routine, except that while
+ext2 filesystems' block sizes can go up to 4k, FileSwitch only supports
+block sizes of up to 1k (moan, complain, moan).
+MB, 16 Apr 2004> IscaFS now gives an error if this function is called,
+instead of failing silently.
 

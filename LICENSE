@@ -5,20 +5,24 @@
 
 Application
 ~~~~~~~~~~~
-This licence applies to the IscaFS package, which consists of the entire contents of this distribution with the following exceptions:
+This licence applies to the IscaFS package, which consists of the entire
+contents of this distribution with the following exceptions:
 
-1:	Matthew Godbolt's MemoryAllocator module (which is (C) Matthew Godbolt).
-2:	Matthew Wilcox's debugging code (which is (C) Matthew Wilcox).
-3:	Phil Norman's !PCFNLib and !PNAsm (which are (C) Phil Norman).
-4:	Dickon Hood's debugging functions (which can be found in !PCFNLib).
-5:	Marco Baye's 32bit extension to !PCFNLib (which is (C) Marco Baye).
+1: Matthew Godbolt's MemoryAllocator module (which is (C) Matthew Godbolt).
+2: Matthew Wilcox's debugging code (which is (C) Matthew Wilcox).
+3: Phil Norman's !PCFNLib and !PNAsm (which are (C) Phil Norman).
+4: Dickon Hood's debugging functions (which can be found in !PCFNLib).
+5: Marco Baye's 32bit extension to !PCFNLib (which is (C) Marco Baye).
 
-The copyright also applies to any IscaFS modules compiled using the IscaFS source code.
+The copyright also applies to any IscaFS modules compiled using the IscaFS
+source code.
 
 
 Copyright
 ~~~~~~~~~
-The IscaFS package (as described above) is copyright Phil Norman, Matthew Wilcox, Nicholas Clark and Marco Baye 1997-2005.  It is distributed under the GNU General Public Licence, a copy of which is included below.
+The IscaFS package (as described above) is copyright Phil Norman, Matthew
+Wilcox, Nicholas Clark and Marco Baye 1997-2005.  It is distributed under
+the GNU General Public Licence, a copy of which is included below.
 
 
 Licence

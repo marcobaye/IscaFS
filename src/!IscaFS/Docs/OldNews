@@ -46,17 +46,29 @@ Tampered with Phil's library to include 32bit-clean versions of the macros
 
 Changes from release 0.08 to release 0.11, 16 Mar 2004
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-IscaFS now finally copes with all three block sizes and the standard ext2 filesystem features ("sparse_super" and "filetype"). In short, IscaFS is now able to access all current ext2/ext3 partitions. In addition to that, some bugs were fixed and some simple entry points added. See "Changes" and "ChangeLog" for details.
+IscaFS now finally copes with all three block sizes and the standard ext2
+filesystem features ("sparse_super" and "filetype"). In short, IscaFS is now
+able to access all current ext2/ext3 partitions. In addition to that, some
+bugs were fixed and some simple entry points added. See "Changes" and
+"ChangeLog" for details.
 
 
 Changes from release 0.06 to release 0.08
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The major changes since 0.06 are the new cache system (warning: dodgy, not well-tested code, please report any bugs to forrey@eh.org), and Nicholas Clark's patch which allows partitions over 4gig to be accessed.
+The major changes since 0.06 are the new cache system (warning: dodgy, not
+well-tested code, please report any bugs to forrey@eh.org), and Nicholas
+Clark's patch which allows partitions over 4gig to be accessed.
 
-I don't think I'll be implementing a write capability in IscaFS, since the amount of time required to do this almost certainly outweighs the use it'd be.  Instead, I'll be hacking away at my own filing system, OhFFS, which is much more fun (ie horrendously complicated - I don't yet have nightmares about implementing write capability, but I'm sure I will).
+I don't think I'll be implementing a write capability in IscaFS, since the
+amount of time required to do this almost certainly outweighs the use it'd
+be.  Instead, I'll be hacking away at my own filing system, OhFFS, which is
+much more fun (ie horrendously complicated - I don't yet have nightmares
+about implementing write capability, but I'm sure I will).
 
-Although I'm not going to be actively developing IscaFS, I'll still be available for fixing bugs.
+Although I'm not going to be actively developing IscaFS, I'll still be
+available for fixing bugs.
 
-If anyone has a burning desire to take over development of IscaFS, they're welcome.  Please contact me for your Free Development Pack (TM)!
+If anyone has a burning desire to take over development of IscaFS, they're
+welcome.  Please contact me for your Free Development Pack (TM)!
 
 Phil

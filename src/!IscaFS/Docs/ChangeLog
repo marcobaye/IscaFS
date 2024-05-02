@@ -23,26 +23,28 @@ To do
    this bug.
  * Adjusted module version number used in the !Run file (had been wrong the
    last few releases).
- * Fixed a bug concerning comma-separated file type information: When chopping
-   off the file type information, wrong file name lengths were generated. In
-   most cases, this resulted in removing ",xyz" even if "xyz" was not a valid
-   hexadecimal number.
+ * Fixed a bug concerning comma-separated file type information: When
+   chopping off the file type information, wrong file name lengths were
+   generated. In most cases, this resulted in removing ",xyz" even if "xyz"
+   was not a valid hexadecimal number.
 
 
 07 Sep 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Two tiny optimisations (LDR-to-LDM, removal of superfluous B)
  * Radically improved performance by fixing a bug in the cache system: The
-   random number algorithm fell apart when it delivered a value ending in five
-   0 bits: From then on, it only delivered zero, which is rather non-random.
-   I couldn't be bothered to create a proper random number algorithm, so now
-   the random seed is just incremented and returned. Though this isn't exactly
-   "random" either, at least consecutive calls return differing results now.
-   This change resulted in the two-level cache system finally working properly:
-   Compared to IscaFS 0.14, access times are down to 50%-30%.
-   The downside is that the dynamic area grows considerably as much more cache
-   memory is needed. Whereas IscaFS 0.14 used about 100 KB, v0.16 can take
-   up to 800 KB (with 4KB ext2 block size - smaller blocks take less memory :)
+   random number algorithm fell apart when it delivered a value ending in
+   five 0 bits: From then on, it only delivered zero, which is rather
+   non-random. I couldn't be bothered to create a proper random number
+   algorithm, so now the random seed is just incremented and returned.
+   Though this isn't exactly "random" either, at least consecutive calls
+   return differing results now.
+   This change resulted in the two-level cache system finally working
+   properly: Compared to IscaFS 0.14, access times are down to 50%-30%.
+   The downside is that the dynamic area grows considerably as much more
+   cache memory is needed. Whereas IscaFS 0.14 used about 100 KB, v0.16 can
+   take up to 800 KB (with 4KB ext2 block size - smaller blocks take less
+   memory :)
  * Released as version 0.16
 
 
@@ -56,16 +58,16 @@ To do
 07 May 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Fixed bug in cache usage (cache A wasn't used at all).
- * Fixed bug where repeated (dis)mounting could result in stale cache entries
-   being used. Surfaced when using floppies, as image files are almost never
-   dismounted.
+ * Fixed bug where repeated (dis)mounting could result in stale cache
+   entries being used. Surfaced when using floppies, as image files are
+   almost never dismounted.
  * Released as version 0.14
 
 
 06 May 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
- * Format description changed from "ext2fs 1.44M" to "ext2fs" as ext2 floppies
-   can have any size.
+ * Format description changed from "ext2fs 1.44M" to "ext2fs" as ext2
+   floppies can have any size.
 
 
 24 Apr 2004, Marco Baye
@@ -102,16 +104,17 @@ To do
 
 16 Apr 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
- * Changed ordering in this file, now the newest stuff is located at the top.
+ * Changed ordering in this file, now the newest stuff is located at the
+   top.
  * Updated documentation.
  * Released as version 0.12.
 
 
 09 Apr 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
- * Corrected usage of "i_blocks%" (now renamed to i_512bblocks%), which gives
-   the allocated size in traditional UNIX blocks (512 byte), not the FS's
-   logical blocks.
+ * Corrected usage of "i_blocks%" (now renamed to i_512bblocks%), which
+   gives the allocated size in traditional UNIX blocks (512 byte), not the
+   FS's logical blocks.
  * Wrote "lsattr-isc" program to display UNIX file mode bits.
 
 
@@ -123,8 +126,8 @@ To do
 
 07 Apr 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
- * Added MimeMap calls so IscaFS now copes with ".ext" type extensions as well
-   (in addition to ",hex" extensions). It's a bit slower though.
+ * Added MimeMap calls so IscaFS now copes with ".ext" type extensions as
+   well (in addition to ",hex" extensions). It's a bit slower though.
 
 
 06 Apr 2004, Marco Baye
@@ -142,22 +145,22 @@ To do
  * "Divide" now throws errors for numerators > &7fffffff and works correctly
    for numerators > &3fffffff.
  * Fixed bug which used wild inode numbers when scanning empty directories.
-   Note: When these two bugs worked hand-in-hand, they were able to freeze the
-   machine.
+   Note: When these two bugs worked hand-in-hand, they were able to freeze
+   the machine.
 
 
 29 Mar 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Now correctly recognizes UNIX pipes, character devices, block devices and
    sockets and refuses to load them.
- * Better conversion of UNIX access mode bits to RISC OS attributes (but read
-   access is always granted).
+ * Better conversion of UNIX access mode bits to RISC OS attributes (but
+   read access is always granted).
 
 
 28 Mar 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
- * Tampered with Phil's library to include 32bit-clean versions of the macros
-   used. Changed the source to use the new macros.
+ * Tampered with Phil's library to include 32bit-clean versions of the
+   macros used. Changed the source to use the new macros.
 
 
 22-24 Mar 2004, Marco Baye
@@ -165,15 +168,16 @@ To do
  * Started to 32bit-clean the module (though I don't have an Iyonix. If you
    want to give me one as a present, go ahead).
  * Improved handling of "," in filenames. Older versions truncated at first
-   comma, new version truncates at "," if and only if exactly 3 chars follow.
+   comma, new version truncates at "," if and only if exactly 3 chars
+   follow.
 
 
 16 Mar 2004, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Improved behaviour on "Object not found" condition. There are situations
    where this is not an error, yet IscaFS always returned errors.
- * Fixed bug in dirent match function. It didn't properly check the length of
-   an ext2 dir entry, resulting in sometimes accessing the wrong inode.
+ * Fixed bug in dirent match function. It didn't properly check the length
+   of an ext2 dir entry, resulting in sometimes accessing the wrong inode.
  * Updated documentation to contain link to homepage.
  * Released as version 0.11.
 
@@ -183,8 +187,8 @@ To do
  * Fixed bug which prevented usage of file systems where blocksize != 1024.
    Now copes with all three ext2 block sizes (1024, 2048, 4096).
  * Changed ReadFreeSpace32 call: If values are larger than 4GB, restrict to
-   4GB instead of delivering just the low word. Otherwise, USED = TOTAL - FREE
-   calculations in !ImageFree may give bogus results.
+   4GB instead of delivering just the low word. Otherwise, USED = TOTAL -
+   FREE calculations in !ImageFree may give bogus results.
  * Changed !Boot and !Run files so module is autoloaded when needed.
  * Added Nicholas Clark to list of developers.
  * Set version number to 0.11.
@@ -205,9 +209,9 @@ To do
    each group has its own. This means mounting large file systems does no
    longer take ages, and accessing them actually works, even when using the
    "sparse_super" feature (used in ext2 file systems by default nowadays).
- * Added "ReadFreeSpace64" entry point, so there's a useable interface to find
-   out how much space is used/unused in an ext2 file system, even if the file
-   system is larger than 4GB.
+ * Added "ReadFreeSpace64" entry point, so there's a useable interface to
+   find out how much space is used/unused in an ext2 file system, even if
+   the file system is larger than 4GB.
  * Changed help string: Development time is now given as "1997-2004"
  * Added myself to list of developers.
  * Set version number to 0.09.
@@ -230,14 +234,15 @@ To do
 
 28th October, 1998 Phil Norman
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * Bug fix in Cache (yes, another one) - bad block numbers were being used in
-   files of over 64meg in length.  Thanks to Timothy Baldwin for spotting
+ * Bug fix in Cache (yes, another one) - bad block numbers were being used
+   in files of over 64meg in length.  Thanks to Timothy Baldwin for spotting
    the bug.
 
 
 28th May, 1998 Matthew Wilcox
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * Added some GNU ext2 extensions for filesystem naming and other funky stuff.
+ * Added some GNU ext2 extensions for filesystem naming and other funky
+   stuff.
 
 
 28th May, 1998 Phil Norman
@@ -247,9 +252,10 @@ To do
  * Bug fix - last sector in partitions was erroneously triggering an error.
  * Split Cache into Cache and CacheW, CacheW containing all the new write
    cache code (all write code is currently commented out).
- * Modified the 'b.Workspace' file to use the new Workspace library in PCFNLib.
- * Mounting code now loads all the group descriptors and keeps them in memory,
-   resulting in a 5% (approx.) speed benefit.
+ * Modified the 'b.Workspace' file to use the new Workspace library in
+   PCFNLib.
+ * Mounting code now loads all the group descriptors and keeps them in
+   memory, resulting in a 5% (approx.) speed benefit.
 
 
 28th March, 1998 Phil Norman
@@ -265,28 +271,31 @@ To do
  * Added a new debugging function - FNdbg_func(name$,rin$,rout$) which
    currently doesn't work properly (it does very odd things which cause
    Directory_Scan to notice '.' and '..' (which is should ignore).  The use
-   of dbg_func can be toggled between full use and just use of FNdbg_str with
-   the dbg_config_func% variable in 'Config'.
- * Added Memory_QuickCopy which copies large blocks of data (multiples of 128
-   bytes in size).  This function stores whole cache-lines at a time, so all
-   target pointers should ideally be cache-line aligned.
+   of dbg_func can be toggled between full use and just use of FNdbg_str
+   with the dbg_config_func% variable in 'Config'.
+ * Added Memory_QuickCopy which copies large blocks of data (multiples of
+   128 bytes in size).  This function stores whole cache-lines at a time, so
+   all target pointers should ideally be cache-line aligned.
  * Altered Cache_Initialise so it uses one large block of memory for all the
    cache blocks and tables.  It also cache-line aligns the cache blocks.
- * Altered Module_Initialise so it dimensions 'buffer' and 'buffer2' together,
-   forcing 'buffer' to be cache-line aligned (for speed when Memory_QC is
-   used).
- * Optimised Memory_BlockCopy since I realised it doesn't need to do any stack
-   storage, but can simply load the pc from the correct offset on the stack.
- * Fixed FNladr in PCFNLib - it was using an ORR rather than an ADD.  This is
-   a Bad Thing (TM) since an ADR adds things onto the pc, and the required
-   bits which are ORRed may already be set on the currently-assembled address.
+ * Altered Module_Initialise so it dimensions 'buffer' and 'buffer2'
+   together, forcing 'buffer' to be cache-line aligned (for speed when
+   Memory_QC is used).
+ * Optimised Memory_BlockCopy since I realised it doesn't need to do any
+   stack storage, but can simply load the pc from the correct offset on the
+   stack.
+ * Fixed FNladr in PCFNLib - it was using an ORR rather than an ADD.  This
+   is a Bad Thing (TM) since an ADR adds things onto the pc, and the
+   required bits which are ORRed may already be set on the currently-
+   assembled address.
  * Changed 'debug_bufsize' to 64k since it was being flushed too often when
    FNdbg_func was being used.
- * Fixed a bug in FNdbg_reg where, if reg%=13 the amount of stuff on the stack
-   was being SUBbed rather than ADDed.
+ * Fixed a bug in FNdbg_reg where, if reg%=13 the amount of stuff on the
+   stack was being SUBbed rather than ADDed.
  * Fixed Directory_Scan so it notices if a directory has no blocks allocated
-   to it.  Previously (including the notable case of /dev/aztcd) it was trying
-   to read the contents of the address -1 if the first block wasn't there.
+   to it.  Previously (including the notable case of /dev/aztcd) it was
+   trying to read the contents of the address -1 if the first block wasn't
+   there.
 
 
 ??th March, 1998 Matthew Wilcox
