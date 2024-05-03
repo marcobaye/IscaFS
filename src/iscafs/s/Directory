@@ -78,14 +78,9 @@ FNdt("  r11 (subroutine) = %11x8")
 	MOV	r0,r8			; get inode block number
 	BL	Cache_BlockFromInode	; and fetch block
 	FNreturnOnErr
-; top-bit-set addresses are okay now
-; new:
+; top-bit-set addresses are okay, except for -1
 	CMN	r0,#1			; -1 means outside file (EOF)
 	BEQ	_last_item_read
-; old:
-;	CMP	r0,#0			; -1 means outside file (EOF)
-;	BLT	_last_item_read
-
 	SUB	r2,r1,r0		; r2 = size of block
 	LDR	r1,[r12,#ptr_blockbuffer]; copy block to global block buffer
 	BL	Memory_QuickCopy	; buffer is cache-line aligned ;-)
@@ -108,14 +103,9 @@ FNdt("  r11 (subroutine) = %11x8")
 	MOV	r14,pc			; call subroutine
 	MOV	pc,r11
 	MOV	r10,r2			; keep it safe again
-; negative values are okay now
-; new:
+; top-bit-set values are okay, except for -1
 	CMN	r0,#1
 	BEQ	_subroutine_failed
-; old:
-;	CMP	r0,#0
-;	BLT	_subroutine_failed
-
 ._next_entry
 	LDR	r14,[r0,#dirent_entry_length%]
 ; needed if FS uses "filetype-in-dir" feature

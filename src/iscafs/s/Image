@@ -44,6 +44,9 @@ FNdt("  r2 (buffer size if known) = %2i4")
 	LDR	r4,_special_words+4
 	TEQEQ	r4,r3
 	BEQ	_pseudo_image
+; FIXME - all of this should be the other way around:
+; first try to read the superblock (at offset 1024), and only if that fails,
+; try to interpret the file as a pseudo image file (which is much smaller).
 	FNladr(0, Image_ReadBytes_File)
 	STR	r0,[r6,#mnt_readbytes%]
 	FNladr(0, Image_WriteBytes_File)
@@ -68,6 +71,9 @@ FNdt("_check_image")
 	EOR	r3, r3, #&ef000000	; will be set to 0 if equal
 	TEQ	r3, #&00530000		; ditto. (TEQ == EORS)
 	BNE	_bad_image
+; FIXME - check revision (accept only 0 and 1)
+; FIXME - determine inode size and remember it
+; FIXME - check file system features and maybe complain
 ;------------------------
 ; link in the new mount block
 	LDR	r0,[r12,#firstmount]
@@ -89,22 +95,16 @@ FNdt("_check_image")
 	LDR	r3,[r6,#s_blocks_per_group%]
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
 	FNreturnOnErr
-; This was buggy. Instead of fetching all block group descriptors, it fetched
-; lots of copies of the first block group's group descriptor. If the FS uses
-; the "sparse_super" feature, this bug shows:
-; In that case, only the groups 0, 1, 3^x, 5^x and 7^x have copies of the super
-; block and the group descriptor table. Without that table, this function
-; accessed and interpreted random data.
-; Oh, and if IscaFS had had write capability, the bug would have been surfaced
-; much earlier due to catastrophic data losses... ;)
 	; r3 = blocks per group
 	; r0 = completely usable groups
 	; r2 = remainder (if != 0, there's a last group of smaller size)
 	TEQ	r2,#0			; is there a partially-filled group?
 	ADDNE	r0,r0,#1		; then increment number of groups
 	; r0 = group count
-	LDR	r5,[r6,#s_log_block_size%]	; get log2-10 of block size
+	LDR	r5,[r6,#s_blocksize_code%]	; get log2-10 of block size
+#if config_write%
 	STR	r0,[r6,#mnt_numgroups%]		; store group count
+#endif
 	MOV	r3,r0,LSL #shift_groupdesc%	; r3 = size of descriptor table
 	ADD	r7,r5,#10			; r7 = log2 of block size
 	RSB	r8,r5,#22			; r8 = opposite shift value
@@ -112,7 +112,7 @@ FNdt("_check_image")
 	; r3 LSL r8 sets Z if any fractional part
 	MOV	r9,r3,LSR r7		; r9 = minimum blocks for table
 	MOVS	r3,r3,LSL r8		; is there a partially-filled block?
-	ADDNE	r9,r9,#1;		; if yes, correct block count
+	ADDNE	r9,r9,#1		; if yes, correct block count
 	; r5 = log2-10 of block size
 	; r7 = log2 of block size
 	; r9 = block count (last block might be partially filled)
@@ -122,7 +122,6 @@ FNdt("_check_image")
 	STR	r2,[r6,#mnt_groupdescs%]	; store pointer
 	; r5 = log2-10 of block size
 	; r9 = block count
-; now it should work for block sizes != 1024
 	MOVS	r5,r5			; check block size
 	MOVEQ	r8,#2			; if 1024, table starts at block #2.
 	MOV	r5,#1				; prepare shift
@@ -255,7 +254,7 @@ FNdt("_pseudo_image")
 	ADDNE	r14,r14,#1
 	ADD	r14,r14,r2
 	; r14 = number of bits needed to express disc address of last byte
-	LDR	r2,[r12,#disc_size_limit]
+	ldrb	r2,[r12,#disc_size_limit_log2]
 	CMP	r2,r14
 	BCC	_partition_is_unreadable
 ;------------------------
@@ -593,7 +592,7 @@ FNdt(">>> Image_IdentifyDisc")
 	FNpcreturn("NE")		; is ok because V is clear
 ;------------------------
 ; it is an ext2 disc - return the right info and update the disc shape
-	LDR	r2,[r4,#s_log_block_size%-superblock%]
+	LDR	r2,[r4,#s_blocksize_code% - superblock%]
 	LDR	r1,[r4,#s_blocks_count%-superblock%]
 	ADD	r2, r2, #10
 	MOV	r1, r1, LSL r2		; FIXME - more than 4 GiB will overflow!
@@ -720,7 +719,7 @@ FNdt("  r6 (MDB) = %6x8")
 	FNfunction("")
 ;------------------------
 ; get disc size
-	LDR	r2,[r6,#s_log_block_size%]
+	LDR	r2,[r6,#s_blocksize_code%]
 	LDR	r0,[r6,#s_free_blocks_count%]
 	LDR	r3,[r6,#s_blocks_count%]
 	ADD	r5,r2,#10

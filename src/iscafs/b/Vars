@@ -22,7 +22,7 @@ FSC_RemoveImageFS		= 36
 
 
 REM Strings
-format_name$	= "ext2fs":REM changed from "ext2fs 1.44M"
+format_name$	= "ext2fs"
 
 REM more SWI names so assembly works without relevant modules
 MimeMap_Translate		= &50b00

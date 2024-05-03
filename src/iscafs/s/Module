@@ -33,9 +33,9 @@ FNdt(">>> FS_Declare")
 	mov	r2,#FS_Info
 	mov	r3,r12
 	swi	"XOS_FSControl"
-	ldrvc	R0,[R12,#sysflags]
+	ldrvcb	R0,[R12,#sysflags]
 	orrvc	R0,R0,#sysflag_ifs_registered%
-	strvc	R0,[R12,#sysflags]
+	strvcb	R0,[R12,#sysflags]
 FNdt("<<< FS_Declare")
 	FNreturnAsIs
 
@@ -94,7 +94,7 @@ FNdt(">>> Module_Initialise (debugging just started)")
 	FNreturnOnErr
 ;P Cache-line optimisation for memory block #1, which can use the 1024byte
 ;P optimised memory copy.
-	FNmovc(3,len_blockbuffer%+len_inodebuffer%+32)
+	FNmovc(3, len_blockbuffer% + len_inode% + 32)
 	BL	Memory_Claim
 	FNreturnOnErr
 	AND	r3,r2,#31
@@ -103,7 +103,7 @@ FNdt(">>> Module_Initialise (debugging just started)")
 	STR	r2,[r12,#ptr_blockbuffer]	; this is cache-line aligned
 	ADD	r2,r2,#len_blockbuffer%
 	STR	r2,[r12,#ptr_inodebuffer]	; so is this, but is small
-; new way of finding out FileCore limits
+; find out FileCore limits
 	ADR	r1,_discop64
 	SWI	"XOS_SWINumberFromString"
 	ADRVS	r1,_sectorop
@@ -112,7 +112,7 @@ FNdt(">>> Module_Initialise (debugging just started)")
 	LDMDB	r1,{r2,r3}
 	ADD	r2,r1,r2			; convert relative to absolute address
 	STR	r2,[r12,#read_part_fn]		; store function pointer
-	STR	r3,[r12,#disc_size_limit]	; store max number of address bits
+	strb	r3,[r12,#disc_size_limit_log2]	; store max number of address bits
 ;------------------------
 ; init filing system and cache
 	bl	FS_Declare
@@ -160,10 +160,10 @@ FNdt(">>> Module_Finalise")
 ;------------------------
 ; remove filing system
 	CMP	R0,R0				; clear V for FNreturnOnErr
-	LDR	R0,[R12,#sysflags]
+	ldrb	R0,[R12,#sysflags]
 	TST	R0,#sysflag_ifs_registered%	; if ifs is registered,
 	BICNE	R0,R0,#sysflag_ifs_registered%		; mark as unregistered
-	STRNE	R0,[R12,#sysflags]
+	strneb	R0,[R12,#sysflags]
 	MOVNE	r0,#FSC_RemoveImageFS			; and unregister
 	MOVNE	r1,#filetype%
 	SWINE	"XOS_FSControl"

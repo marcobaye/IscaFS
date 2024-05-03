@@ -438,7 +438,7 @@ FNdt("  r4 (file offset) = %4i4")
 	MOV	r5,r1
 ;------------------------
 ; decide what block size the file has
-	LDR	r0,[r6,#s_log_block_size%]
+	LDR	r0,[r6,#s_blocksize_code%]
 	MOV	r8,r2			; interleaved for SA-op
 	ADD	r14,r0,#10
 	MOV	r7,r4,LSR r14		; get block number

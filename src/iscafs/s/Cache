@@ -88,14 +88,7 @@ FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 	FNfunction("r0,r1,r3-r11")
 	add	r2,r2,r1,lsl #shift_cachectrl%
-; now uses one LDMIA instead of two LDRs
-; FIXME - that is great, until someone changes the struct and the offsets change!
-; old:
-;	ldr	r3,[r2,#cachectrl_numentries%]
-;	ldr	r2,[r2,#cachectrl_pointer%]
-; new:
-	ldmia	r2,{r2,r3}	; #cachectrl_pointer%, #cachectrl_numentries%
-
+	ldmia	r2,{r2,r3}	; r2 = cachectrl_pointer%, r3 = cachectrl_numentries%
 ; FNdt("iii Checking in cache control block %2x8")
 	ldr	r14,[r6,#mnt_volume_id%]
 ._lp
@@ -213,7 +206,7 @@ FNdt("  r1 (cache entry) = %1x8")
 ;------------------------
 ; If there's no block currently there, claim one.
 	ldr	r2,[r4,#cacheent_pointer%]
-	ldr	r8,[r6,#s_log_block_size%]
+	ldr	r8,[r6,#s_blocksize_code%]
 	mov	r3,#1024	; Get block size in bytes.
 	mov	r3,r3,lsl r8
 	teq	r2,#0
@@ -221,9 +214,11 @@ FNdt("  r1 (cache entry) = %1x8")
 ;------------------------
 ; If there's an existing block which is the right size, use that.
 	ldr	r1,[r4,#cacheent_flags%]
+#if config_write%
 	tst	r1,#fcacheent_dirty%
 	blne	Cache_CleanBlock
-	and	r1,r1,#fcacheent_blksize%
+#endif
+	and	r1,r1,#fcacheent_sizemask%
 	cmp	r1,r8		; Compare against filesystem's block size.
 	beq	_existing_block_ok
 ; BLLT/MOVLT combo wasn't 32bit-safe. Added BGE before.
@@ -424,24 +419,26 @@ FNdt("  r6 (MDB) = %6x8")
 	SUB	r0,r0,#1		; inodes are numbered from 1 - b'zarre
 	LDR	r3,[r6,#s_inodes_per_group%]
 	MOV	r2,r0
-	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
+	BL	Divide			; r0 = r2/r3 (block group) ; r2 = r2%r3 (inode index in block group)
 	FNreturnOnErr
 ; group descriptors contain *absolute* block numbers!
 	LDR	r14,[r6,#mnt_groupdescs%]
 	ADD	r0,r14,r0,LSL #shift_groupdesc%
 	LDR	r0,[r0,#bg_inode_table%]; block number of inode table start
 
-	LDR	r1,[r6,#s_log_block_size%]
+	LDR	r1,[r6,#s_blocksize_code%]
 	MOV	r14, #1			; StrongARM order
-	ADD	r1, r1, #3
-	ADD	r0, r0, r2, LSR r1
-	MOV	r14, r14, LSL r1
-	SUB	r14, r14, #1
-	AND	r2, r2, r14
+	ADD	r1, r1, #3		; convert block size to inodes_per_block_log2 (FIXME - implies inode size of 128!)
+	ADD	r0, r0, r2, LSR r1	; block index in group's inode table
+	MOV	r14, r14, LSL r1	; inodes in block
+	SUB	r14, r14, #1		; mask
+	AND	r2, r2, r14		; inode index in block
 	BL	Cache_GetBlock		; removed useless VC condition
+#if config_write%
 	STRVC	r0,[r6,#mnt_inodeblockaddr%]
 	STRVC	r1,[r6,#mnt_inodetabaddr%]
-	ADDVC	r0,r0,r2,LSL #7		; inode offset in block
+#endif
+	ADDVC	r0,r0,r2,LSL #7		; inode offset in block (FIXME - implies inode size of 128!)
 FNdt("<<< Cache_GetInodePointer")
 FNdt("  r0 (inode structure) = %0x8")
 	FNreturnAsIs
@@ -465,20 +462,16 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r2  =	pointer to block table entry
 ;------------------------
 	FNfunction("r3")
-	LDR	r2,[r6,#s_log_block_size%]
+	LDR	r2,[r6,#s_blocksize_code%]
 	MOV	r3,#1024
 	MOV	r3,r3,LSL r2
 	BL	Cache_BlockNumberFromInode
 FNdtc(vs, "<<! Cache_BlockFromInode (Cache_BlockNumberFromInode failed)")
 	FNreturnOnErr
-; negative block pointers are okay now
-; new:
+	; top-bit-set block numbers are okay, except for -1
 	CMN	r0, #1			; check for -1 (illegal)
 	BEQ	_clean_exit
-; old:
-;	CMP	r0,#0
-;FNdtc(lt, "<<? Cache_BlockFromInode (negative block pointer)")
-;	BLT	_clean_exit		; changed creturn to BLT
+;FNdtc(lt, "<<? Cache_BlockFromInode (illegal block number)")
 
 	BL	Cache_GetBlock
 	MOV	r2,r1
@@ -500,7 +493,7 @@ FNdt("  r6 (MDB) = %6x8")
 ; Gets the block number of an inode's nth block.
 ;------------------------
 ; On entry:
-;	r0  =	block number
+;	r0  =	block index (in relation to inode!)
 ;	r1  =	pointer to inode definition
 ;	r6  =	pointer to MDB
 ; On exit:
@@ -511,11 +504,12 @@ FNdt("  r6 (MDB) = %6x8")
 ; i_512bblocks% cannot be used for that, it might be too small (because of
 ; holes in sparse files) or too large (because of indirect blocks).
 ; So now the file's extent is used:
-	LDR	r2,[r6,#s_log_block_size%]	; r2 = log2-10
+	LDR	r2,[r6,#s_blocksize_code%]	; r2 = log2-10
 	LDR	r3,[r1,#i_size%]		; r3 = file extent
 	ADD	r2,r2,#10			; r2 = log2
 	CMP	r3,r0,LSL r2			; cmp extent,wantedoffset
 	BLS	_no_such_block
+; FIXME - check for inode's EXTENTS flag and decide which algo to use here!
 	ADD	r1,r1,#i_block%
 	SUB	r8,r2,#2			; r8 = block pointers per block
 

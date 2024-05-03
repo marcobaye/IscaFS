@@ -21,6 +21,7 @@ FNdt("  r1 (my handle for file) = %1h8")
 ; blocks in traditional UNIX fashion - that is, in 512-byte blocks, regardless
 ; of the file system's logical block size.
 ; FIXME - might still make problems if the file has holes!
+; FIXME - check largefile/hugefile flags
 	LDR	r2,[r1,#i_512bblocks%]
 	ADD	r2,r2,#1		; round to next even number
 	BIC	r2,r2,#1		; (to have multiple of buffer size)

@@ -1,7 +1,7 @@
 REM >Debug Library
 REM (c) Matthew Wilcox
 REM Lots of useful debugging routines.
-REM 23 Mar 2004: not yet 32bitclean
+REM 23 Mar 2004 - not yet 32bitclean
 
 REM 26th March, 1998 - FNdbg_func added by Phil Norman
 REM   Note - use FNdbg_func sparingly - it takes about 320 bytes (depending
