@@ -33,9 +33,8 @@ FNdt(">>> FS_Declare")
 	mov	r2,#FS_Info
 	mov	r3,r12
 	swi	"XOS_FSControl"
-	ldrvcb	R0,[R12,#sysflags]
-	orrvc	R0,R0,#sysflag_ifs_registered%
-	strvcb	R0,[R12,#sysflags]
+	movvc	r0, #1
+	strvcb	r0, [r12, #b_ifs_registered%]
 FNdt("<<< FS_Declare")
 	FNreturnAsIs
 
@@ -160,13 +159,12 @@ FNdt(">>> Module_Finalise")
 ;------------------------
 ; remove filing system
 	CMP	R0,R0				; clear V for FNreturnOnErr
-	ldrb	R0,[R12,#sysflags]
-	TST	R0,#sysflag_ifs_registered%	; if ifs is registered,
-	BICNE	R0,R0,#sysflag_ifs_registered%		; mark as unregistered
-	strneb	R0,[R12,#sysflags]
-	MOVNE	r0,#FSC_RemoveImageFS			; and unregister
-	MOVNE	r1,#filetype%
-	SWINE	"XOS_FSControl"
+	ldrb	r0, [r12, #b_ifs_registered%]
+	movs	r0, r0, lsr #1			; if ifs is registered,
+	strcsb	r0, [r12, #b_ifs_registered%]		; mark as unregistered
+	movcs	r0, #FSC_RemoveImageFS			; and unregister
+	movcs	r1, #filetype%
+	swics	"XOS_FSControl"
 	; this way, if unregistering gives an error, the module can still be
 	; killed by just trying again.
 	FNreturnOnErr

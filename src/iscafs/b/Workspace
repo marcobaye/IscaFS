@@ -14,13 +14,11 @@ ptr_blockbuffer	= FNwksp_int
 ptr_inodebuffer	= FNwksp_int
 read_part_fn	= FNwksp_int:REM ReadPartition function ptr (29/38/64 bits)
 disc_size_limit_log2	= FNwksp_byte:REM 29, 38 or 64
-sysflags		= FNwksp_byte
-	sysflag_ifs_registered%	= 1:REM if set, de-register IFS on exit (needed to keep from deregistering twice)
+b_ifs_registered%	= FNwksp_byte:REM byte flag, if set, de-register IFS on exit (needed to keep from deregistering twice)
 wordpadding1		= FNwksp_short
 filetypebuffer	= FNwksp_add(1,12):REM needed for conversions
 	len_filetypebuf	= 11:REM maximum length of ".ext" extension
 last_volume_id	= FNwksp_int:REM incremented on each mount so old cache entries do not match
-REMdeb2		= FNwksp_int
 IF debug% THEN
 	DebugHandle%	= FNwksp_int
 	DebugIndent%	= FNwksp_int
