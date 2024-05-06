@@ -43,7 +43,7 @@ FNdt("  r2 (buffer size if known) = %2i4")
 	TEQ	r4,r0
 	LDR	r4,_special_words+4
 	TEQEQ	r4,r3
-	BEQ	_pseudo_image
+	BEQ	_pseudo_image		; init, read superblock, then jump to _check_image
 ; FIXME - all of this should be the other way around:
 ; first try to read the superblock (at offset 1024), and only if that fails,
 ; try to interpret the file as a pseudo image file (which is much smaller).
@@ -62,18 +62,40 @@ FNdt("  r2 (buffer size if known) = %2i4")
 	BVS	_bad_image
 	TEQ	r3,#0
 	BNE	_bad_image
-;------------------------
-; check if the magic word (ef53) is correct.
+
 ._check_image
 FNdt("_check_image")
-	LDR	r3,[r6,#s_magic%]
-	MOV	r3, r3, LSL #16		; move r3 to the top half
-	EOR	r3, r3, #&ef000000	; will be set to 0 if equal
-	TEQ	r3, #&00530000		; ditto. (TEQ == EORS)
-	BNE	_bad_image
-; FIXME - check revision (accept only 0 and 1)
-; FIXME - determine inode size and remember it
-; FIXME - check file system features and maybe complain
+;------------------------
+; check if the magic word (ef53) is correct.
+	ldr	r3, [r6, #s_magic%]	; s_state% is now in upper half
+	mov	r0, #&ef000000		; build magic number
+	orr	r0, r0, #&530000
+	teq	r0, r3, lsl #16		; and check
+	bne	_bad_image
+; check state, refuse if not clean
+	movs	r3, r3, lsr #17		; as ext4_state_clean% is 1, expect Z+C
+	bcc	_not_clean
+	bne	_unexpected_state_bits
+; check revision (only 0 and 1 are allowed)
+	ldr	r3, [r6, #s_rev_level%]
+	movs	r3, r3, lsr #1		; expect Z, check C
+	bne	_unknown_revision
+	movcc	r0, #128		; std inode size
+	bcc	_set_inode_size
+; it's revision 1, so we can read additional fields
+; check incompatible features:
+	ldr	r0, [r6, #s_feature_incompat%]	; features the fs uses
+	ldr	r2, _allowed_incompat_features	; features we support (includes 64bit)...
+	bics	r2, r0, r2
+	bne	_incompatible
+	tst	r0, #incompat_64bit		; ...but we do not yet _really_ support 64bit!
+	bne	_incompat64
+; read and remember inode size
+	ldr	r0, [r6, #s_inode_size%]	; it's a short, so clear high bits
+	mov	r0, r0, lsl #16
+	mov	r0, r0, lsr #16
+._set_inode_size
+	str	r0, [r6, #mnt_inode_size%]	; remember inode size
 ;------------------------
 ; link in the new mount block
 	LDR	r0,[r12,#firstmount]
@@ -150,6 +172,9 @@ FNdt("  r1 (my file handle) = %1x8")
 	EQUD	&4cee68fe
 	EQUD	&32747865	; "ext2"
 
+._allowed_incompat_features
+	equd	supported_incompat%
+
 ._error_return
 	MOV	r2,r6
 	BL	Memory_Free
@@ -168,6 +193,31 @@ FNdt("<<! Image_Mount (no such device)")
 	MOV	r2,r6
 	BL	Memory_Free
 	FNreturnError("The device this partition lives on is not active.")
+
+._not_clean
+	MOV	r2,r6
+	BL	Memory_Free
+	FNreturnError("File system wasn't cleanly unmounted.")
+
+._unexpected_state_bits
+	MOV	r2,r6
+	BL	Memory_Free
+	FNreturnError("Unexpected state bits set in superblock.")
+
+._unknown_revision
+	MOV	r2,r6
+	BL	Memory_Free
+	FNreturnError("Unknown file system revision.")
+
+._incompatible
+	MOV	r2,r6
+	BL	Memory_Free
+	FNreturnError("File system uses incompatible features.")
+
+._incompat64
+	MOV	r2,r6
+	BL	Memory_Free
+	FNreturnError("File system has 64bit feature flag set.")
 
 ._filecore
 	EQUS	"FileCore%"

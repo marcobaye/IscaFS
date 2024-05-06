@@ -244,7 +244,7 @@ FNdt("  r1 (cache entry) = %1x8")
 ; Store all pertinent information about this block.
 	mov	r1,r4		; Return value - pointer to cache entry.
 	mov	r0,r2		; Return value - pointer to block data.
-	beq	_read_from_hole
+	beq	_read_from_hole	; wait, we're actually _caching_ empty blocks? why not check for "block 0" much earlier?
 	add	r8,r8,#10	; Shift for block num -> file offset.
 FNdt("  r7 () = %7x8")
 	mov	r4,r7,lsl r8	; Get file offset (low) from block number.
@@ -446,14 +446,14 @@ FNdt("  r0 (inode structure) = %0x8")
 
 .Cache_BlockFromInode
 FNdt(">>> Cache_BlockFromInode")
-FNdt("  r0 (block number) = %0i4")
+FNdt("  r0 (block index) = %0i4")
 FNdt("  r1 (inode definition) = %1x8")
 FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Returns a pointer to the nth block of an inode.
 ;------------------------
 ; On entry:
-;	r0  =	block number
+;	r0  =	block index (in inode's "block list")
 ;	r1  =	pointer to inode definition
 ;	r6  =	pointer to MDB
 ; On exit:
@@ -486,14 +486,14 @@ FNdt("  r2 (block table entry) = %2x8")
 
 .Cache_BlockNumberFromInode
 FNdt(">>> Cache_BlockNumberFromInode")
-FNdt("  r0 (block number) = %0i4")
+FNdt("  r0 (block index) = %0i4")
 FNdt("  r1 (inode definition ptr) = %1x8")
 FNdt("  r6 (MDB) = %6x8")
 ;------------------------
 ; Gets the block number of an inode's nth block.
 ;------------------------
 ; On entry:
-;	r0  =	block index (in relation to inode!)
+;	r0  =	block index (in inode's "block list")
 ;	r1  =	pointer to inode definition
 ;	r6  =	pointer to MDB
 ; On exit:
@@ -509,22 +509,29 @@ FNdt("  r6 (MDB) = %6x8")
 	ADD	r2,r2,#10			; r2 = log2
 	CMP	r3,r0,LSL r2			; cmp extent,wantedoffset
 	BLS	_no_such_block
-; FIXME - check for inode's EXTENTS flag and decide which algo to use here!
-	ADD	r1,r1,#i_block%
+; check for inode's EXTENTS flag and decide which algo to use
+	ldr	r3, [r1, #i_flags%]
+	tst	r3, #ext4_extents_flag%
+	movne	r8, r0				; r8 = block index
+	movne	r2, #10				; initial tree depth for sanity check (anything >5 should suffice)
+	addne	r0, r1, #i_block%		; r0 -> root node of extent tree
+	bne	_extents_read_header
+; old scheme (12 data blocks, 1 indirect, 1 doubly-indirect, 1 triply-indirect block)
+	add	r1, r1, #i_block%		; r1 -> block numbers
 	SUB	r8,r2,#2			; r8 = block pointers per block
 
 	subs	r4,r0,#12			; main section?
-	bge	_sub_block
+	bge	_indirect
 	ldr	r0,[r1,r0,LSL #2]; get block number
 FNdt("<<< Cache_BlockNumberFromInode (primary block)")
 FNdt("  r0 (block number) = %0i4")
 	FNreturnClean
 
-._sub_block
+._indirect
 	MOV	r3,#1
 	MOV	r3,r3,LSL r8		; number of words in one block
 	SUBS	r2,r4,r3		; this level ok?
-	BGE	_sub_sub_block
+	BGE	_doubly_indirect
 	LDR	r0,[r1,#12*4]		; get 13th block number
 	BL	Cache_GetBlock
 	LDRVC	r0,[r0,r4,LSL #2]
@@ -532,10 +539,10 @@ FNdt("<<< Cache_BlockNumberFromInode (indirected block)")
 FNdt("  r0 (block number) = %0i4")
 	FNreturnAsIs
 
-._sub_sub_block
+._doubly_indirect
 	MOV	r3,r3,LSL r8
 	SUBS	r4,r2,r3		; this level ok?
-	BGE	_sub_sub_sub_block
+	BGE	_triply_indirect
 	LDR	r0,[r1,#13*4]		; get 14th block number
 	BL	Cache_GetBlock
 	MOVVC	r4,r2,LSR r8		; get next parent block
@@ -547,7 +554,7 @@ FNdt("<<< Cache_BlockNumberFromInode (doubly indirected block)")
 FNdt("  r0 (block number) = %0i4")
 	FNreturnAsIs
 
-._sub_sub_sub_block
+._triply_indirect
 	LDR	r0,[r1,#14*4]		; get 15th block number
 	BL	Cache_GetBlock
 	MOVVC	r3,r8,LSL #1
@@ -569,3 +576,82 @@ FNdt("<<? Cache_BlockNumberFromInode (unknown block)")
 FNdt("  r0 (block number) = %0i4 (returning -1)")
 	MVN	r0,#0			; return -1 (no more blocks)
 	FNreturnClean
+
+._extents_read_index
+; r1 -> struct to use
+	; o0 = first block index covered by this
+	; o4 = block number of next extent node
+	; o8 = blocknumhi (actually only 16 bits)
+; r4 = previous depth
+; r6 -> MDB
+; r8 = block index
+	ldr	r0, [r1, #4]
+	; r0 = hold block number
+	bl	Cache_GetBlock
+	; r0 -> block contents
+	; r1 -> "block table entry"
+	FNreturnOnErr
+	mov	r2, r4			; adjust depth
+._extents_read_header
+; r0 -> extent header
+; r1 free to use
+; r2 = previous tree depth (for sanity check)
+; r3-r4 free to use
+; r6 -> MDB
+; r8 = block index
+	ldmia	r0, {r3, r4}		; read header (third word is of no interest)
+	; r3 = number of filled slots (hi), magic f30a (lo)
+	; r4 = depth (hi), number of total slots (lo)
+	mov	r3, r3, ror #16		; r3 = magic f30a (hi), filled slots (lo)
+	mov	r4, r4, lsr #16		; r4 = depth
+	; check magic
+	eor	r3, r3, #&f3000000
+	eor	r3, r3, #&000a0000
+	cmp	r3, #&10000
+	bcs	_extents_err_magic	; r3 = slots left to check (might be zero!)
+	; check depth (must decrease)
+	cmp	r4, r2			; r2 = now free for other uses
+	bcs	_extents_err_depth
+; use header as fake "candidate"
+	mov	r1, r0			; r1 -> candidate
+._cand_loop
+	subs	r3, r3, #1		; still entries left?
+	bmi	_use_candidate
+; check next entry
+	ldr	r2, [r1, #12]!		; get next entry's first block index and make it the new candidate
+	cmp	r8, r2			; if ours is at least that high,
+	bcs	_cand_loop		; go on and try again
+	sub	r1, r1, #12		; go back to previous candidate
+._use_candidate
+	teq	r0, r1			; if "candidate" is header, we don't really have a candidate
+	beq	_return_zero
+; now check depth for zero
+	teq	r4, #0
+	bne	_extents_read_index	; block holds another extent node, so load that and try again
+;_extents_read_leaf
+; r1 -> leaf struct to check and use
+	ldmia	r1, {r2, r3, r4}
+	; r2 = first block index convered by this (no, it wasn't necessarily already in r2 before)
+	; r3 = blocknumhi(hi) length(lo)	(length is in 1..32768 range, otherwise error because uninitialized)
+	; r4 = block number
+	mov	r3, r3, lsl #16
+	cmp	r3, #&80000000
+	bhi	_extents_err_notinit
+	sub	r0, r8, r2		; convert block index to "block offset in this extent"
+	cmp	r0, r3, lsr #16		; is it actually part of this extent?
+	bcs	_return_zero		; no -> must be a hole then
+	add	r0, r0, r4		; convert to block number
+	FNreturnClean
+
+._return_zero
+	mov	r0, #0			; block number 0 means a hole
+	FNreturnClean
+
+._extents_err_magic
+	FNreturnError("Extent misses magic number.")
+
+._extents_err_depth
+	FNreturnError("Extent depth did not decrease.")
+
+._extents_err_notinit
+	FNreturnError("Extent is not initialized.")
