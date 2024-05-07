@@ -80,22 +80,32 @@ FNdt("_check_image")
 	ldr	r3, [r6, #s_rev_level%]
 	movs	r3, r3, lsr #1		; expect Z, check C
 	bne	_unknown_revision
-	movcc	r0, #128		; std inode size
-	bcc	_set_inode_size
+	movcc	r0, #7			; traditional inode size log2
+	; FIXME - also set traditional block group descriptor size?
+	bcc	_set_inode_size_log2
 ; it's revision 1, so we can read additional fields
 ; check incompatible features:
 	ldr	r0, [r6, #s_feature_incompat%]	; features the fs uses
 	ldr	r2, _allowed_incompat_features	; features we support (includes 64bit)...
 	bics	r2, r0, r2
 	bne	_incompatible
-	tst	r0, #incompat_64bit		; ...but we do not yet _really_ support 64bit!
+	tst	r0, #incompat_64bit		; ...but we do not yet _really_ support 64bit! FIXME
 	bne	_incompat64
-; read and remember inode size
-	ldr	r0, [r6, #s_inode_size%]	; it's a short, so clear high bits
-	mov	r0, r0, lsl #16
-	mov	r0, r0, lsr #16
-._set_inode_size
-	str	r0, [r6, #mnt_inode_size%]	; remember inode size
+; check inode size
+	ldr	r2, [r6, #s_inode_size%]	; inode size is in the lower 16 bits
+	mov	r2, r2, lsl #16
+	mov	r0, #7				; 7 for 128
+	teq	r2, #&00800000			; 128?
+	movne	r0, #8				; 8 for 256
+	teqne	r2, #&01000000			; 256?
+	bne	_unsupported_inode_size
+._set_inode_size_log2
+	strb	r0, [r6, #mnt_inode_size_log2%]	; remember inode size
+	; use inode size and block size to calculate "inodes per block"
+	ldr	r2, [r6, #s_blocksize_code%]
+	add	r2, r2, #10
+	sub	r0, r2, r0
+	strb	r0, [r6, #mnt_inodes_per_block_log2%]
 ;------------------------
 ; link in the new mount block
 	LDR	r0,[r12,#firstmount]
@@ -217,7 +227,12 @@ FNdt("<<! Image_Mount (no such device)")
 ._incompat64
 	MOV	r2,r6
 	BL	Memory_Free
-	FNreturnError("File system has 64bit feature flag set.")
+	FNreturnError("File system has 64bit feature flag set.")	; FIXME - support/remove!
+
+._unsupported_inode_size
+	MOV	r2,r6
+	BL	Memory_Free
+	FNreturnError("Inode size is neither 128 nor 256.")
 
 ._filecore
 	EQUS	"FileCore%"

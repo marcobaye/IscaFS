@@ -87,9 +87,13 @@ REM mnt_inodetabaddr%	= FNwksp_int	:REM used for write support
 REM mnt_numgroups%	= FNwksp_int	:REM used for write support
 mnt_groupdescs%		= FNwksp_int	:REM group descriptor cache (FIXME - shrink, only keep block numbers!)
 mnt_volume_id%		= FNwksp_int	:REM ensures old cache entries do not match
-mnt_inode_size%		= FNwksp_int	:REM 128 or 256
+mnt_inode_size_log2%	= FNwksp_byte	:REM 7 for 128, 8 for 256
+mnt_inodes_per_block_log2%	= FNwksp_byte	:REM 2/3/4/5 (3/4/5 for 128, 2/3/4 for 256)
+mnt_pad_short		= FNwksp_short	:REM replace with some field for "group descriptor size"
 
 REM superblock structure (inside mount descriptor structure)
+REM FIXME - do not include a large chunk of the superblock in the MDB, just
+REM copy the fields we need!
 superblock%		= FNwksp_length
 s_inodes_count%		= FNwksp_int
 s_blocks_count%		= FNwksp_int
@@ -157,7 +161,7 @@ REM s_last_orphan		= FNwksp_int
 REM s_hash_seed			= FNwksp_add(4,4)
 REM s_def_hash_version		= FNwksp_byte
 REM s_jnl_backup_type		= FNwksp_byte
-REM s_desc_size			= FNwksp_short:REM block group descriptor size if fs has the 64bit feature flag set
+REMs_desc_size			= FNwksp_short:REM block group descriptor size if fs has the 64bit feature flag set
 REM end of superblock structure (actually it goes on, but we don't care)
 REM Note: len_superblock% is not the actual length of a superblock, but the
 REM length of it that should be read into the block.

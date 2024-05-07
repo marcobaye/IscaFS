@@ -416,29 +416,28 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r0  =	pointer to inode structure
 ;------------------------
 	FNfunction("r1-r4")
-	SUB	r0,r0,#1		; inodes are numbered from 1 - b'zarre
+	SUB	r2, r0, #1		; inodes are numbered from 1 - b'zarre
 	LDR	r3,[r6,#s_inodes_per_group%]
-	MOV	r2,r0
-	BL	Divide			; r0 = r2/r3 (block group) ; r2 = r2%r3 (inode index in block group)
+	BL	Divide			; r0 = r2/r3 (block group), r2 = r2%r3 (inode index in block group)
 	FNreturnOnErr
-; group descriptors contain *absolute* block numbers!
+; convert block group value to block number where the group's inode table starts
 	LDR	r14,[r6,#mnt_groupdescs%]
-	ADD	r0,r14,r0,LSL #shift_groupdesc%
-	LDR	r0,[r0,#bg_inode_table%]; block number of inode table start
-
-	LDR	r1,[r6,#s_blocksize_code%]
+	ADD	r0,r14,r0,LSL #shift_groupdesc%	; r0 -> relevant group descriptor
+	LDR	r0,[r0,#bg_inode_table%]	; r0 = block number of relevant inode table start
+; convert "inode index in block group" to block number and "inode index in block"
+	ldrb	r1, [r6, #mnt_inodes_per_block_log2%]
 	MOV	r14, #1			; StrongARM order
-	ADD	r1, r1, #3		; convert block size to inodes_per_block_log2 (FIXME - implies inode size of 128!)
 	ADD	r0, r0, r2, LSR r1	; block index in group's inode table
 	MOV	r14, r14, LSL r1	; inodes in block
 	SUB	r14, r14, #1		; mask
 	AND	r2, r2, r14		; inode index in block
-	BL	Cache_GetBlock		; removed useless VC condition
+	BL	Cache_GetBlock		; r0 -> block from inode table
 #if config_write%
 	STRVC	r0,[r6,#mnt_inodeblockaddr%]
 	STRVC	r1,[r6,#mnt_inodetabaddr%]
 #endif
-	ADDVC	r0,r0,r2,LSL #7		; inode offset in block (FIXME - implies inode size of 128!)
+	ldrvcb	r14, [r6, #mnt_inode_size_log2%]
+	addvc	r0, r0, r2, lsl r14	; inode offset in block
 FNdt("<<< Cache_GetInodePointer")
 FNdt("  r0 (inode structure) = %0x8")
 	FNreturnAsIs
