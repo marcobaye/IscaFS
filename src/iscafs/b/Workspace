@@ -82,14 +82,16 @@ mnt_instanceword%	= FNwksp_int
 mnt_descriptor%		= FNwksp_int
 mnt_readbytes%		= FNwksp_int	:REM Read_File/Partition29/Partition38/Partition64
 mnt_writebytes%		= FNwksp_int	:REM Write_File/Error_ReadOnly
+mnt_block_size%		= FNwksp_int	:REM 1024/2048/4096
 REM mnt_inodeblockaddr%	= FNwksp_int	:REM used for write support
 REM mnt_inodetabaddr%	= FNwksp_int	:REM used for write support
 REM mnt_numgroups%	= FNwksp_int	:REM used for write support
-mnt_groupdescs%		= FNwksp_int	:REM group descriptor cache (FIXME - shrink, only keep block numbers!)
+mnt_inode_tables%	= FNwksp_int	:REM one block number for each group
 mnt_volume_id%		= FNwksp_int	:REM ensures old cache entries do not match
 mnt_inode_size_log2%	= FNwksp_byte	:REM 7 for 128, 8 for 256
 mnt_inodes_per_block_log2%	= FNwksp_byte	:REM 2/3/4/5 (3/4/5 for 128, 2/3/4 for 256)
-mnt_pad_short		= FNwksp_short	:REM replace with some field for "group descriptor size"
+mnt_groupdesc_size%	= FNwksp_byte	:REM 32/64
+mnt_padding_byte	= FNwksp_byte
 
 REM superblock structure (inside mount descriptor structure)
 REM FIXME - do not include a large chunk of the superblock in the MDB, just
@@ -149,19 +151,21 @@ s_feature_incompat%	= FNwksp_int:REM incompatible features
 s_feature_ro_compat%	= FNwksp_int:REM readonly-compatible features
 s_uuid%			= FNwksp_add(4,4)
 s_volume_name%		= FNwksp_add(1,16)
-REM s_last_mounted%		= FNwksp_add(1,64)
-REM s_algorithm_usage_bitmap	= FNwksp_int
-REM s_prealloc_blocks		= FNwksp_byte
-REM s_prealloc_dir_blocks	= FNwksp_byte
-REM s_reserved_gdt_blocks	= FNwksp_short
-REM s_journal_uuid		= FNwksp_add(1,16)
-REM s_journal_inum		= FNwksp_int
-REM s_journal_dev		= FNwksp_int
-REM s_last_orphan		= FNwksp_int
-REM s_hash_seed			= FNwksp_add(4,4)
-REM s_def_hash_version		= FNwksp_byte
-REM s_jnl_backup_type		= FNwksp_byte
-REMs_desc_size			= FNwksp_short:REM block group descriptor size if fs has the 64bit feature flag set
+REM not really needed, start
+	s_last_mounted%		= FNwksp_add(1,64)
+	s_algorithm_usage_bitmap= FNwksp_int
+	s_prealloc_blocks	= FNwksp_byte
+	s_prealloc_dir_blocks	= FNwksp_byte
+	s_reserved_gdt_blocks	= FNwksp_short
+	s_journal_uuid		= FNwksp_add(1,16)
+	s_journal_inum		= FNwksp_int
+	s_journal_dev		= FNwksp_int
+	s_last_orphan		= FNwksp_int
+	s_hash_seed		= FNwksp_add(4,4)
+	s_def_hash_version%	= FNwksp_byte	:REM used to read s_desc_size% because of alignment!
+	s_jnl_backup_type	= FNwksp_byte
+REM end
+s_desc_size%		= FNwksp_short:REM block group descriptor size if fs has the 64bit feature flag set
 REM end of superblock structure (actually it goes on, but we don't care)
 REM Note: len_superblock% is not the actual length of a superblock, but the
 REM length of it that should be read into the block.

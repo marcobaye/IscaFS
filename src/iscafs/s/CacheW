@@ -72,8 +72,7 @@ FIXME - check signedness
 	MOV	r2,r0			; turn target block -> target group
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
 	FNreturnOnErr
-	LDR	r3,[r6,#mnt_groupdescs%]
-; group descriptors contain *absolute* block numbers
+	LDR	r3,[r6,#mnt_groupdescs%]	: FIXME - descriptors are no longer held in memory
 ; this is still totally bogus - but lacking write capability, who cares?
 	ADD	r3,r3,r0,LSL #shift_groupdesc%
 	LDR	r0,[r3,#bg_block_bitmap%]
@@ -241,7 +240,7 @@ FIXME - check signedness
 ;	r2  =	actual size allocated to object in bytes
 ;------------------------
 	FNfunction("r1,r3-r5,r7,r8")
-	LDR	r0,[r6,#mnt_groupdescs%]	; FIXME, corrupts r0
+	LDR	r0,[r6,#mnt_groupdescs%]	; FIXME, corrupts r0 (and descriptors are no longer held in memory)
 	MOV	r8,r2
 ;------------------------
 ; get the group number the target block is in
@@ -327,10 +326,9 @@ FIXME - check signedness
 	MOV	r2,r1
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
 	FNreturnOnErr
-	LDR	r3,[r6,#mnt_groupdescs%]
+	LDR	r3,[r6,#mnt_groupdescs%]	; FIXME, descriptors are no longer held in memory
 	LDR	r5,[r6,#s_free_inodes_count%]
 	ADD	r3,r3,r0,LSL #shift_groupdesc%
-; group descriptors contain *absolute* block numbers
 ; this is still totally bogus - but lacking write capability, who cares?
 	LDR	r14,[r3,#bg_free_inodes_count%]	; FIXME, only half-word!
 	ADD	r5,r5,#1

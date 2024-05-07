@@ -76,29 +76,38 @@ FNdt("_check_image")
 	movs	r3, r3, lsr #17		; as ext4_state_clean% is 1, expect Z+C
 	bcc	_not_clean
 	bne	_unexpected_state_bits
+; set default value for group descriptor size (might get changed further down)
+	mov	r0, #32			; traditional group descriptor size
+	strb	r0, [r6, #mnt_groupdesc_size%]
 ; check revision (only 0 and 1 are allowed)
 	ldr	r3, [r6, #s_rev_level%]
 	movs	r3, r3, lsr #1		; expect Z, check C
 	bne	_unknown_revision
 	movcc	r0, #7			; traditional inode size log2
-	; FIXME - also set traditional block group descriptor size?
 	bcc	_set_inode_size_log2
 ; it's revision 1, so we can read additional fields
 ; check incompatible features:
-	ldr	r0, [r6, #s_feature_incompat%]	; features the fs uses
-	ldr	r2, _allowed_incompat_features	; features we support (includes 64bit)...
-	bics	r2, r0, r2
-	bne	_incompatible
-	tst	r0, #incompat_64bit		; ...but we do not yet _really_ support 64bit! FIXME
-	bne	_incompat64
-; check inode size
-	ldr	r2, [r6, #s_inode_size%]	; inode size is in the lower 16 bits
-	mov	r2, r2, lsl #16
-	mov	r0, #7				; 7 for 128
-	teq	r2, #&00800000			; 128?
-	movne	r0, #8				; 8 for 256
-	teqne	r2, #&01000000			; 256?
-	bne	_unsupported_inode_size
+		ldr	r0, [r6, #s_feature_incompat%]	; features the fs uses
+		ldr	r2, _allowed_incompat_features	; features we support
+		bics	r2, r0, r2
+		bne	_incompatible
+; check 64bit flag and set group descriptor size accordingly:
+		tst	r0, #incompat_64bit
+		beq	_check_inode_size
+			ldr	r0, [r6, #s_def_hash_version%]	; upper half holds s_desc_size%!
+			mov	r0, r0, lsr #16
+			strb	r0, [r6, #mnt_groupdesc_size%]
+			teq	r0, #32
+			teqne	r0, #64
+			bne	_unsupported_group_desc_size
+._check_inode_size
+		ldr	r2, [r6, #s_inode_size%]	; inode size is in the lower 16 bits
+		mov	r2, r2, lsl #16
+		mov	r0, #7				; 7 for 128
+		teq	r2, #&00800000			; 128?
+		movne	r0, #8				; 8 for 256
+		teqne	r2, #&01000000			; 256?
+		bne	_unsupported_inode_size
 ._set_inode_size_log2
 	strb	r0, [r6, #mnt_inode_size_log2%]	; remember inode size
 	; use inode size and block size to calculate "inodes per block"
@@ -106,6 +115,10 @@ FNdt("_check_image")
 	add	r2, r2, #10
 	sub	r0, r2, r0
 	strb	r0, [r6, #mnt_inodes_per_block_log2%]
+	; store block size
+	mov	r0, #1
+	mov	r0, r0, lsl r2
+	str	r0, [r6, #mnt_block_size%]
 ;------------------------
 ; link in the new mount block
 	LDR	r0,[r12,#firstmount]
@@ -122,7 +135,7 @@ FNdt("_check_image")
 	STR	r0,[r12,#last_volume_id]	; store for next time
 	STR	r0,[r6,#mnt_volume_id%]		; and assign to this new volume
 ;------------------------
-; claim memory for all the group descriptors and load them in
+; claim memory for all the inode table block numbers and load them from group descriptors
 	LDR	r2,[r6,#s_blocks_count%]
 	LDR	r3,[r6,#s_blocks_per_group%]
 	BL	Divide			; r0 = r2/r3 ; r2 = r2%r3
@@ -132,47 +145,42 @@ FNdt("_check_image")
 	; r2 = remainder (if != 0, there's a last group of smaller size)
 	TEQ	r2,#0			; is there a partially-filled group?
 	ADDNE	r0,r0,#1		; then increment number of groups
-	; r0 = group count
-	LDR	r5,[r6,#s_blocksize_code%]	; get log2-10 of block size
-#if config_write%
-	STR	r0,[r6,#mnt_numgroups%]		; store group count
-#endif
-	MOV	r3,r0,LSL #shift_groupdesc%	; r3 = size of descriptor table
-	ADD	r7,r5,#10			; r7 = log2 of block size
-	RSB	r8,r5,#22			; r8 = opposite shift value
-	; r3 LSR r7 gives descriptor table size in completely filled blocks
-	; r3 LSL r8 sets Z if any fractional part
-	MOV	r9,r3,LSR r7		; r9 = minimum blocks for table
-	MOVS	r3,r3,LSL r8		; is there a partially-filled block?
-	ADDNE	r9,r9,#1		; if yes, correct block count
-	; r5 = log2-10 of block size
-	; r7 = log2 of block size
-	; r9 = block count (last block might be partially filled)
-	MOV	r3,r9,LSL r7		; r3 = size of desc table (rounded up)
-	BL	Memory_Claim		; r2 points to mem block of r3 bytes
+	; r0 = group count		FIXME - store?
+	mov	r9, r0			; r9 = "groups to do" countdown counter
+	mov	r3, r0, lsl #2			; r3 = size needed for inode table block numbers
+	bl	Memory_Claim			; r2 -> mem block of r3 bytes
 	FNreturnOnErr
-	STR	r2,[r6,#mnt_groupdescs%]	; store pointer
-	; r5 = log2-10 of block size
-	; r9 = block count
-	MOVS	r5,r5			; check block size
-	MOVEQ	r8,#2			; if 1024, table starts at block #2.
-	MOV	r5,#1				; prepare shift
-	MOVNE	r8,#1			; if 2048 or 4096, starts at block #1.
-	MOV	r5,r5,LSL r7			; r5 = block size
-	MOV	r7,r2				; r7 => descriptor table
-	; r9 = number of blocks
-._lp
-		MOV	r0,r8;			; number of block to read
-		BL	Cache_GetBlock		; r0 => block r0
+	str	r2, [r6, #mnt_inode_tables%]	; store pointer to lookup table
+	mov	r7, r2				; r7 -> write position
+; register usage below:
+; r0 = block to load, ptr to block, word to copy
+; r2 -> memory limit
+; r3 -> word to read
+; r4 = block size
+; r5 = group descriptor size (32/64)
+; r6 -> MDB
+; r7 -> word to write
+; r8 = block number of group descriptor table block
+; r9 = countdown (words to copy)
+	ldr	r4, [r6, #mnt_block_size%]
+	ldrb	r5, [r6, #mnt_groupdesc_size%]
+	ldr	r8, [r6, #s_first_data_block%]	; 1 for 1K blocks, 0 for all others
+._load_group_descriptor_block
+		add	r8, r8, #1		; r8 = next block of group descriptor table
+		mov	r0, r8			; number of block to read
+		bl	Cache_GetBlock		; r0 -> block
 		FNreturnOnErr
-		MOV	r1,r7			; r1 => target
-		ADD	r7,r7,r5		; r7 => next target
-		MOV	r2,r5			; r2 = amount to copy
-		BL	Memory_BlockCopy	; ARP, copies multiples of 128!
-		SUBS	r9,r9,#1		; still blocks left?
-		ADD	r8,r8,#1		; next block
-		BGT	_lp
-
+		add	r3, r0, #bg_inode_table%	; r3 -> first word we want to read
+		add	r2, r0, r4			; r2 -> mem limit (after block)
+._copy_descriptor
+		ldr	r0, [r3], r5
+		str	r0, [r7], #4
+		subs	r9, r9, #1
+		beq	_done_with_copy
+		cmp	r3, r2			; read ptr too far?
+		bcc	_copy_descriptor
+		bcs	_load_group_descriptor_block
+._done_with_copy
 FNdt("<<< Image_Mount")
 FNdt("  r1 (my file handle) = %1x8")
 	FNreturnClean
@@ -224,10 +232,10 @@ FNdt("<<! Image_Mount (no such device)")
 	BL	Memory_Free
 	FNreturnError("File system uses incompatible features.")
 
-._incompat64
+._unsupported_group_desc_size
 	MOV	r2,r6
 	BL	Memory_Free
-	FNreturnError("File system has 64bit feature flag set.")	; FIXME - support/remove!
+	FNreturnError("Group descriptor size is neither 32 nor 64.")
 
 ._unsupported_inode_size
 	MOV	r2,r6
@@ -713,7 +721,7 @@ FNdt("  r1 (my handle for image) = %1x8")
 	STR	r0,[r2,#next%]
 	STRNE	r2,[r0,#last%]
 	MOV	r2,r1			; free memory
-	LDR	r1,[r1,#mnt_groupdescs%]
+	ldr	r1, [r1, #mnt_inode_tables%]
 	BL	Memory_Free
 	MOV	r2,r1
 	BL	Memory_Free

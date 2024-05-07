@@ -421,9 +421,8 @@ FNdt("  r6 (MDB) = %6x8")
 	BL	Divide			; r0 = r2/r3 (block group), r2 = r2%r3 (inode index in block group)
 	FNreturnOnErr
 ; convert block group value to block number where the group's inode table starts
-	LDR	r14,[r6,#mnt_groupdescs%]
-	ADD	r0,r14,r0,LSL #shift_groupdesc%	; r0 -> relevant group descriptor
-	LDR	r0,[r0,#bg_inode_table%]	; r0 = block number of relevant inode table start
+	ldr	r14, [r6, #mnt_inode_tables%]
+	ldr	r0, [r14, r0, lsl #2]		; r0 = block number where group's inode table starts
 ; convert "inode index in block group" to block number and "inode index in block"
 	ldrb	r1, [r6, #mnt_inodes_per_block_log2%]
 	MOV	r14, #1			; StrongARM order
