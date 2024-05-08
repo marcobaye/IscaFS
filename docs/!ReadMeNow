@@ -1,11 +1,11 @@
 
 
-                                IscaFS 0.17
-                                07 Jul 2005
+                                IscaFS 0.18
+                                08 May 2024
 
 
-This is release 0.17 of IscaFS. If you did not download this archive from
-    http://home.pages.de/~mac_bacon/smorbrod/IscaFS/
+This is release 0.18 of IscaFS. If you did not download this archive from
+    https://github.com/marcobaye/IscaFS
 or
     http://splodge.fluff.org/~phil/
 just now, then I suggest you check whether there's a newer version
@@ -20,10 +20,10 @@ more details.
 
 
 What it is:
-    IscaFS is an image filing system allowing read-only access to ext2/ext3
+    IscaFS is an image filing system allowing read-only access to ext2/3/4
 file systems. In addition to floppy discs and image files, it also handles
 hard disc partitions (so if you have ARMLinux, you can access the files on
-your ext2/ext3 partitions).
+your ext2/ext3/ext4 partitions).
 
 
 Supported OS versions:
@@ -50,11 +50,22 @@ What this archive contains:
          The actual application containing the image filing system module.
     !ReadMeNow
         *This* file.
-    Source
-        Needed if you want to assemble/compile IscaFS or its helper
-        programs. See the file !IscaFS.Docs.Build on how to do this.
     Support
         Helper programs. See the file !IscaFS.Docs.Support
+
+
+Where the source codes are:
+    If you want to assemble/compile IscaFS or its helper programs, get the
+    sources from
+        https://github.com/marcobaye/IscaFS
+    See the file !IscaFS.Docs.Build on how to build the binaries.
+
+
+Changes from release 0.17, 07 Jul 2005
+          to release 0.18, 08 May 2024:
+
+    Added support for the ext4 file system and many of its features.
+    Added more sanity checks when mounting.
 
 
 Changes from release 0.16, 07 Sep 2004
@@ -93,4 +104,4 @@ Changes from release 0.13, 23 Apr 2004
 
 I think that's all for now.
 Have fun.
-Marco Baye, 07 Jul 2005
+Marco Baye, 08 May 2024

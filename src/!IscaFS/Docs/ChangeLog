@@ -11,6 +11,14 @@ To do
  * Fix known bugs (see "Docs.Bugs" file)
 
 
+08 May 2024, Marco Baye
+~~~~~~~~~~~~~~~~~~~~~~~
+ * Added support for "extents" (an ext4 feature).
+ * Added support for inode size of 256 bytes.
+ * Added support for group descriptor size of 64 bytes.
+ * Released as version 0.18
+
+
 02 May 2024, Marco Baye
 ~~~~~~~~~~~~~~~~~~~~~~~
  * Fixed a bug concerning floppy disc cycle IDs

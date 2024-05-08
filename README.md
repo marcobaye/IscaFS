@@ -1,10 +1,10 @@
 # IscaFS
 
-IscaFS is an ext2 image filing system for RISC OS.
+IscaFS is an ext2/ext3/ext4 image filing system for RISC OS.
 
 ---
 
-IscaFS allows read-only access to files inside ext2/ext3 image files and hard
+IscaFS allows read-only access to files inside ext2/ext3/ext4 image files and hard
 disc partitions. It is released under the GNU GPL.
 
 The software was originally written by Phil Norman, his home page can be
