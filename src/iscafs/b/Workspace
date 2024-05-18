@@ -186,8 +186,8 @@ desc_skew%		= FNwksp_byte
 desc_bootoption%	= FNwksp_byte
 desc_lowsector%		= FNwksp_byte
 desc_nzones%		= FNwksp_byte
-desc_zone_spare%	= FNwksp_add(1,4)	:REM unaligned int
-desc_root%		= FNwksp_short
+desc_zone_spare%	= FNwksp_short
+desc_root%		= FNwksp_int
 desc_disc_size%		= FNwksp_int
 desc_disc_id%		= FNwksp_short
 desc_disc_name%		= FNwksp_add(1,10)
@@ -202,8 +202,8 @@ desc_unknown%		= FNwksp_byte
 desc_format_version%	= FNwksp_int
 desc_root_size%		= FNwksp_int
 desc_reserved%		= FNwksp_current
-
-len_desc%		= 64	:REM it's actually 60, is this value some sort of optimization?
+REM a disc record takes up 60 bytes on disc, but FileCore_DescribeDisc returns 64 bytes.
+len_desc%		= 64	:REM ...so this makes sure our buffer is large enough.
 
 
 REM image flags
