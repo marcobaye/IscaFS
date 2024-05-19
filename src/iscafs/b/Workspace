@@ -74,10 +74,14 @@ next%			= FNwksp_int
 last%			= FNwksp_int
 mnt_flags%		= FNwksp_int
 mnt_filehandle%		= FNwksp_int
-mnt_startsector%	= FNwksp_int
-mnt_endsector%		= FNwksp_int
-mnt_lbtsectorlen%	= FNwksp_int	:REM log to the base 2 of sector length
-mnt_drivenumber%	= FNwksp_int
+REM the next four words are read as a block from the pseudo image file:
+	mnt_startsector%	= FNwksp_int
+	mnt_endsector%		= FNwksp_int
+	mnt_lbtsectorlen%	= FNwksp_int	:REM log2 of sector length
+	mnt_drivenumber%	= FNwksp_int
+	REM log2 and drivenum are basically byte values; if all accesses are
+	REM modified accordingly, the higher bits could be repurposed for
+	REM flag bits (like "no FileCore boot block so fake DiscRecord")
 mnt_instanceword%	= FNwksp_int
 mnt_descriptor%		= FNwksp_int
 mnt_readbytes%		= FNwksp_int	:REM Read_File/Partition29/Partition38/Partition64

@@ -31,14 +31,15 @@ FNdt("  r2 (buffer size if known) = %2i4")
 	STR	r1,[r6,#mnt_filehandle%]
 ;------------------------
 ; check to see if it's a pseudo-image
-	MOV	r0,#3
-	ADD	r2,r6,#superblock%
-	MOV	r3,#8			; check first two words
-	MOV	r4,#0
+	MOV	r0, #3			; 3="read from given offset"
+	; r1 = file handle
+	ADD	r2, r6, #superblock%	; target buffer (only used temporarily)
+	MOV	r3, #8			; read two words
+	MOV	r4, #0			; from start of file
 	SWI	"XOS_GBPB"
 	BVS	_bad_image
-	LDMDB	r2,{r0,r3}
-	ADD	r2,r6,#superblock%	; FIXME - what is this for?!
+	LDMDB	r2, {r0, r3}		; go back and fetch words into registers
+	ADD	r2, r6, #superblock%	; (fix r2, remainder of fn expects it)
 	LDR	r4,_special_words
 	TEQ	r4,r0
 	LDR	r4,_special_words+4
@@ -55,7 +56,9 @@ FNdt("  r2 (buffer size if known) = %2i4")
 	STR	r0, [r6, #mnt_flags%]
 ;------------------------
 ; load in enough of the superblock
-	MOV	r0,#3
+	MOV	r0, #3			; 3="read from given offset"
+	; r1 = file handle
+	; r2 -> superblock buffer
 	MOV	r3,#len_superblock%
 	MOV	r4,#1024		; position of first superblock
 	SWI	"XOS_GBPB"
@@ -261,17 +264,19 @@ FNdt("_pseudo_image")
 ; note that it's a partition and get the sector information
 	MOV	r0,#mntflag_partition%
 	STR	r0,[r6,#mnt_flags%]
-	MOV	r0,#3
-	ADD	r2,r6,#mnt_startsector%
-	MOV	r3,#16
-	MOV	r4,#8
+	MOV	r0, #3				; 3="read from given offset"
+	; r1 = file handle
+	ADD	r2, r6, #mnt_startsector%	; start of "start/end/log2/drive" block
+	MOV	r3, #16				; read four words
+	MOV	r4, #8				; after the two magic words
 	SWI	"XOS_GBPB"
 ;------------------------
 ; get the FileCore filing system and read its instance word
-	MOVVC	r0,#3
+	MOVVC	r0, #3				; 3="read from given offset"
+	; r1 = file handle
 	ADRVC	r2, _filesystem
-	MOVVC	r3,#22			; max bytes to read
-	MOVVC	r4,#24
+	MOVVC	r3, #22				; max bytes to read
+	MOVVC	r4, #24				; string is located after six words
 	SWIVC	"XOS_GBPB"
 	FNreturnOnErr
 	MOV	r0,#18
@@ -293,6 +298,9 @@ FNdt("_pseudo_image")
 	STRVCB	r2,[r0,#1]
 	SWIVC	"XFileCore_DescribeDisc"
 	BVS	_error_return
+; FIXME - make sure image file and disc record agree on log2sectorsize!
+; FIXME - if disc record says "1 sector per track and 1 heads total",
+; use 63 sectors per track and 16 heads instead!
 ;------------------------
 ; alter the descriptor block so that it knows the disc is big enough
 	LDR	r2,[r6,#mnt_endsector%]
@@ -379,7 +387,7 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r3  =	number of bytes not read
 ;------------------------
 	FNfunction("r0-r2,r4")
-	MOV	r0,#3
+	MOV	r0, #3				; 3="read from given offset"
 	LDR	r1,[r6,#mnt_filehandle%]
 	SWI	"XOS_GBPB"
 FNdtc(vc, "<<< Image_ReadBytes_File")
@@ -570,7 +578,7 @@ FNdt("  r6 (MDB) = %6x8")
 ;	r3  =	number of bytes not written
 ;------------------------
 	FNfunction("r0-r2,r4")
-	MOV	r0,#1
+	MOV	r0, #1				;1="write to given offset"
 	LDR	r1,[r6,#mnt_filehandle%]
 	SWI	"XOS_GBPB"
 FNdtc(vc, "<<< Image_WriteBytes_File")
