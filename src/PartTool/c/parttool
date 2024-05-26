@@ -27,8 +27,11 @@
 //
 // 20 May 2024: version 3
 //	added "hex" command and support for PC/MBR partition table
+//
+// 21 May 2024: version 4
+//	added "fakepseudo" command
 
-#define VERSION_STRING	"3"
+#define VERSION_STRING	"4"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -89,10 +92,11 @@ struct partition {
 #define OPTION_63_16		"--63-16"
 #define OPTION_BIG		"--big"
 #define OPTION_MBR		"--mbr"
-#define COMMAND_HEX		"hex"
 #define COMMAND_LIST		"list"	// "display" is also supported and does the same
 #define COMMAND_MAKEPSEUDO	"makepseudo"
+#define COMMAND_FAKEPSEUDO	"fakepseudo"
 #define COMMAND_DUMPTOFILE	"dumptofile"
+#define COMMAND_HEX		"hex"
 
 // globals
 struct {
@@ -106,7 +110,7 @@ struct {
 // stuff given via command line arguments
 struct {
 	bool		force_63_16;
-	bool		force_big;
+	bool		force_big;	// does not help us - remove?
 	bool		use_mbr;
 	const char	*filing_system_name;
 	int		drive_number;
@@ -127,22 +131,28 @@ static void show_help(void)
 "Source code is available at https://github.com/marcobaye/IscaFS\n"
 "\n"
 "Usage:\n"
-"%s [OPTIONS] "COMMAND_LIST" FILING_SYSTEM DRIVE\n"
-"        ...list partitions\n"
-"%s [OPTIONS] "COMMAND_MAKEPSEUDO" FILING_SYSTEM DRIVE PARTITION_ID OUTPUT_FILENAME\n"
-"        ...create a pseudo image file for IscaFS\n"
-"%s [OPTIONS] "COMMAND_DUMPTOFILE" FILING_SYSTEM DRIVE PARTITION_ID OUTPUT_FILENAME\n"
-"        ...dump whole partition to file (only if partition size < 4GB)\n"
-"%s [OPTIONS] "COMMAND_HEX" FILING_SYSTEM DRIVE SECTOR_NUMBER\n"
-"        ...show hex dump of sector contents\n"
-		, globals.prog_name, globals.prog_name, globals.prog_name, globals.prog_name);
-	printf(
+"  %s [OPTIONS] COMMAND ARGS_FOR_CMD...\n"
 "\n"
 "Options:\n"
 "  -h, --help    show this help\n"
 "      " OPTION_63_16 "   force 63 sectors per track and 16 heads\n"
 "      " OPTION_BIG "     force \"big disc\" flag to 1\n"
 "      " OPTION_MBR "     use PC-style MBR instead of FileCore/ARMLinux partition table\n"
+"\n"
+"Commands:\n"
+"  "COMMAND_LIST" FILING_SYSTEM DRIVE\n"
+"      ...list partitions\n"
+"  "COMMAND_MAKEPSEUDO" FILING_SYSTEM DRIVE PARTITION_ID OUTPUT_FILENAME\n"
+"      ...create a pseudo image file for IscaFS, for the given partition\n"
+"  "COMMAND_FAKEPSEUDO" FILING_SYSTEM DRIVE SECTOR_SIZE FIRST_SECTOR LAST_SECTOR OUTPUT_FILENAME\n"
+"  "COMMAND_FAKEPSEUDO" FILING_SYSTEM DRIVE SECTOR_SIZE FIRST_SECTOR +SECTOR_COUNT OUTPUT_FILENAME\n"
+"      ...create a pseudo image file for IscaFS, using only command line arguments\n"
+"  "COMMAND_DUMPTOFILE" FILING_SYSTEM DRIVE PARTITION_ID OUTPUT_FILENAME\n"
+"      ...dump whole partition to file (only if partition size < 4 GiB)\n"
+"  "COMMAND_HEX" FILING_SYSTEM DRIVE SECTOR_NUMBER\n"
+"      ...show hex dump of sector contents\n"
+		, globals.prog_name);
+	printf(
 "\n"
 	);
 }
@@ -234,19 +244,19 @@ static void set_sector_limit(unsigned int sector_limit)
 const char *units[]	= {
 		//  leading	bits	bits
 		//  zeroes	shown	ignored
-	"Byte",	//	52	12
-	"KiB",	//	42	12	10
-	"MiB",	//	32	12	20
-	"GiB",	//	22	12	30
-	"TiB",	//	12	12	40
-	"PiB",	//	 2	12	50
-	"EiB"	//		 4	60
+	"Byte",	//	51	13	 0
+	"KiB",	//	41	13	10
+	"MiB",	//	31	13	20
+	"GiB",	//	21	13	30
+	"TiB",	//	11	13	40
+	"PiB",	//	 1	13	50
+	"EiB"	//	 0	 4	60
 };
 static void print_size(unsigned long long number)
 {
 	int	unit	= 0;
 
-	while (number > 4095) {
+	while (number > 8191) {
 		number >>= 10;
 		++unit;
 	}
@@ -356,13 +366,48 @@ static bool iter_armlinux_table(void (*callback)(int id, struct partition *part)
 	if (!globals.found_armlinux)
 		BUG("in partition table handling");
 
+// "partition 1" is the FileCore part of the disc:
+	partition_id = 1;
+	// convert entry to our own format
+	current.start_sector = 0;
+	current.sector_count = ((((unsigned long long) discrecord.disc_size_hi) << 32) | discrecord.disc_size) >> discrecord.log2secsize;
+	// fill in additional fields
+	current.has_pcmbr_fields = FALSE;
+	current.type_string = "FileCore";
+	current.is_linux_native = FALSE;
+	// pass to callback
+	if (callback)
+		callback(partition_id, &current);
+	// remember for caller
+	if (wanted_part && (partition_id == args.desired_partition)) {
+		*wanted_part = current;
+		found = TRUE;
+	}
+// "partition 2" is the ARMLinux partition table:
+	partition_id = 2;
+	// convert entry to our own format
+	current.start_sector = globals.partition_sector;
+	current.sector_count = (discrecord.log2secsize == 9) ? 2 : 1;
+	// fill in additional fields
+	current.has_pcmbr_fields = FALSE;
+	current.type_string = "ARMLinux partition table";
+	current.is_linux_native = FALSE;
+	// pass to callback
+	if (callback)
+		callback(partition_id, &current);
+	// remember for caller
+	if (wanted_part && (partition_id == args.desired_partition)) {
+		*wanted_part = current;
+		found = TRUE;
+	}
+// real partitions start at 3:
 	// set disc size so FileCore won't refuse to access partition table
 	set_sector_limit(globals.partition_sector + 2);	// !PartMan assigns two 512-byte sectors
 	// read partition table to local buffer
 	read_sectors(globals.partition_sector, buffer, ARMLINUX_PARTTABLE_SIZE);
 	// init run pointer
 	part = (struct linux_part *) buffer;
-	partition_id = 3;	// 1 = FileCore, 2 = Linux partition table
+	partition_id = 3;
 	while ((part->magic == MAGIC_NATIVE) || (part->magic == MAGIC_SWAP)) {
 		// convert entry to our own format
 		current.start_sector = globals.partition_sector + part->rel_start_sector;	// convert relative to absolute number
@@ -422,7 +467,7 @@ static bool iter_pcmbr_table(void (*callback)(int id, struct partition *part), s
 		current.is_linux_native = FALSE;	// changed to TRUE if 0x83
 		switch (entry[4]) {
 		case 0x00:
-			current.type_string = "Free";
+			current.type_string = "Unused entry";
 			break;
 		case 0x05:
 			current.type_string = "Extended partition, CHS";
@@ -435,6 +480,10 @@ static bool iter_pcmbr_table(void (*callback)(int id, struct partition *part), s
 			break;
 		case 0x83:
 			current.type_string = "Native";
+			current.is_linux_native = TRUE;
+			break;
+		case 0xfd:
+			current.type_string = "RAID autodetect";
 			current.is_linux_native = TRUE;
 			break;
 		default:
@@ -504,12 +553,39 @@ static void displayinfo(int id, struct partition *part)
 	} else {
 		putchar(' ');
 	}
-	printf("%3d   %10d  %10d", id, part->start_sector, part->sector_count);
+	printf("%3d   %10d  %10d (", id, part->start_sector, part->sector_count);
+	print_size(((unsigned long long) part->sector_count) << discrecord.log2secsize);
+	printf(")");
 	if (part->has_pcmbr_fields)
-		printf(" (%04d/%03d/%02d - %04d/%03d/%02d) %02x", part->pcmbr.first_chs.cylinder, part->pcmbr.first_chs.head, part->pcmbr.first_chs.sector, part->pcmbr.last_chs.cylinder, part->pcmbr.last_chs.head, part->pcmbr.last_chs.sector, part->pcmbr.type);
-	printf(", %s\n", part->type_string);
+		printf(", CHS %04d/%03d/%02d - %04d/%03d/%02d, type %02x", part->pcmbr.first_chs.cylinder, part->pcmbr.first_chs.head, part->pcmbr.first_chs.sector, part->pcmbr.last_chs.cylinder, part->pcmbr.last_chs.head, part->pcmbr.last_chs.sector, part->pcmbr.type);
+	printf(" (%s)\n", part->type_string);
 }
 
+
+// taken from ACME {
+// convert string to unsigned integer
+// copes with hexadecimal if prefixed with "&", "0x" or "0X".
+// assumes decimal otherwise.
+static unsigned int parse_unsigned_int(const char string[], const char error_msg[])
+{
+	unsigned int	result;
+	char		*end;
+	int		base	= 10;
+
+	if (*string == '&') {
+		base = 16;
+		string += 1;
+	} else if ((*string == '0') && ((string[1] == 'x') || (string[1] == 'X'))) {
+		base = 16;
+		string += 2;
+	}
+	result = strtol(string, &end, base);
+	// complain about trailing garbage
+	if (*end)
+		exit_error(error_msg);
+	return result;
+}
+// }
 
 // taken from smorbrod lib {
 #define BYTES_PER_LINE	16
@@ -606,35 +682,23 @@ struct pseudo_image_file {
 	char	fs[256];	// filing system, nullterminated
 };
 // generate a pseudo image file
-static void main_make_pseudo(const char image_file_name[])
+static void create_pseudo(const char image_file_name[], struct partition *part)
 {
-	struct partition		part;
 	struct pseudo_image_file	pif;
 	int				string_length;
-
-	get_module_and_discrecord();
-	read_boot_block();
 
 	// build pseudo image file in memory
 	string_length = strlen(args.filing_system_name) + 1;
 	if (string_length > 256)
 		exit_error("Length of filing system name looks a bit excessive.");
 
-	if (iter_partition_table(NULL, &part) == FALSE)
-		return;	// number not found
-
-	if (!part.is_linux_native) {
-		fprintf(stderr, "Warning: Partition %d might not be an ext2/3/4 partition!\n", args.desired_partition);
-		// do not exit, user might know what they are doing!
-	}
-
-	displayinfo(args.desired_partition, &part);
+	displayinfo(args.desired_partition, part);
 
 	// fill in the struct
 	pif.Phil = 0x4cee68fe;	// "þhîL"       (comment string is UTF-8!)
 	pif.ext2 = 0x32747865;	// "ext2"
-	pif.first_sector = part.start_sector;
-	pif.last_sector = pif.first_sector + part.sector_count - 1;
+	pif.first_sector = part->start_sector;
+	pif.last_sector = pif.first_sector + part->sector_count - 1;
 	pif.log2secsize = discrecord.log2secsize;
 	pif.drive = args.drive_number;
 	strcpy(pif.fs, args.filing_system_name);
@@ -647,7 +711,68 @@ static void main_make_pseudo(const char image_file_name[])
 
 	done("pseudo image file");
 }
+// make a pseudo image file for an existing partition
+static void main_make_pseudo(const char image_file_name[])
+{
+	struct partition	part;
 
+	get_module_and_discrecord();
+	read_boot_block();
+
+	if (iter_partition_table(NULL, &part) == FALSE)
+		return;	// number not found
+
+	if (!part.is_linux_native) {
+		fprintf(stderr, "Warning: Partition %d might not be an ext2/3/4 partition!\n", args.desired_partition);
+		// do not exit, user might know what they are doing!
+	}
+
+	create_pseudo(image_file_name, &part);
+}
+// make a pseudo image file purely from command line data
+static void main_fake_pseudo(const char size[], const char first[], const char *last, const char image_file_name[])
+{
+	int			log2size;
+	struct partition	part;
+
+	args.desired_partition = 0;	// for "displayinfo" output
+	log2size = parse_unsigned_int(size, "Could not parse sector size.");
+	switch (log2size) {
+	case 9:
+	case 10:
+	case 11:
+	case 12:
+		break;
+	case 512:
+		log2size = 9;
+		break;
+	case 1024:
+		log2size = 10;
+		break;
+	case 2048:
+		log2size = 11;
+		break;
+	case 4096:
+		log2size = 12;
+		break;
+	default:
+		exit_error("Invalid sector size.");
+	}
+	discrecord.log2secsize = log2size;
+	part.start_sector = parse_unsigned_int(first, "Could not parse first sector.");
+	if (last[0] == '+') {
+		part.sector_count = parse_unsigned_int(last + 1, "Could not parse sector count.");
+	} else {
+		part.sector_count = parse_unsigned_int(last, "Could not parse end sector.") + 1 - part.start_sector;
+	}
+	if (part.sector_count < 1)
+		exit_error("Sector count is less than 1.");
+	part.type_string = "Fake";
+	part.is_linux_native = TRUE;
+	part.has_pcmbr_fields = FALSE;
+
+	create_pseudo(image_file_name, &part);
+}
 
 // dump partition to file
 static void main_dump_to_file(const char dump_file_name[])
@@ -754,31 +879,6 @@ static void cliargs_check_count(int wanted)
 		exit_error("Wrong number of arguments.");
 }
 
-// taken from ACME {
-// convert string to unsigned integer
-// copes with hexadecimal if prefixed with "&", "0x" or "0X".
-// assumes decimal otherwise.
-static unsigned int parse_unsigned_int(const char string[], const char error_msg[])
-{
-	unsigned int	result;
-	char		*end;
-	int		base	= 10;
-
-	if (*string == '&') {
-		base = 16;
-		++string;
-	} else if ((*string == '0') && ((string[1] == 'x') || (string[1] == 'X'))) {
-		base = 16;
-		string += 2;
-	}
-	result = strtol(string, &end, base);
-	// complain about trailing garbage
-	if (*end)
-		exit_error(error_msg);
-	return result;
-}
-// }
-
 // read filing system name and drive number
 static void get_fs_and_drive(void)
 {
@@ -831,6 +931,16 @@ int main(int argc, char *argv[])
 			get_fs_and_drive();
 			get_partition_number();
 			main_make_pseudo(cliargs_get_next());
+		} else if (strcmp(arg, COMMAND_FAKEPSEUDO) == 0) {
+			const char	*size, *first, *last, *file;
+
+			cliargs_check_count(6);
+			get_fs_and_drive();
+			size = cliargs_get_next();
+			first = cliargs_get_next();
+			last = cliargs_get_next();
+			file = cliargs_get_next();
+			main_fake_pseudo(size, first, last, file);
 		} else if (strcmp(arg, COMMAND_DUMPTOFILE) == 0) {
 			cliargs_check_count(4);
 			get_fs_and_drive();
